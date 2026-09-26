@@ -1,0 +1,543 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --logo-ink: #231f20;
+  --logo-paper: #ffffff;
+  --logo-red: #cc2229;
+  --page: #f5f6f8;
+  --surface: #ffffff;
+  --sunken: #eef0f3;
+  --ink: #14171c;
+  --muted: #5d6573;
+  --faint: #9aa1ad;
+  --line: #e3e6ea;
+  --line-strong: #cfd4db;
+  /* Brand = the chosen accent palette (html[data-accent], see below). */
+  --brand: var(--al1);
+  --brand-2: var(--al2);
+  --brand-soft: var(--als);
+  --chart-accent: var(--al1); /* chart marks; validated separately from the UI accent */
+  --ok: #137a3f;
+  --ok-soft: #e3f4ea;
+  --warn: #9a5b00;
+  --warn-soft: #fdf1dc;
+  --danger: #c62828;
+  --danger-soft: #fdeaea;
+}
+
+/*
+ * Accent palettes, picked with the palette button (html[data-accent]).
+ * al* = light mode (1 and 2 are the gradient stops, s = soft tint); ad* = dark mode, adc = dark chart marks.
+ * Every stop keeps text contrast >= 4.5:1 against its button/background.
+ */
+:root,
+:root[data-accent="ocean"] {
+  --al1: #1d4ed8; --al2: #0e7490; --als: #e6f0ff;
+  --ad1: #38bdf8; --ad2: #22d3ee; --ads: #0b2a3f; --adc: #0284c7;
+}
+:root[data-accent="aurora"] {
+  --al1: #6d28d9; --al2: #be185d; --als: #f3ecff;
+  --ad1: #a78bfa; --ad2: #f472b6; --ads: #2a1a47; --adc: #8b5cf6;
+}
+:root[data-accent="sunset"] {
+  --al1: #c2410c; --al2: #be123c; --als: #fff0e6;
+  --ad1: #fb923c; --ad2: #fb7185; --ads: #3d1d12; --adc: #ea580c;
+}
+:root[data-accent="emerald"] {
+  --al1: #047857; --al2: #0f766e; --als: #e3f7ef;
+  --ad1: #34d399; --ad2: #2dd4bf; --ads: #0d3025; --adc: #059669;
+}
+:root[data-accent="gold"] {
+  --al1: #a16207; --al2: #b45309; --als: #fdf5dc;
+  --ad1: #facc15; --ad2: #fb923c; --ads: #3a2c0c; --adc: #b8860b;
+}
+
+/* Dark theme: follows the system unless the theme button picked one (html[data-theme]). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0e1116;
+    --surface: #161a21;
+    --sunken: #1f242d;
+    --ink: #eceff3;
+    --muted: #9ba3b0;
+    --faint: #6b7380;
+    --line: #262c36;
+    --line-strong: #343b47;
+    --brand: var(--ad1);
+    --brand-2: var(--ad2);
+    --brand-soft: var(--ads);
+    --chart-accent: var(--adc);
+    --ok: #4cc47f;
+    --ok-soft: #14301f;
+    --warn: #f0b04a;
+    --warn-soft: #362a12;
+    --danger: #ff6b6b;
+    --danger-soft: #3a1717;
+    color-scheme: dark;
+    --logo-ink: #eceff3;
+    --logo-paper: #0e1116;
+    --logo-red: #ff4f5a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --page: #0e1116;
+  --surface: #161a21;
+  --sunken: #1f242d;
+  --ink: #eceff3;
+  --muted: #9ba3b0;
+  --faint: #6b7380;
+  --line: #262c36;
+  --line-strong: #343b47;
+  --brand: var(--ad1);
+  --brand-2: var(--ad2);
+  --brand-soft: var(--ads);
+  --chart-accent: var(--adc);
+  --ok: #4cc47f;
+  --ok-soft: #14301f;
+  --warn: #f0b04a;
+  --warn-soft: #362a12;
+  --danger: #ff6b6b;
+  --danger-soft: #3a1717;
+  color-scheme: dark;
+  --logo-ink: #eceff3;
+  --logo-paper: #0e1116;
+  --logo-red: #ff4f5a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-soft: var(--brand-soft);
+  --color-chart: var(--chart-accent);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- brand surfaces ------------------------------------------------------------ */
+
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
+}
+
+/* Primary buttons and links: accent gradient with a light sweep on hover. */
+button.bg-brand,
+a.bg-brand,
+.btn-gradient {
+  background-color: var(--brand);
+  background-image: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.35) 50%, transparent 65%), linear-gradient(135deg, var(--brand), var(--brand-2));
+  background-size: 250% 100%, 100% 100%;
+  background-position: 130% 0, 0 0;
+  background-repeat: no-repeat;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--brand) 75%, transparent);
+  transition: background-position 0.7s ease, box-shadow 0.25s ease, transform 0.15s ease, filter 0.2s ease;
+}
+button.bg-brand:hover:not(:disabled),
+a.bg-brand:hover,
+.btn-gradient:hover {
+  background-position: -30% 0, 0 0;
+  box-shadow: 0 12px 28px -12px color-mix(in srgb, var(--brand) 90%, transparent);
+}
+button.bg-brand:active:not(:disabled),
+a.bg-brand:active {
+  transform: scale(0.98);
+}
+
+/* Page titles: ink fading into the accent. */
+.text-gradient {
+  background-image: linear-gradient(90deg, var(--ink) 20%, var(--brand) 75%, var(--brand-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft, slowly drifting accent glow behind the app. */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora-bg::before,
+.aurora-bg::after {
+  content: "";
+  position: absolute;
+  width: 55vmax;
+  height: 55vmax;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.16;
+}
+.aurora-bg::before {
+  top: -20vmax;
+  right: -12vmax;
+  background: var(--brand);
+  animation: tw-drift-a 22s ease-in-out infinite alternate;
+}
+.aurora-bg::after {
+  bottom: -25vmax;
+  left: -10vmax;
+  background: var(--brand-2);
+  animation: tw-drift-b 26s ease-in-out infinite alternate;
+}
+:root[data-theme="dark"] .aurora-bg::before,
+:root[data-theme="dark"] .aurora-bg::after {
+  opacity: 0.2;
+}
+
+@keyframes tw-drift-a {
+  to { transform: translate(-14vmax, 10vmax) scale(1.15); }
+}
+@keyframes tw-drift-b {
+  to { transform: translate(12vmax, -8vmax) scale(1.1); }
+}
+
+/* Logo tile: gradient with a periodic glint. */
+.logo-tile {
+  background-image: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%), linear-gradient(135deg, var(--brand), var(--brand-2));
+  background-size: 300% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  animation: tw-glint 6s ease-in-out infinite;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--brand) 80%, transparent);
+}
+@keyframes tw-glint {
+  0%, 70% { background-position: 150% 0, 0 0; }
+  100% { background-position: -50% 0, 0 0; }
+}
+
+/* Active sidebar item. */
+.nav-active {
+  background-image: linear-gradient(90deg, var(--brand), var(--brand-2));
+  color: var(--surface);
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--brand) 90%, transparent);
+}
+
+/* KPI tiles: gradient hairline on top, glow on hover, pulsing border when critical. */
+.kpi-card { position: relative; overflow: hidden; }
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background-image: linear-gradient(90deg, var(--brand), var(--brand-2));
+  opacity: 0.85;
+}
+.kpi-card[data-tone="danger"]::before { background: var(--danger); }
+.kpi-card[data-tone="warn"]::before { background: var(--warn); }
+.kpi-card[data-tone="ok"]::before { background: var(--ok); }
+.kpi-card[data-tone="danger"] { animation: tw-alarm 2.4s ease-in-out infinite; }
+.kpi-chip { transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.kpi-card:hover .kpi-chip { transform: rotate(-8deg) scale(1.12); }
+
+@keyframes tw-alarm {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 0%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 18%, transparent); }
+}
+
+/* ---- logo ----------------------------------------------------------------------- */
+
+/* Logo on a white card in any theme (e.g. over the login sky). */
+.logo-light { --logo-ink: #231f20; --logo-paper: #ffffff; --logo-red: #cc2229; }
+
+.logo-ink { fill: var(--logo-ink); }
+.logo-paper { fill: var(--logo-paper); }
+.logo-red { fill: var(--logo-red); }
+
+/* Wheel parts turn around the tyre's centre (PDF coordinates). */
+.tw-logo .tw-tread,
+.tw-logo .tw-ring {
+  transform-box: view-box;
+  transform-origin: 475px 311px;
+}
+
+/* Intro: tyre rolls in, banner slides out, swoosh draws across, W bounces, letters follow. */
+.logo-intro .tw-tread { animation: tw-roll-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.logo-intro .tw-ring { animation: tw-roll-in-rev 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both; }
+.logo-intro .tw-banner {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: tw-banner 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s both;
+}
+.logo-intro .tw-swoosh { animation: tw-draw 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.4s both; }
+.logo-intro .tw-trust {
+  animation: tw-letter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.5s + var(--i) * 60ms);
+}
+.logo-intro .tw-w {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tw-w-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) 0.75s both;
+}
+.logo-intro .tw-heels {
+  animation: tw-letter-x 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.9s + var(--i) * 60ms);
+}
+
+/* Hover: the tyre spins once. */
+.logo-hover:hover .tw-tread,
+a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0, 0.2, 1); }
+
+@keyframes tw-roll-in {
+  from { transform: rotate(-270deg) scale(0.6); opacity: 0; }
+}
+@keyframes tw-roll-in-rev {
+  from { transform: rotate(200deg) scale(0.7); opacity: 0; }
+}
+@keyframes tw-banner {
+  from { transform: scaleX(0); }
+}
+@keyframes tw-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes tw-letter {
+  from { transform: translateY(14px); opacity: 0; }
+}
+@keyframes tw-letter-x {
+  from { transform: translateX(-14px); opacity: 0; }
+}
+@keyframes tw-w-pop {
+  from { transform: scale(0.2) rotate(-25deg); opacity: 0; }
+}
+@keyframes tw-spin-once {
+  to { transform: rotate(360deg); }
+}
+
+/* Logo on a frosted white card (login sky, sign-in transition). */
+.logo-card {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  background: rgb(255 255 255 / 0.92);
+  padding: 0.6rem 1rem;
+  box-shadow: 0 18px 40px -18px rgb(15 23 42 / 0.55), 0 2px 6px rgb(15 23 42 / 0.12);
+  backdrop-filter: blur(10px);
+  animation: tw-float 5s ease-in-out 1.4s infinite alternate;
+}
+.logo-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.8) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: tw-card-shine 5s ease-in-out 1.6s infinite;
+  pointer-events: none;
+}
+/* After the intro, the tyre keeps turning like the bike's wheels. */
+.logo-rolling .tw-tread {
+  animation: tw-roll-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both, tw-spin-once 2.8s linear 1.1s infinite;
+}
+
+@keyframes tw-float {
+  to { transform: translateY(-5px); }
+}
+@keyframes tw-card-shine {
+  0%, 70% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* Sign-in transition: a colour wipe grows from the Sign in button, then the welcome appears. */
+.login-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background-image: radial-gradient(circle at 30% 20%, rgb(255 255 255 / 0.18), transparent 45%), linear-gradient(135deg, var(--brand), var(--brand-2));
+  clip-path: circle(0 at var(--x) var(--y));
+  animation: tw-wipe 0.8s cubic-bezier(0.7, 0, 0.2, 1) forwards;
+}
+.login-wipe-content { animation: tw-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.45s both; }
+.login-wipe-content .logo-card { animation: none; }
+.login-wipe-bar { transform-origin: left center; animation: tw-bar 1.2s cubic-bezier(0.6, 0, 0.2, 1) 0.6s both; }
+
+@keyframes tw-wipe {
+  to { clip-path: circle(150vmax at var(--x) var(--y)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-wipe { clip-path: none; }
+}
+
+/* First-visit splash: the logo builds itself, a speed bar fills, then the screen fades away. */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--page);
+  animation: tw-splash-out 0.5s ease 2.1s forwards;
+}
+.splash-bar {
+  height: 4px;
+  border-radius: 999px;
+  background-image: linear-gradient(90deg, var(--logo-red), var(--brand), var(--brand-2));
+  transform-origin: left center;
+  animation: tw-bar 1.7s cubic-bezier(0.6, 0, 0.2, 1) 0.3s both;
+}
+:root[data-splash="seen"] .splash { display: none; }
+
+@keyframes tw-splash-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@keyframes tw-bar {
+  from { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash { display: none; }
+}
+
+/* ---- motion ------------------------------------------------------------------ */
+
+/* Smooth colour change when switching theme (only while the switch is happening). */
+.theme-switching,
+.theme-switching * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, fill 0.35s ease !important;
+}
+
+@keyframes tw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes tw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tw-sheet {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes tw-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+
+@keyframes tw-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes tw-toast {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
+@keyframes tw-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@keyframes tw-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+
+/* Page content: each top-level block of the page rises in, one after another. */
+/* "backwards" (not "both"): once finished, the animation leaves no transform/opacity behind, so it
+   never creates a stacking context that would trap fixed dialogs underneath the header. */
+.page-enter > * > * {
+  animation: tw-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.page-enter > * > *:nth-child(2) { animation-delay: 60ms; }
+.page-enter > * > *:nth-child(3) { animation-delay: 120ms; }
+.page-enter > * > *:nth-child(4) { animation-delay: 180ms; }
+.page-enter > * > *:nth-child(5) { animation-delay: 240ms; }
+.page-enter > * > *:nth-child(n + 6) { animation-delay: 300ms; }
+
+/* KPI tiles stagger within their grid. */
+.kpi-grid > * {
+  animation: tw-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.kpi-grid > *:nth-child(2) { animation-delay: 70ms; }
+.kpi-grid > *:nth-child(3) { animation-delay: 140ms; }
+.kpi-grid > *:nth-child(4) { animation-delay: 210ms; }
+
+/* Table rows and list items fade in as a cascade. */
+.cascade > * {
+  animation: tw-fade 0.4s ease backwards;
+}
+.cascade > *:nth-child(2) { animation-delay: 30ms; }
+.cascade > *:nth-child(3) { animation-delay: 60ms; }
+.cascade > *:nth-child(4) { animation-delay: 90ms; }
+.cascade > *:nth-child(5) { animation-delay: 120ms; }
+.cascade > *:nth-child(6) { animation-delay: 150ms; }
+.cascade > *:nth-child(n + 7) { animation-delay: 180ms; }
+
+.anim-overlay { animation: tw-fade 0.2s ease both; }
+.anim-pop { animation: tw-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.anim-drawer { animation: tw-slide-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.anim-toast { animation: tw-toast 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Dialogs: bottom sheet slides up on phones, pops in on larger screens. */
+.anim-dialog { animation: tw-sheet 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (min-width: 640px) {
+  .anim-dialog { animation-name: tw-pop; animation-duration: 0.22s; }
+}
+
+/* Critical counters pulse gently so they catch the eye. */
+.pulse-danger { animation: tw-ping 2s ease-out infinite; }
+.wiggle { animation: tw-wiggle 1.2s ease-in-out 0.6s 2 both; transform-origin: 50% 20%; }
+
+.lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--brand) 55%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

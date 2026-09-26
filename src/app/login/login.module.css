@@ -1,0 +1,301 @@
+/* Login scene: layered parallax strips, a rider on a bike, and the form's entrance. */
+
+.scene {
+  --sky-top: #1e40af;
+  --sky-mid: #60a5fa;
+  --sky-low: #fdba74;
+  --sun: #fff1c7;
+  --sun-glow: rgba(255, 214, 140, 0.55);
+  --hill-far: #a5c8f5;
+  --hill-near: #4f82d8;
+  --palm: #1e3a8a;
+  --road: #1c2430;
+  --kerb: #f2f4f7;
+  --cloud: rgba(255, 255, 255, 0.85);
+  --tile: 1200px;
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+}
+
+/* Night scene: follows the system unless the theme button chose light or dark. */
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .scene {
+    --sky-top: #050b1a;
+    --sky-mid: #102a57;
+    --sky-low: #3a4f86;
+    --sun: #eef2ff;
+    --sun-glow: rgba(190, 205, 255, 0.35);
+    --hill-far: #1f3563;
+    --hill-near: #172a4f;
+    --palm: #0b1830;
+    --road: #0c1118;
+    --kerb: #6b7890;
+    --cloud: rgba(200, 212, 240, 0.25);
+  }
+}
+
+:global(:root[data-theme="dark"]) .scene {
+  --sky-top: #050b1a;
+  --sky-mid: #102a57;
+  --sky-low: #3a4f86;
+  --sun: #eef2ff;
+  --sun-glow: rgba(190, 205, 255, 0.35);
+  --hill-far: #1f3563;
+  --hill-near: #172a4f;
+  --palm: #0b1830;
+  --road: #0c1118;
+  --kerb: #6b7890;
+  --cloud: rgba(200, 212, 240, 0.25);
+}
+
+.sun {
+  position: absolute;
+  top: 22%;
+  right: 14%;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--sun);
+  animation: float 4s ease-in-out infinite alternate;
+}
+
+.sun::before {
+  content: "";
+  position: absolute;
+  inset: -56px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--sun-glow) 0%, transparent 68%);
+  animation: glow 4s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes glow {
+  to {
+    transform: scale(1.18);
+    opacity: 0.8;
+  }
+}
+
+/* A layer is two identical fixed-width tiles side by side, slid left by one tile forever. */
+.layer {
+  position: absolute;
+  left: 0;
+  display: flex;
+  width: calc(var(--tile) * 2);
+  animation: scroll var(--speed) linear infinite;
+  pointer-events: none;
+}
+
+.layer > svg {
+  width: var(--tile);
+  flex: none;
+}
+
+@keyframes scroll {
+  to {
+    transform: translateX(calc(var(--tile) * -1));
+  }
+}
+
+.clouds {
+  --speed: 70s;
+  top: 34%;
+  opacity: 0.9;
+}
+.hillsFar {
+  --speed: 48s;
+  bottom: 56px;
+}
+.hillsNear {
+  --speed: 26s;
+  bottom: 56px;
+}
+.palms {
+  --speed: 11s;
+  bottom: 56px;
+}
+
+.road {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 60px;
+  background: var(--road);
+  border-top: 4px solid var(--kerb);
+}
+
+.lane {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--kerb) 0 44px, transparent 44px 100px);
+  animation: lane 0.5s linear infinite;
+}
+
+@keyframes lane {
+  to {
+    background-position-x: -100px;
+  }
+}
+
+/* ---- the rider --------------------------------------------------------- */
+
+.bikeTrack {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  width: clamp(150px, 22vw, 230px);
+  margin-left: calc(clamp(150px, 22vw, 230px) / -2);
+  animation: enter 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.bikeTrack.rideOff {
+  animation: rideOff 0.9s cubic-bezier(0.55, 0, 0.8, 0.3) forwards;
+}
+
+@keyframes enter {
+  from {
+    transform: translateX(-70vw);
+  }
+}
+
+@keyframes rideOff {
+  20% {
+    transform: translateX(-12px) rotate(-3deg);
+  }
+  to {
+    transform: translateX(110vw) rotate(-2deg);
+  }
+}
+
+.bob {
+  animation: bob 0.34s ease-in-out infinite alternate;
+}
+
+@keyframes bob {
+  to {
+    transform: translateY(-2px);
+  }
+}
+
+.wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 0.32s linear infinite;
+}
+
+.rideOff .wheel {
+  animation-duration: 0.12s;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.beam {
+  animation: flicker 2.2s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.puff {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: puff 1.2s ease-out infinite;
+  opacity: 0;
+}
+
+.puff:nth-of-type(2) {
+  animation-delay: 0.4s;
+}
+.puff:nth-of-type(3) {
+  animation-delay: 0.8s;
+}
+
+@keyframes puff {
+  0% {
+    opacity: 0.7;
+    transform: translate(0, 0) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-46px, -10px) scale(1.6);
+  }
+}
+
+.speed {
+  animation: speed 0.7s linear infinite;
+}
+.speed:nth-of-type(2) {
+  animation-delay: 0.25s;
+}
+.speed:nth-of-type(3) {
+  animation-delay: 0.45s;
+}
+
+@keyframes speed {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(-80px);
+    opacity: 0;
+  }
+}
+
+/* ---- form -------------------------------------------------------------- */
+
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 250ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.shake {
+  animation: shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene *,
+  .rise,
+  .shake {
+    animation: none !important;
+  }
+}
