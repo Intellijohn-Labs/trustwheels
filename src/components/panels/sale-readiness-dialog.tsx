@@ -111,7 +111,7 @@ export function SendToReconDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
   const { submit, failure, busy } = useInlineAction();
 
   async function confirm() {
-    if (await submit(() => sendToReconditioning(vehicle.id), "Sent to Reconditioning")) onClose();
+    if (await submit(() => collapseThenRun([vehicle.id], () => sendToReconditioning(vehicle.id)), "Sent to Reconditioning")) onClose();
   }
 
   return (
