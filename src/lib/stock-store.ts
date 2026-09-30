@@ -253,14 +253,18 @@ export function setSaleReadiness(id: string, status: SaleReadinessStatus, reason
  * "Send to Reconditioning" from the Rejected Stock tab: books the vehicle straight into the
  * same "Under reconditioning" stage `receiveVehicle` creates (advancing through any stages in
  * between), and clears the Rejected Stock tag - it's now on a real path forward instead of a
- * dead end. Refuses to clobber an existing job card, and refuses a vehicle already sold/booked.
+ * dead end. Refuses a vehicle already sold/booked, or one already actively in reconditioning
+ * right now - but NOT one that merely has a `recon` record from a completed earlier cycle
+ * (completeRecon() deliberately keeps that for cost history while reverting `stage`), since that
+ * would otherwise permanently block a vehicle that's been reconditioned once before from ever
+ * being sent back a second time. Starts a fresh job card for this cycle.
  */
 export function sendToReconditioning(id: string) {
   assertCan("stock.verify");
   return update(id, (v) => {
     assertScope(v.branchId);
     if (v.sale) fail("Blocked: this vehicle is already sold or booked");
-    if (v.recon) fail("Already in reconditioning");
+    if (inRecon(v)) fail("Already in reconditioning");
     const at = nowIso();
     return {
       ...v,

@@ -41,5 +41,24 @@ export async function collapseThenRun(ids: string[], action: () => Promise<unkno
     });
   });
   await new Promise((r) => setTimeout(r, EXIT_MS));
-  await action();
+  try {
+    await action();
+  } catch (e) {
+    // The mutation was refused (a guard threw) - restore the row instead of leaving it
+    // collapsed for something that never actually happened, and let the caller's own error
+    // handling (a dialog's inline failure message, a toast) still see the rejection.
+    els.forEach((el) => {
+      el.style.transition = "none";
+      el.style.removeProperty("opacity");
+      el.style.removeProperty("transform");
+      el.style.removeProperty("max-height");
+      el.style.removeProperty("margin-top");
+      el.style.removeProperty("margin-bottom");
+      el.style.removeProperty("padding-top");
+      el.style.removeProperty("padding-bottom");
+      el.style.removeProperty("pointer-events");
+      el.style.removeProperty("overflow");
+    });
+    throw e;
+  }
 }
