@@ -545,6 +545,42 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
 .btn-tap:active:not(:disabled) { transform: scale(0.97); transition-duration: 80ms; box-shadow: none; }
 .btn-tap:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
+/*
+ * Bike loader (login, while attendance is being marked): a small motorcycle riding in place.
+ * Plain CSS keyframes only - no animation library - and like everything else on this page it
+ * already respects prefers-reduced-motion via the global rule below (every animation freezes to
+ * a single, near-instant iteration, landing the wheels back at their start angle).
+ */
+.bike-loader .bike-road { stroke: var(--line-strong); stroke-width: 3; stroke-dasharray: 9 9; stroke-linecap: round; animation: bike-road-move 0.5s linear infinite; }
+.bike-loader .bike-unit { animation: bike-bounce 0.45s ease-in-out infinite; transform-box: fill-box; }
+.bike-loader .bike-wheel { animation: bike-wheel-spin 0.6s linear infinite; }
+.bike-loader .bike-wheel-tire { fill: none; stroke: var(--ink); stroke-width: 4; }
+.bike-loader .bike-wheel-hub { fill: var(--ink); }
+.bike-loader .bike-spoke { stroke: var(--ink); stroke-width: 1.5; }
+.bike-loader .bike-frame { stroke: var(--brand); stroke-width: 4; stroke-linecap: round; fill: none; }
+.bike-loader .bike-body { fill: var(--brand); }
+.bike-loader .bike-screen { fill: var(--brand-soft); stroke: var(--brand); stroke-width: 1.5; stroke-linejoin: round; }
+.bike-loader .bike-headlight { fill: var(--warn); }
+.bike-loader .bike-puff { fill: var(--muted); opacity: 0; animation: bike-puff 0.9s ease-out infinite; }
+.bike-loader .bike-puff-2 { animation-delay: 0.3s; }
+.bike-loader .bike-puff-3 { animation-delay: 0.6s; }
+
+@keyframes bike-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes bike-wheel-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes bike-road-move {
+  to { stroke-dashoffset: -36; }
+}
+@keyframes bike-puff {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  25% { opacity: 0.6; }
+  100% { opacity: 0; transform: translate(-22px, -14px) scale(1.6); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
