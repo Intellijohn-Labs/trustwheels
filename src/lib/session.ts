@@ -37,6 +37,17 @@ export function currentRole(): Role {
   return memory ?? getRole();
 }
 
+/** Sign-out: forgets the stored role so the next visit starts from DEFAULT_ROLE, same as a first-ever visit. */
+export function clearSession() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // storage blocked: memory reset below still clears it for this page view
+  }
+  memory = null;
+  listeners.forEach((l) => l());
+}
+
 export function subscribeRole(listener: () => void) {
   listeners.add(listener);
   const onStorage = (e: StorageEvent) => e.key === KEY && listener();

@@ -37,7 +37,6 @@ import {
   Wrench,
   Check,
   Circle,
-  LogOut,
   Menu,
   MapPin,
   X,
@@ -48,6 +47,7 @@ import { NAV_GROUPS, ROUTES, findRoute } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
 import { useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
+import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
 import { ThemeToggle } from "./theme-toggle";
@@ -134,9 +134,10 @@ function Sidebar({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
         >
           <Settings className="size-4" /> Settings
         </Link>
-        <Link href="/login" onClick={onNavigate} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-ink">
-          <LogOut className="size-4" /> Sign out
-        </Link>
+        <SignOutButton
+          onNavigate={onNavigate}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-ink"
+        />
       </div>
     </nav>
   );

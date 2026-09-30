@@ -2,9 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Lock, Mail, MapPin } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { BikeLoader } from "@/components/bike-loader";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
 import { ROLES, ROLE_ORDER, type Role } from "@/lib/rbac";
@@ -99,15 +98,6 @@ export default function LoginPage() {
       </div>
 
       <div className="relative flex items-start justify-center px-5 pt-8 pb-12 lg:items-center lg:py-12">
-        {gate.phase === "locating" ? (
-          <div className="flex w-full max-w-sm flex-col items-center gap-5 py-16 text-center">
-            <BikeLoader className="h-32 w-auto" />
-            <div>
-              <p className="text-lg font-semibold tracking-tight">Starting engine…</p>
-              <p className="mt-1 text-sm text-muted">Getting your location and signing you in.</p>
-            </div>
-          </div>
-        ) : (
         <form onSubmit={onSubmit} noValidate className="w-full max-w-sm">
           <div style={rise(1)} className={styles.rise}>
             <h1 className="text-gradient text-3xl font-semibold tracking-tight">Welcome back</h1>
@@ -210,13 +200,19 @@ export default function LoginPage() {
           <div style={rise(5)} className={cn(styles.rise, "mt-6")}>
             <button
               type="submit"
-              disabled={leaving}
+              disabled={gate.phase === "locating" || leaving}
               className={cn(
                 "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all duration-300 disabled:cursor-not-allowed",
                 leaving ? "bg-ok" : gate.phase === "denied" || gate.phase === "access-denied" ? "bg-danger hover:brightness-110" : "bg-brand hover:brightness-110",
+                gate.phase === "locating" && "opacity-90",
               )}
             >
               {(gate.phase === "form" || gate.phase === "access-denied") && "Sign in"}
+              {gate.phase === "locating" && (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Getting your location…
+                </>
+              )}
               {gate.phase === "denied" && (
                 <>
                   <MapPin className="size-4" /> Turn on Location & Retry
@@ -232,12 +228,11 @@ export default function LoginPage() {
 
           <p style={rise(6)} className={cn(styles.rise, "mt-6 text-center text-xs text-faint")}>
             Demo: any email and password will work.{" "}
-            <button type="button" onClick={attemptSignIn} disabled={leaving} className="underline hover:text-muted disabled:cursor-not-allowed">
+            <button type="button" onClick={attemptSignIn} disabled={gate.phase === "locating" || leaving} className="underline hover:text-muted disabled:cursor-not-allowed">
               Skip to dashboard
             </button>
           </p>
         </form>
-        )}
       </div>
 
       {gate.phase === "confirmed" && (
