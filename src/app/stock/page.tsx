@@ -100,6 +100,8 @@ function SaleReadinessActions({ vehicle: v }: { vehicle: Vehicle }) {
         size="sm"
         variant="success"
         onClick={() => setConfirming(true)}
+        disabled={isReady}
+        title={isReady ? "Already marked ready for sale" : undefined}
         className={isReady ? "ring-2 ring-ok ring-offset-1 ring-offset-surface" : undefined}
       >
         <CheckCircle2 className="size-3.5" /> {isReady ? "Ready for Sale ✓" : "Ready for Sale"}
