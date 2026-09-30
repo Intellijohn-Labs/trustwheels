@@ -11,10 +11,14 @@ import type { Vehicle } from "@/lib/types";
 
 /** Confirm before flagging a vehicle "Ready for Sale" - it becomes selectable for booking/sale immediately, so this asks first rather than firing on a single click. */
 export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
+  const alreadyReady = vehicle.saleReadiness?.status === "ready_for_sale";
   const { submit, failure, busy } = useInlineAction();
 
   async function confirm() {
-    if (await submit(() => setSaleReadiness(vehicle.id, "ready_for_sale"), "Marked as Ready for Sale")) onClose();
+    // Only animate the row away on a fresh "ready" decision - re-confirming an already-ready
+    // vehicle doesn't move it out of the current view, so there's nothing to collapse.
+    const action = () => setSaleReadiness(vehicle.id, "ready_for_sale");
+    if (await submit(() => (alreadyReady ? action() : collapseThenRun([vehicle.id], action)), "Marked as Ready for Sale")) onClose();
   }
 
   return (

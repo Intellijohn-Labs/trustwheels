@@ -28,20 +28,21 @@ const STAGE_GROUPS = [
 ] as const;
 
 /**
- * "All Stocks" (and its stage sub-filter bar) shows active, eligible stock only - a single
- * gatekeeper function so this can't drift out of sync between the panel's own test and the stage
- * bar's count computation below. Excludes:
+ * "All Stocks" (and its stage sub-filter bar) tracks vehicles still in the pipeline, awaiting a
+ * readiness decision - a single gatekeeper function so this can't drift out of sync between the
+ * panel's own test and the stage bar's count computation below. Excludes:
  * - a booked/sold vehicle - it belongs strictly to the "Sold" panel from here on,
  * - anything actively in reconditioning (stage 8, not yet signed off and reverted) - those stay
  *   visible only on the dedicated /recon page until completeRecon() returns them to general stock,
  * - an unverified vehicle (a new intake starts unverified - it stays on the Verification page
  *   until setVerified() there promotes it), and
- * - a vehicle tagged Rejected Stock - once rejected it disappears from All Stocks immediately and
- *   lives solely under the Rejected Stock panel until Ready for Sale or Send to Reconditioning
- *   moves it on.
+ * - any vehicle that already has a sale-readiness decision, Ready for Sale or Rejected Stock -
+ *   once a decision is made it disappears from All Stocks immediately and lives solely under its
+ *   own dedicated panel (Ready for Sale, which also feeds Book & Sell's "Available" tab, or
+ *   Rejected Stock) until Send to Reconditioning or a changed decision moves it on.
  */
 function isActiveStock(v: Vehicle) {
-  return !v.sale && !!v.verified && !inRecon(v) && v.saleReadiness?.status !== "rejected_stock";
+  return !v.sale && !!v.verified && !inRecon(v) && !v.saleReadiness;
 }
 
 /**
