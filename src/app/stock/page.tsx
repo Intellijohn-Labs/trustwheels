@@ -10,7 +10,7 @@ import { deleteVehicle, deleteVehicles, useVehicles } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
 import { BRANCHES } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
-import { displayReg, normaliseReg } from "@/lib/format";
+import { displayReg, formatDateTime, normaliseReg } from "@/lib/format";
 import { Button, cn, inputClass } from "@/components/ui";
 import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "@/components/selection";
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
@@ -28,20 +28,31 @@ const STAGE_GROUPS = [
 ] as const;
 
 /**
- * Top-level panels, separate from the stage filter bar above. "All Stocks", "Ready for Sale" and
- * "Rejected Stock" all exclude:
- * - a booked/sold vehicle - it belongs strictly to the "Sold" panel from here on, not still
- *   offered up for a readiness decision it's already past, and
+ * "All Stocks" (and its stage sub-filter bar) shows active, eligible stock only - a single
+ * gatekeeper function so this can't drift out of sync between the panel's own test and the stage
+ * bar's count computation below. Excludes:
+ * - a booked/sold vehicle - it belongs strictly to the "Sold" panel from here on,
  * - anything actively in reconditioning (stage 8, not yet signed off and reverted) - those stay
- *   visible only on the dedicated /recon page until completeRecon() returns them to general
- *   stock. sendToReconditioning() already clears saleReadiness when it fires, but the panel
- *   tests guard against it independently too (setSaleReadiness() also refuses to touch an
- *   in-recon vehicle) so a stale rejected/ready tag can never leak into the recon workshop's view.
- * "All Stocks" additionally excludes unverified vehicles (a new intake starts unverified - it
- * stays on the Verification page until setVerified() there promotes it).
+ *   visible only on the dedicated /recon page until completeRecon() returns them to general stock,
+ * - an unverified vehicle (a new intake starts unverified - it stays on the Verification page
+ *   until setVerified() there promotes it), and
+ * - a vehicle tagged Rejected Stock - once rejected it disappears from All Stocks immediately and
+ *   lives solely under the Rejected Stock panel until Ready for Sale or Send to Reconditioning
+ *   moves it on.
+ */
+function isActiveStock(v: Vehicle) {
+  return !v.sale && !!v.verified && !inRecon(v) && v.saleReadiness?.status !== "rejected_stock";
+}
+
+/**
+ * Top-level panels, separate from the stage filter bar above. "Ready for Sale" and
+ * "Rejected Stock" also exclude a booked/sold vehicle and anything actively in reconditioning -
+ * sendToReconditioning() already clears saleReadiness when it fires, but the panel tests guard
+ * against it independently too (setSaleReadiness() also refuses to touch an in-recon vehicle) so
+ * a stale rejected/ready tag can never leak into the recon workshop's view.
  */
 const PANELS = [
-  { id: "all", label: "All Stocks", test: (v: Vehicle) => !v.sale && !!v.verified && !inRecon(v) },
+  { id: "all", label: "All Stocks", test: isActiveStock },
   { id: "ready", label: "Ready for Sale", test: (v: Vehicle) => !v.sale && !inRecon(v) && v.saleReadiness?.status === "ready_for_sale" },
   { id: "rejected", label: "Rejected Stock", test: (v: Vehicle) => !v.sale && !inRecon(v) && v.saleReadiness?.status === "rejected_stock" },
   { id: "sold", label: "Sold", test: (v: Vehicle) => !!v.sale },
@@ -133,9 +144,9 @@ export default function StockPage() {
   const label = (v: Vehicle) => `${v.make} ${v.model} · ${displayReg(v.registrationNo)}`;
 
   const counts = useMemo(
-    // Excludes sold/booked, unverified and actively-in-recon vehicles too, so a bucket's count
-    // always matches what clicking it actually shows inside the "All Stocks" panel these buttons live in.
-    () => Object.fromEntries(STAGE_GROUPS.map((g) => [g.id, vehicles.filter((v) => !v.sale && !!v.verified && !inRecon(v) && g.test(v)).length])),
+    // Same isActiveStock() gate as the "All Stocks" panel itself, so a bucket's count always
+    // matches what clicking it actually shows.
+    () => Object.fromEntries(STAGE_GROUPS.map((g) => [g.id, vehicles.filter((v) => isActiveStock(v) && g.test(v)).length])),
     [vehicles],
   );
   const panelCounts = useMemo(
@@ -293,8 +304,11 @@ export default function StockPage() {
                 now={now}
                 leading={canDelete && <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${label(v)}`} />}
                 note={
-                  panel === "rejected" && v.saleReadiness?.reason ? (
-                    <span className="text-danger">Reason: {v.saleReadiness.reason}</span>
+                  panel === "rejected" && v.saleReadiness ? (
+                    <span className="text-danger">
+                      {v.saleReadiness.reason && <>Reason: {v.saleReadiness.reason} · </>}
+                      Rejected by {v.saleReadiness.by} on {formatDateTime(v.saleReadiness.at)}
+                    </span>
                   ) : undefined
                 }
                 actions={

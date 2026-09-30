@@ -6,6 +6,7 @@ import { Dialog, useInlineAction } from "./dialog";
 import { Button, Field, textareaClass } from "../ui";
 import { displayReg } from "@/lib/format";
 import { sendToReconditioning, setSaleReadiness } from "@/lib/stock-store";
+import { collapseThenRun } from "@/lib/exit-animation";
 import type { Vehicle } from "@/lib/types";
 
 /** Confirm before flagging a vehicle "Ready for Sale" - it becomes selectable for booking/sale immediately, so this asks first rather than firing on a single click. */
@@ -53,7 +54,10 @@ export function RejectStockDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
   const { submit, failure, busy } = useInlineAction();
 
   async function confirm() {
-    if (await submit(() => setSaleReadiness(vehicle.id, "rejected_stock", reason), "Marked as Rejected Stock")) onClose();
+    // Only animate the row away on a fresh rejection - editing the reason on an already-rejected
+    // vehicle doesn't move it out of the current view, so there's nothing to collapse.
+    const action = () => setSaleReadiness(vehicle.id, "rejected_stock", reason);
+    if (await submit(() => (alreadyRejected ? action() : collapseThenRun([vehicle.id], action)), "Marked as Rejected Stock")) onClose();
   }
 
   return (
