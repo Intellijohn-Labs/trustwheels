@@ -8,6 +8,7 @@ import { VERIFY_LIMIT_HOURS } from "@/lib/masters";
 import { verifyDeadline, verifyState } from "@/lib/verification";
 import { VehicleRow } from "@/components/vehicle-row";
 import { VerifyButton } from "@/components/verify-button";
+import { DeleteVehicleButton } from "@/components/delete-vehicle-button";
 
 export default function OverduePage() {
   const { vehicles, ready } = useScopedVehicles();
@@ -35,7 +36,17 @@ export default function OverduePage() {
         ) : (
           <ul className="divide-y divide-danger/20 overflow-hidden rounded-2xl border border-danger/40 bg-surface">
             {overdue.map((v) => (
-              <VehicleRow key={v.id} vehicle={v} now={now} actions={<VerifyButton vehicle={v} />} />
+              <VehicleRow
+                key={v.id}
+                vehicle={v}
+                now={now}
+                actions={
+                  <>
+                    <VerifyButton vehicle={v} />
+                    <DeleteVehicleButton vehicle={v} />
+                  </>
+                }
+              />
             ))}
           </ul>
         )}
@@ -55,7 +66,17 @@ export default function OverduePage() {
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {pending.map((v) => (
-              <VehicleRow key={v.id} vehicle={v} now={now} actions={<VerifyButton vehicle={v} />} />
+              <VehicleRow
+                key={v.id}
+                vehicle={v}
+                now={now}
+                actions={
+                  <>
+                    <VerifyButton vehicle={v} />
+                    <DeleteVehicleButton vehicle={v} />
+                  </>
+                }
+              />
             ))}
           </ul>
         )}

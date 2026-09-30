@@ -7,6 +7,7 @@ import { useNow } from "@/lib/use-now";
 import { Segmented } from "@/components/ui";
 import { VehicleRow } from "@/components/vehicle-row";
 import { SaleActions } from "@/components/sale-actions";
+import { DeleteVehicleButton } from "@/components/delete-vehicle-button";
 import type { Vehicle } from "@/lib/types";
 
 type Tab = "available" | "booked" | "sold";
@@ -57,7 +58,17 @@ export default function VerifiedPage() {
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {rows.map((v) => (
-            <VehicleRow key={v.id} vehicle={v} now={now} actions={tab === "sold" ? undefined : <SaleActions vehicle={v} />} />
+            <VehicleRow
+              key={v.id}
+              vehicle={v}
+              now={now}
+              actions={
+                <>
+                  {tab !== "sold" && <SaleActions vehicle={v} />}
+                  <DeleteVehicleButton vehicle={v} />
+                </>
+              }
+            />
           ))}
         </ul>
       )}

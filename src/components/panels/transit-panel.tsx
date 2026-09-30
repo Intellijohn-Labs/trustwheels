@@ -12,6 +12,7 @@ import { formatDuration, verifyState } from "@/lib/verification";
 import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
+import { DeleteVehicleButton } from "../delete-vehicle-button";
 import { Button, Field, Panel, Pill, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
@@ -270,7 +271,10 @@ export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
               <DispatchStatus vehicle={v} now={now} />
               <span>Entered {formatDateTime(v.createdAt)}</span>
             </CardMeta>
-            {v.verified && <DispatchButton vehicle={v} />}
+            <div className="flex gap-2">
+              {v.verified && <DispatchButton vehicle={v} />}
+              <DeleteVehicleButton vehicle={v} />
+            </div>
           </>
         )}
         rowKey={(v) => v.id}
@@ -279,7 +283,16 @@ export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
           { header: "Entered", cell: (v) => <span className="whitespace-nowrap text-muted">{formatDateTime(v.createdAt)}</span> },
           { header: "Status", cell: (v) => <DispatchStatus vehicle={v} now={now} /> },
-          { header: "", align: "right", cell: (v) => (v.verified ? <DispatchButton vehicle={v} /> : null) },
+          {
+            header: "",
+            align: "right",
+            cell: (v) => (
+              <div className="flex justify-end gap-1.5">
+                {v.verified && <DispatchButton vehicle={v} />}
+                <DeleteVehicleButton vehicle={v} />
+              </div>
+            ),
+          },
         ]}
       />
     </Panel>
@@ -408,7 +421,10 @@ export function InTransitPanel({ limit }: { limit?: number }) {
               </span>
               <TransitSlaPill vehicle={v} now={now} />
             </CardMeta>
-            <RemoveFromTransitButton vehicle={v} />
+            <div className="flex gap-2">
+              <RemoveFromTransitButton vehicle={v} />
+              <DeleteVehicleButton vehicle={v} />
+            </div>
           </>
         )}
         empty={ready ? "No vehicles on the road." : "Loading…"}
@@ -427,7 +443,16 @@ export function InTransitPanel({ limit }: { limit?: number }) {
             ),
           },
           { header: "SLA", cell: (v) => <TransitSlaPill vehicle={v} now={now} /> },
-          { header: "", align: "right", cell: (v) => <RemoveFromTransitButton vehicle={v} /> },
+          {
+            header: "",
+            align: "right",
+            cell: (v) => (
+              <div className="flex justify-end gap-1.5">
+                <RemoveFromTransitButton vehicle={v} />
+                <DeleteVehicleButton vehicle={v} />
+              </div>
+            ),
+          },
         ]}
       />
     </Panel>

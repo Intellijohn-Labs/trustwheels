@@ -11,6 +11,7 @@ import { formatPaise } from "@/lib/format";
 import { inRecon, reconCostPaise, reconFlag, reconHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
+import { DeleteVehicleButton } from "../delete-vehicle-button";
 import { Button, Panel, Pill } from "../ui";
 import { JobCardDialog } from "./job-card-dialog";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
@@ -110,9 +111,12 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
                 {formatPaise(reconCostPaise(v))} · {v.recon!.items.length} items · {v.recon!.photos.length} photos
               </span>
             </CardMeta>
-            <Button className="w-full" variant={manage && !v.recon!.completed ? "primary" : "secondary"} onClick={() => setOpenId(v.id)}>
-              <Wrench className="size-4" /> {manage && !v.recon!.completed ? "Open job card" : "View job card"}
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" variant={manage && !v.recon!.completed ? "primary" : "secondary"} onClick={() => setOpenId(v.id)}>
+                <Wrench className="size-4" /> {manage && !v.recon!.completed ? "Open job card" : "View job card"}
+              </Button>
+              <DeleteVehicleButton vehicle={v} />
+            </div>
           </>
         )}
         rowKey={(v) => v.id}
@@ -167,9 +171,12 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
             header: "",
             align: "right",
             cell: (v) => (
-              <Button size="sm" variant={manage && !v.recon!.completed ? "primary" : "secondary"} onClick={() => setOpenId(v.id)}>
-                <Wrench className="size-3.5" /> {manage && !v.recon!.completed ? "Open job card" : "View job card"}
-              </Button>
+              <div className="flex justify-end gap-1.5">
+                <Button size="sm" variant={manage && !v.recon!.completed ? "primary" : "secondary"} onClick={() => setOpenId(v.id)}>
+                  <Wrench className="size-3.5" /> {manage && !v.recon!.completed ? "Open job card" : "View job card"}
+                </Button>
+                <DeleteVehicleButton vehicle={v} />
+              </div>
             ),
           },
         ]}

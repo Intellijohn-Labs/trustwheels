@@ -11,6 +11,7 @@ import { displayReg, formatDateTime, normaliseReg } from "@/lib/format";
 import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
+import { DeleteVehicleButton } from "../delete-vehicle-button";
 import { Button, Field, Panel, Pill, cn, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
 import { RemoveFromTransitButton, TransitSlaPill } from "./transit-panel";
@@ -161,6 +162,7 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
                 </Button>
               )}
               <RemoveFromTransitButton vehicle={v} />
+              <DeleteVehicleButton vehicle={v} />
             </div>
           </>
         )}
@@ -201,6 +203,7 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
                   </Button>
                 )}
                 <RemoveFromTransitButton vehicle={v} />
+                <DeleteVehicleButton vehicle={v} />
               </div>
             ),
           },
@@ -248,6 +251,7 @@ export function ReceivedPanel({ limit = 10 }: { limit?: number }) {
               ),
           },
           { header: "Notes", cell: (v) => <span className="text-xs text-muted">{v.receipt!.notes || "–"}</span> },
+          { header: "", align: "right", cell: (v) => <DeleteVehicleButton vehicle={v} /> },
         ]}
       />
     </Panel>
