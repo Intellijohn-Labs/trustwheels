@@ -3,11 +3,16 @@
 import { useState } from "react";
 import { BadgeCheck } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
+import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
+import { deleteVehicles } from "@/lib/stock-store";
+import { displayReg } from "@/lib/format";
 import { Segmented } from "@/components/ui";
 import { VehicleRow } from "@/components/vehicle-row";
 import { SaleActions } from "@/components/sale-actions";
 import { DeleteVehicleButton } from "@/components/delete-vehicle-button";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "@/components/selection";
+import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
 import type { Vehicle } from "@/lib/types";
 
 type Tab = "available" | "booked" | "sold";
@@ -26,14 +31,21 @@ const TABS: { id: Tab; label: string; test: (v: Vehicle) => boolean; empty: stri
 ];
 
 const latest = (v: Vehicle) => v.sale?.soldAt ?? v.sale?.bookedAt ?? v.saleReadiness?.at ?? v.createdAt;
+const label = (v: Vehicle) => `${v.make} ${v.model} · ${displayReg(v.registrationNo)}`;
 
 export default function VerifiedPage() {
   const { vehicles, ready } = useScopedVehicles();
+  const { can } = useRole();
   const now = useNow(60_000);
   const [tab, setTab] = useState<Tab>("available");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const current = TABS.find((t) => t.id === tab)!;
   const rows = vehicles.filter(current.test).sort((a, b) => latest(b).localeCompare(latest(a)));
+  // Bulk select/delete is Sold-only and Managing Partner-only (stock.delete); the other tabs keep
+  // their existing per-row actions with no checkboxes.
+  const selection = useSelection(rows, (v) => v.id);
+  const bulkSelect = tab === "sold" && can("stock.delete");
 
   return (
     <div className="space-y-5">
@@ -53,24 +65,50 @@ export default function VerifiedPage() {
         />
       </div>
 
+      {bulkSelect && selection.count > 0 && (
+        <SelectionToolbar count={selection.count} noun="vehicle" onClear={selection.clear} onDelete={() => setConfirmDelete(true)} />
+      )}
+
       {ready && rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-10 text-center text-sm text-muted">{current.empty}</div>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-          {rows.map((v) => (
-            <VehicleRow
-              key={v.id}
-              vehicle={v}
-              now={now}
-              actions={
-                <>
-                  {tab !== "sold" && <SaleActions vehicle={v} />}
-                  <DeleteVehicleButton vehicle={v} />
-                </>
-              }
-            />
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+          {bulkSelect && (
+            <label className="flex items-center gap-2.5 border-b border-line bg-sunken/60 px-4 py-2 text-sm text-muted">
+              <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown vehicles" />
+              Select all ({rows.length} shown)
+            </label>
+          )}
+          <ul className="divide-y divide-line">
+            {rows.map((v) => (
+              <VehicleRow
+                key={v.id}
+                vehicle={v}
+                now={now}
+                leading={bulkSelect && <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${label(v)}`} />}
+                actions={
+                  <>
+                    {tab !== "sold" && <SaleActions vehicle={v} />}
+                    <DeleteVehicleButton vehicle={v} />
+                  </>
+                }
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDeleteDialog
+          count={selection.count}
+          items={rows.filter((v) => selection.isSelected(v.id)).map(label)}
+          noun="vehicle"
+          onConfirm={async () => {
+            await deleteVehicles([...selection.selected]);
+            selection.clear();
+          }}
+          onClose={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );
