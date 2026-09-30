@@ -13,7 +13,7 @@ import { useNow } from "./use-now";
  * Sales enquiries (leads) and the Day 2 / 3 / 4 follow-up cadence.
  * The creation day is day 1; the day-N call is due during day N, i.e. in the window
  * createdAt + (N-1)*24h ... createdAt + N*24h. A call not logged by the end of its window
- * is overdue and escalated to the manager and the proprietor (Code Red).
+ * is overdue and escalated to the manager and the Managing Partner (Code Red).
  */
 
 export type LeadSource = "walk_in" | "phone" | "website" | "whatsapp" | "facebook" | "instagram";
@@ -135,7 +135,7 @@ export function nextFollowUp(lead: Lead, now: number) {
   return followUpStatus(lead, now).find((s) => s.state === "overdue" || s.state === "due" || s.state === "upcoming");
 }
 
-/** Every missed follow-up call on open leads: these are escalated to manager and proprietor. */
+/** Every missed follow-up call on open leads: these are escalated to manager and Managing Partner. */
 export function overdueFollowUps(leads: Lead[], now: number) {
   return leads.flatMap((lead) =>
     followUpStatus(lead, now)
@@ -268,7 +268,7 @@ function seedLeads(): Lead[] {
   ];
 }
 
-export const leads = defineCollection<Lead>("leads", seedLeads, 1);
+export const leads = defineCollection<Lead>("leads", seedLeads, 1, { supabaseTable: "leads" });
 
 // ---- mutations --------------------------------------------------------------------
 
@@ -344,6 +344,18 @@ export function setStage(id: string, stage: LeadStage, lossReason?: string) {
   assertCan("leads.manage");
   if (stage === "lost" && !lossReason?.trim()) throw new Error("Pick a reason the enquiry was lost");
   return leads.update(id, (lead) => ({ ...lead, stage, lossReason: stage === "lost" ? lossReason!.trim() : undefined }));
+}
+
+/** Permanently remove one enquiry. Managing Partner only; every other role never sees the option. */
+export function deleteLead(id: string) {
+  assertCan("leads.delete");
+  return leads.remove(id);
+}
+
+/** Permanently remove several enquiries in one write, e.g. from a bulk selection. */
+export function deleteLeads(ids: string[]) {
+  assertCan("leads.delete");
+  return leads.removeMany(ids);
 }
 
 // ---- hooks -----------------------------------------------------------------------

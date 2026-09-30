@@ -8,7 +8,8 @@ export function istDate(ms: number | string | Date) {
   return new Date(ms).toLocaleDateString("en-CA", { timeZone: IST });
 }
 
-function isWorkingDay(ymd: string) {
+/** True for any day that isn't a Sunday or a listed company holiday. */
+export function isWorkingDay(ymd: string) {
   const weekday = new Date(`${ymd}T00:00:00Z`).getUTCDay();
   return weekday !== 0 && !HOLIDAYS.includes(ymd);
 }

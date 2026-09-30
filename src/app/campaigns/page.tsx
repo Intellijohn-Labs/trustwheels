@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Megaphone, Plus, UserPlus } from "lucide-react";
+import { Loader2, Megaphone, Plus, Trash2, UserPlus } from "lucide-react";
 import { Button, EmptyState, Field, PageHeader, Panel, Pill, cn, inputClass, textareaClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
+import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
 import { CallTaskTable } from "@/components/panels/call-list";
 import { useAction } from "@/components/toast";
 import { formatDate } from "@/lib/format";
@@ -13,7 +14,7 @@ import { telecallers } from "@/lib/user-names";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useScopedLeads } from "@/lib/leads";
 import { useNow } from "@/lib/use-now";
-import { addCampaign, assignToCampaign, callTasks, campaignProgress, campaigns, isActive, listLabel, type Campaign } from "@/lib/calls";
+import { addCampaign, assignToCampaign, callTasks, campaignProgress, campaigns, deleteCampaign, isActive, listLabel, type Campaign } from "@/lib/calls";
 
 const MODELS = Object.values(MAKES).flat();
 
@@ -33,7 +34,9 @@ export default function CampaignsPage() {
   const [selected, setSelected] = useState<string>();
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Campaign>();
   const manage = can("calls.manage");
+  const canDelete = can("calls.delete");
 
   // Customers who went on to book or buy: enquiries marked booked, and vehicle buyers.
   const converted = useMemo(
@@ -71,47 +74,53 @@ export default function CampaignsPage() {
             const status = campaignStatus(c, now);
             const isActiveCard = active?.id === c.id;
             return (
-              <button
-                key={c.id}
-                type="button"
-                aria-pressed={isActiveCard}
-                onClick={() => setSelected(c.id)}
-                className={cn("rounded-2xl border bg-surface p-4 text-left transition hover:shadow-sm", isActiveCard ? "border-brand ring-2 ring-brand/20" : "border-line")}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold">{c.name}</p>
-                  <Pill tone={status.tone}>{status.label}</Pill>
-                </div>
-                <p className="mt-1 line-clamp-2 text-sm text-muted">{c.offer}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {formatDate(c.startsAt)} – {formatDate(c.endsAt)} · {c.assignedTo}
-                  {c.model && <> · {c.model}</>}
-                </p>
-                <div className="mt-3 flex items-baseline justify-between text-sm">
-                  <span>
-                    Called <span className="font-semibold tabular-nums">{p.called}</span>
-                    <span className="text-muted"> / {c.target}</span>
-                  </span>
-                  <span className="text-xs text-muted tabular-nums">{Math.round(p.pct * 100)}%</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-label={`${c.name} progress`} aria-valuemin={0} aria-valuemax={c.target} aria-valuenow={p.called}>
-                  <div className="h-full rounded-full bg-brand" style={{ width: `${p.pct * 100}%` }} />
-                </div>
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="rounded-lg bg-sunken/70 py-1.5">
-                    <dt className="text-muted">In list</dt>
-                    <dd className="text-base font-semibold tabular-nums">{p.tasks}</dd>
+              <div key={c.id} className="relative">
+                <button
+                  type="button"
+                  aria-pressed={isActiveCard}
+                  onClick={() => setSelected(c.id)}
+                  className={cn("w-full rounded-2xl border bg-surface p-4 text-left transition hover:shadow-sm", isActiveCard ? "border-brand ring-2 ring-brand/20" : "border-line")}
+                >
+                  <div className="flex items-start justify-between gap-2 pr-7">
+                    <p className="font-semibold">{c.name}</p>
+                    <Pill tone={status.tone}>{status.label}</Pill>
                   </div>
-                  <div className="rounded-lg bg-sunken/70 py-1.5">
-                    <dt className="text-muted">Interested</dt>
-                    <dd className="text-base font-semibold tabular-nums">{p.interested}</dd>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted">{c.offer}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {formatDate(c.startsAt)} – {formatDate(c.endsAt)} · {c.assignedTo}
+                    {c.model && <> · {c.model}</>}
+                  </p>
+                  <div className="mt-3 flex items-baseline justify-between text-sm">
+                    <span>
+                      Called <span className="font-semibold tabular-nums">{p.called}</span>
+                      <span className="text-muted"> / {c.target}</span>
+                    </span>
+                    <span className="text-xs text-muted tabular-nums">{Math.round(p.pct * 100)}%</span>
                   </div>
-                  <div className="rounded-lg bg-sunken/70 py-1.5">
-                    <dt className="text-muted">Converted</dt>
-                    <dd className="text-base font-semibold tabular-nums">{p.conversions}</dd>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-label={`${c.name} progress`} aria-valuemin={0} aria-valuemax={c.target} aria-valuenow={p.called}>
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${p.pct * 100}%` }} />
                   </div>
-                </dl>
-              </button>
+                  <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-sunken/70 py-1.5">
+                      <dt className="text-muted">In list</dt>
+                      <dd className="text-base font-semibold tabular-nums">{p.tasks}</dd>
+                    </div>
+                    <div className="rounded-lg bg-sunken/70 py-1.5">
+                      <dt className="text-muted">Interested</dt>
+                      <dd className="text-base font-semibold tabular-nums">{p.interested}</dd>
+                    </div>
+                    <div className="rounded-lg bg-sunken/70 py-1.5">
+                      <dt className="text-muted">Converted</dt>
+                      <dd className="text-base font-semibold tabular-nums">{p.conversions}</dd>
+                    </div>
+                  </dl>
+                </button>
+                {canDelete && (
+                  <Button size="sm" variant="ghost" className="absolute top-3 right-3" onClick={() => setConfirmDelete(c)} aria-label={`Delete campaign ${c.name}`}>
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -136,6 +145,15 @@ export default function CampaignsPage() {
 
       {creating && <CampaignDialog onClose={() => setCreating(false)} onCreated={(id) => setSelected(id)} />}
       {adding && active && <AddToCampaignDialog campaign={active} onClose={() => setAdding(false)} />}
+      {confirmDelete && (
+        <ConfirmDeleteDialog
+          count={1}
+          items={[confirmDelete.name]}
+          noun="campaign"
+          onConfirm={() => deleteCampaign(confirmDelete.id)}
+          onClose={() => setConfirmDelete(undefined)}
+        />
+      )}
     </div>
   );
 }

@@ -98,6 +98,11 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
               <ReconFlagPill vehicle={v} now={now} />
               <span className="tabular-nums">{formatHours(reconHours(v, now))} since stock entry</span>
               <span>{v.recon!.supervisor}</span>
+              {v.recon!.technicianName && (
+                <span className="inline-flex items-center gap-1">
+                  <Wrench className="size-3" /> {v.recon!.technicianName}
+                </span>
+              )}
             </CardMeta>
             <CardMeta>
               <ReconStatus vehicle={v} />
@@ -115,7 +120,23 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
         empty={ready ? "Nothing in reconditioning." : "Loading…"}
         columns={[
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
-          ...(compact ? [] : [{ header: "Supervisor", cell: (v: Vehicle) => <span className="whitespace-nowrap">{v.recon!.supervisor}</span> }]),
+          ...(compact
+            ? []
+            : [
+                {
+                  header: "Supervisor",
+                  cell: (v: Vehicle) => (
+                    <div className="flex flex-col whitespace-nowrap">
+                      <span>{v.recon!.supervisor}</span>
+                      {v.recon!.technicianName && (
+                        <span className="flex items-center gap-1 text-xs text-muted">
+                          <Wrench className="size-3" /> {v.recon!.technicianName}
+                        </span>
+                      )}
+                    </div>
+                  ),
+                },
+              ]),
           {
             header: "Since stock entry",
             cell: (v) => (

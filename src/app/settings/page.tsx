@@ -16,7 +16,7 @@ const THEMES: { id: ThemeChoice; label: string; hint: string; icon: typeof Sun }
   { id: "system", label: "System", hint: "Follow this device", icon: Monitor },
 ];
 
-/** Settings hub: appearance for everyone; organisation setup for the Proprietor and HR / Admin. */
+/** Settings hub: appearance for everyone; organisation setup for the Managing Partner and HR / Admin. */
 export default function SettingsPage() {
   const { can, nameOf } = useRole();
   const theme = useThemeChoice();

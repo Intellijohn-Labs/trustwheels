@@ -13,7 +13,7 @@ import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
 import { Button, Field, Panel, Pill, cn, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
-import { TransitSlaPill } from "./transit-panel";
+import { RemoveFromTransitButton, TransitSlaPill } from "./transit-panel";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
 import { VehicleCell, formatHours } from "./vehicle-cell";
 
@@ -154,11 +154,14 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
               <span className="tabular-nums">{formatHours(transitHours(v, now))} on the road</span>
               <TransitSlaPill vehicle={v} now={now} />
             </CardMeta>
-            {can("hub.receive") && (
-              <Button variant="primary" className="w-full" onClick={() => setReceiving(v)}>
-                <PackageCheck className="size-4" /> Receive
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {can("hub.receive") && (
+                <Button variant="primary" className="flex-1" onClick={() => setReceiving(v)}>
+                  <PackageCheck className="size-4" /> Receive
+                </Button>
+              )}
+              <RemoveFromTransitButton vehicle={v} />
+            </div>
           </>
         )}
         empty={ready ? "Nothing on the way." : "Loading…"}
@@ -190,12 +193,16 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
           {
             header: "",
             align: "right",
-            cell: (v) =>
-              can("hub.receive") && (
-                <Button size="sm" variant="primary" onClick={() => setReceiving(v)}>
-                  <PackageCheck className="size-3.5" /> Receive
-                </Button>
-              ),
+            cell: (v) => (
+              <div className="flex justify-end gap-2">
+                {can("hub.receive") && (
+                  <Button size="sm" variant="primary" onClick={() => setReceiving(v)}>
+                    <PackageCheck className="size-3.5" /> Receive
+                  </Button>
+                )}
+                <RemoveFromTransitButton vehicle={v} />
+              </div>
+            ),
           },
         ]}
       />

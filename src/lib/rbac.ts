@@ -5,7 +5,7 @@
  */
 
 export type Role =
-  | "proprietor"
+  | "managing_partner"
   | "partner"
   | "branch_manager"
   | "branch_accountant"
@@ -38,6 +38,7 @@ export const PERMISSIONS = [
   "delivery.handover",
   "leads.view",
   "leads.manage",
+  "leads.delete",
   "calls.view",
   "calls.manage",
   "calls.delete",
@@ -46,15 +47,18 @@ export const PERMISSIONS = [
   "payout.approve",
   "fees.view",
   "fees.manage",
-  "settlements.view",
-  "settlement.record",
-  "ledger.view",
-  "ledger.reverse",
   "funds.view",
+  "funds.delete",
+  "accounts.view",
+  "accounts.manage",
   "reports.view",
   "escalations.view",
+  "attendance.view",
+  "staff.manage",
   "hr.view",
   "hr.manage",
+  "hr.delete",
+  "documents.delete",
   "settings.manage",
 ] as const;
 
@@ -69,17 +73,17 @@ export interface RoleDef {
 }
 
 export const ROLES: Record<Role, RoleDef> = {
-  proprietor: {
-    label: "Proprietor",
+  managing_partner: {
+    label: "Managing Partner",
     description: "Master admin. Every branch, every module; HR is view-only.",
-    // Full access everywhere except editing HR records (the proprietor gets the HR overview).
+    // Full access everywhere except editing HR records (the Managing Partner gets the HR overview).
     permissions: PERMISSIONS.filter((p) => p !== "hr.manage"),
     scope: "all",
   },
   partner: {
     label: "Partner",
     description: "Branch admin / investor for the assigned branches.",
-    permissions: ["stock.view", "sales.view", "settlements.view", "ledger.view", "funds.view", "reports.view"],
+    permissions: ["stock.view", "sales.view", "funds.view", "reports.view"],
     scope: ["b1", "b2"],
   },
   branch_manager: {
@@ -91,7 +95,7 @@ export const ROLES: Record<Role, RoleDef> = {
   branch_accountant: {
     label: "Branch Accountant",
     description: "Purchase values, seller payments, amounts due from Angamaly.",
-    permissions: ["stock.view", "payments.view", "purchase.enter", "settlements.view"],
+    permissions: ["stock.view", "payments.view", "purchase.enter"],
     scope: ["b1"],
   },
   hub_admin: {
@@ -138,18 +142,8 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   central_accountant: {
     label: "Central Accountant",
-    description: "Seller payouts, RTO fees, branch and partner settlements, master ledger.",
-    permissions: [
-      "stock.view",
-      "payments.view",
-      "payout.approve",
-      "fees.view",
-      "fees.manage",
-      "settlements.view",
-      "settlement.record",
-      "ledger.view",
-      "ledger.reverse",
-    ],
+    description: "Seller payouts, RTO fees, and the customer-facing sales accounts ledger.",
+    permissions: ["stock.view", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
     scope: "all",
   },
   hr: {
@@ -171,7 +165,7 @@ export interface DemoUser {
 
 /** One demo login per role, used by the role switcher. */
 export const DEMO_USERS: Record<Role, DemoUser> = {
-  proprietor: { id: "u-prop", name: "Anoop", role: "proprietor", base: "ang" },
+  managing_partner: { id: "u-prop", name: "Anoop", role: "managing_partner", base: "ang" },
   partner: { id: "u-partner", name: "Mathew Joseph", role: "partner", base: "b1" },
   branch_manager: { id: "u-bm", name: "Jithin Varghese", role: "branch_manager", base: "b1" },
   branch_accountant: { id: "u-bacc", name: "Divya Menon", role: "branch_accountant", base: "b1" },
@@ -191,6 +185,42 @@ export function can(role: Role, permission: Permission) {
 export function inScope(role: Role, branchId: string) {
   const scope = ROLES[role].scope;
   return scope === "all" || scope.includes(branchId);
+}
+
+/*
+ * Per-employee panel overrides (Employee & Access page). Each module maps to the one permission
+ * that gates its whole section - blocking that permission is enough to hide the section from the
+ * sidebar and refuse the route, without having to enumerate every finer-grained action permission
+ * the role also holds for that area (e.g. stock.create, recon.manage stay with the role).
+ */
+export const PANEL_MODULES = [
+  { key: "stock", label: "Stock", permission: "stock.view" },
+  { key: "recon", label: "Reconditioning", permission: "recon.view" },
+  { key: "sales", label: "Sales", permission: "sales.view" },
+  { key: "accounts", label: "Accounts", permission: "accounts.view" },
+  { key: "attendance", label: "Attendance", permission: "attendance.view" },
+] as const satisfies { key: string; label: string; permission: Permission }[];
+
+export type PanelModule = (typeof PANEL_MODULES)[number]["key"];
+
+/** Which of the 5 panel modules a role gets by default, i.e. before any per-employee override. */
+export function roleDefaultPanels(role?: Role): PanelModule[] {
+  if (!role) return [];
+  return PANEL_MODULES.filter((m) => can(role, m.permission)).map((m) => m.key);
+}
+
+/**
+ * A role's permissions, overridden by an employee's explicit panel picks when they have any:
+ * a module they toggled ON is granted even if their base role never had it, and a module they
+ * toggled OFF is withheld even if the role normally includes it. `undefined` (never customized)
+ * falls back to the role's own permission set untouched.
+ */
+export function effectivePermissions(role: Role, allowedPanels?: PanelModule[]): readonly Permission[] {
+  const base = ROLES[role].permissions;
+  if (!allowedPanels) return base;
+  const blocked = new Set<Permission>(PANEL_MODULES.filter((m) => !allowedPanels.includes(m.key)).map((m) => m.permission));
+  const granted = PANEL_MODULES.filter((m) => allowedPanels.includes(m.key)).map((m) => m.permission);
+  return [...new Set([...base.filter((p) => !blocked.has(p)), ...granted])];
 }
 
 // ---- routes ------------------------------------------------------------------
@@ -214,6 +244,8 @@ export const ROUTES: RouteDef[] = [
   { path: "/dashboard", label: "Dashboard", group: "Overview", icon: "LayoutDashboard", anyOf: [] },
   { path: "/escalations", label: "Escalations", group: "Overview", icon: "Siren", anyOf: ["escalations.view"] },
   { path: "/reports", label: "Reports", group: "Overview", icon: "ChartColumn", anyOf: ["reports.view"] },
+  { path: "/attendance-log", label: "Attendance Log", group: "Overview", icon: "MapPin", anyOf: ["attendance.view"] },
+  { path: "/employees", label: "Employees & Access", group: "Overview", icon: "Users", anyOf: ["staff.manage"] },
 
   { path: "/stock", label: "All stock", group: "Stock & hub", icon: "LayoutList", anyOf: ["stock.view"] },
   { path: "/stock/new", label: "Add stock", group: "Stock & hub", icon: "Plus", anyOf: ["stock.create"] },
@@ -227,14 +259,13 @@ export const ROUTES: RouteDef[] = [
   { path: "/verified", label: "Book & sell", group: "Sales", icon: "BadgeCheck", anyOf: ["sales.view"] },
   { path: "/enquiries", label: "Enquiries", group: "Sales", icon: "UserPlus", anyOf: ["leads.view"] },
   { path: "/deliveries", label: "Deliveries", group: "Sales", icon: "KeyRound", anyOf: ["delivery.view"] },
+  { path: "/accounts", label: "Accounts", group: "Sales", icon: "Landmark", anyOf: ["accounts.view"] },
 
   { path: "/calls", label: "Call lists", group: "Calls", icon: "PhoneCall", anyOf: ["calls.view"] },
   { path: "/campaigns", label: "Campaigns", group: "Calls", icon: "Megaphone", anyOf: ["calls.view"] },
 
   { path: "/payments", label: "Seller payments", group: "Finance", icon: "Wallet", anyOf: ["payments.view"] },
   { path: "/fees", label: "RTO & transfer fees", group: "Finance", icon: "Landmark", anyOf: ["fees.view"] },
-  { path: "/settlements", label: "Settlements", group: "Finance", icon: "ArrowLeftRight", anyOf: ["settlements.view"] },
-  { path: "/ledger", label: "Ledger", group: "Finance", icon: "BookOpen", anyOf: ["ledger.view"] },
   { path: "/funds", label: "Funds & cash flow", group: "Finance", icon: "PiggyBank", anyOf: ["funds.view"] },
 
   { path: "/hr/employees", label: "Employees", group: "People", icon: "Users", anyOf: ["hr.view"] },
@@ -248,7 +279,12 @@ export const ROUTES: RouteDef[] = [
   { path: "/branches", label: "Branches", group: "Settings", icon: "Building2", anyOf: ["settings.manage"], hidden: true },
 ];
 
-export const NAV_GROUPS: NavGroup[] = ["Overview", "Stock & hub", "Sales", "Calls", "Finance", "People", "Settings"];
+// "Finance" and "People" are intentionally left out here: their routes still carry
+// group: "Finance" / group: "People" for their own bookkeeping, but with no group in this
+// list the sidebar never renders those section headers - the pages stay reachable (and
+// permission-gated) via their own links/URLs. (HR's employee data also backs role-holder
+// name resolution app-wide via role-context.tsx's NameSync, so lib/hr.ts stays untouched.)
+export const NAV_GROUPS: NavGroup[] = ["Overview", "Stock & hub", "Sales", "Calls", "Settings"];
 
 export function findRoute(pathname: string) {
   return ROUTES.find((r) => (r.pattern ? r.pattern.test(pathname) : r.path === pathname));

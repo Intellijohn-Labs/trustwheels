@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { branchName } from "@/lib/masters";
+import { Truck } from "lucide-react";
+import { branchName, SALE_READINESS_LABEL } from "@/lib/masters";
 import { displayReg, formatDateTime, formatNumber, formatPaise } from "@/lib/format";
 import { verifyState } from "@/lib/verification";
+import { currentBranchId, inTransit } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { StageBadge, cn } from "./ui";
 import { VehicleThumb } from "./vehicle-thumb";
@@ -18,7 +20,39 @@ export function SaleBadge({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
-export function VehicleRow({ vehicle: v, now, leading, actions }: { vehicle: Vehicle; now: number; leading?: ReactNode; actions?: ReactNode }) {
+/** Distinct, hard-to-miss marker for a bike on the road between branches - dispatched but not yet booked in at the destination. */
+export function TransitBadge({ vehicle }: { vehicle: Vehicle }) {
+  if (!inTransit(vehicle)) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-semibold text-warn">
+      <Truck className="size-3" /> In Transit
+    </span>
+  );
+}
+
+export function SaleReadinessBadge({ vehicle }: { vehicle: Vehicle }) {
+  if (!vehicle.saleReadiness) return null;
+  const ready = vehicle.saleReadiness.status === "ready_for_sale";
+  return (
+    <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", ready ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger")}>
+      {SALE_READINESS_LABEL[vehicle.saleReadiness.status]}
+    </span>
+  );
+}
+
+export function VehicleRow({
+  vehicle: v,
+  now,
+  leading,
+  note,
+  actions,
+}: {
+  vehicle: Vehicle;
+  now: number;
+  leading?: ReactNode;
+  note?: ReactNode;
+  actions?: ReactNode;
+}) {
   const state = verifyState(v, now);
   return (
     <li
@@ -44,11 +78,13 @@ export function VehicleRow({ vehicle: v, now, leading, actions }: { vehicle: Veh
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
               <span className="font-mono tracking-tight text-ink">{displayReg(v.registrationNo)}</span>
               <span className="truncate text-xs">
-                {v.year} · {formatNumber(v.odometerKm)} km · {branchName(v.branchId)}
+                {v.year} · {formatNumber(v.odometerKm)} km · {branchName(currentBranchId(v))}
               </span>
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               {v.sale ? <SaleBadge vehicle={v} /> : <StageBadge stage={v.stage} />}
+              <TransitBadge vehicle={v} />
+              <SaleReadinessBadge vehicle={v} />
               {v.sale ? (
                 <span className="text-xs text-muted">
                   {v.sale.customer.name} · {formatDateTime((v.sale.soldAt ?? v.sale.bookedAt)!)}
@@ -63,6 +99,7 @@ export function VehicleRow({ vehicle: v, now, leading, actions }: { vehicle: Veh
             </div>
           </div>
         </Link>
+        {note && <div className="mt-1.5 text-xs font-medium sm:pl-[76px]">{note}</div>}
         {actions && <div className="mt-2.5 flex flex-wrap gap-2 sm:pl-[76px]">{actions}</div>}
       </div>
     </li>

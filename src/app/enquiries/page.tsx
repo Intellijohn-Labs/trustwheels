@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { ChartColumn, Clock, Plus, Siren, UserPlus } from "lucide-react";
+import { ChartColumn, Clock, Plus, Siren, Trash2, UserPlus } from "lucide-react";
 import { DataTable, type Column } from "@/components/data-table";
 import { Button, PageHeader, Panel, Pill, Segmented } from "@/components/ui";
 import { EnquiryDialog, LogCallDialog, StageDialog } from "@/components/panels/lead-dialogs";
 import { FollowUpChips, FollowUpsTable, LeadCell, nextCallText } from "@/components/panels/follow-ups";
+import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "@/components/selection";
 import { formatDateTime } from "@/lib/format";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
-import { conversionBy, isOpenLead, sourceLabel, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead, type LeadSource } from "@/lib/leads";
+import { conversionBy, deleteLead, deleteLeads, isOpenLead, sourceLabel, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead, type LeadSource } from "@/lib/leads";
 
 type Filter = "open" | "booked" | "lost" | "all";
 
@@ -29,11 +31,23 @@ export default function EnquiriesPage() {
   const [logging, setLogging] = useState<{ lead: Lead; day: FollowUpDay }>();
   const [staging, setStaging] = useState<Lead>();
   const manage = can("leads.manage");
+  const canDelete = can("leads.delete");
+  const label = (l: Lead) => `${l.name} · ${l.phone}`;
 
   const current = FILTERS.find((f) => f.value === filter)!;
   const rows = leads.filter(current.test).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const selection = useSelection(rows, (l) => l.id);
+  const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; labels: string[] } | null>(null);
 
   const columns: Column<Lead>[] = [
+    ...(canDelete
+      ? [
+          {
+            header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown enquiries" />,
+            cell: (l: Lead) => <RowCheckbox checked={selection.isSelected(l.id)} onChange={() => selection.toggle(l.id)} label={`Select ${label(l)}`} />,
+          } satisfies Column<Lead>,
+        ]
+      : []),
     { header: "Customer", cell: (l) => <LeadCell lead={l} /> },
     { header: "Interested in", cell: (l) => <span className="line-clamp-2 min-w-40">{l.interest || "—"}</span> },
     { header: "Received", cell: (l) => <span className="whitespace-nowrap text-muted">{formatDateTime(l.createdAt)}</span> },
@@ -64,22 +78,29 @@ export default function EnquiriesPage() {
     },
     { header: "Assigned to", cell: (l) => <span className="whitespace-nowrap">{l.assignedTo}</span> },
   ];
-  if (manage)
+  if (manage || canDelete)
     columns.push({
       header: "",
       align: "right",
       cell: (l) => {
         const next = nextCallText(l, now);
         return (
-          <div className="flex justify-end gap-1.5">
-            {next && next.state !== "upcoming" && (
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {manage && next && next.state !== "upcoming" && (
               <Button size="sm" variant={next.state === "overdue" ? "danger" : "primary"} onClick={() => setLogging({ lead: l, day: next.day })}>
                 Log day {next.day}
               </Button>
             )}
-            <Button size="sm" onClick={() => setStaging(l)}>
-              Stage
-            </Button>
+            {manage && (
+              <Button size="sm" onClick={() => setStaging(l)}>
+                Stage
+              </Button>
+            )}
+            {canDelete && (
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ ids: [l.id], labels: [label(l)] })} aria-label={`Delete ${label(l)}`}>
+                <Trash2 className="size-3.5" />
+              </Button>
+            )}
           </div>
         );
       },
@@ -102,6 +123,21 @@ export default function EnquiriesPage() {
 
       <FollowUpsTable kind="overdue" />
       <FollowUpsTable kind="due" />
+
+      {canDelete && selection.count > 0 && (
+        <SelectionToolbar
+          count={selection.count}
+          noun="enquiry"
+          nounPlural="enquiries"
+          onClear={selection.clear}
+          onDelete={() =>
+            setConfirmDelete({
+              ids: [...selection.selected],
+              labels: rows.filter((l) => selection.selected.has(l.id)).map(label),
+            })
+          }
+        />
+      )}
 
       <Panel
         flush
@@ -131,6 +167,20 @@ export default function EnquiriesPage() {
       {adding && <EnquiryDialog onClose={() => setAdding(false)} />}
       {logging && <LogCallDialog lead={logging.lead} day={logging.day} onClose={() => setLogging(undefined)} />}
       {staging && <StageDialog lead={staging} onClose={() => setStaging(undefined)} />}
+      {confirmDelete && (
+        <ConfirmDeleteDialog
+          count={confirmDelete.ids.length}
+          items={confirmDelete.labels}
+          noun="enquiry"
+          nounPlural="enquiries"
+          onConfirm={async () => {
+            if (confirmDelete.ids.length === 1) await deleteLead(confirmDelete.ids[0]);
+            else await deleteLeads(confirmDelete.ids);
+            selection.clear();
+          }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }

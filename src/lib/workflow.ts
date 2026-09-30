@@ -61,6 +61,15 @@ export function transitBreached(v: Vehicle, now: number) {
   return inTransit(v) && transitHours(v, now) > SLA.transitHours;
 }
 
+/**
+ * Where the vehicle physically is right now: its origin branch until it's booked in at the
+ * destination, then the destination. `branchId` itself never changes - it stays the vehicle's
+ * permanent home/source branch, which settlements, branch performance and sales reports key off.
+ */
+export function currentBranchId(v: Vehicle): string {
+  return v.receipt ? (v.dispatch?.to ?? "ang") : v.branchId;
+}
+
 /** Reconditioning clock runs from stock entry until the manager's quality-gate sign-off. */
 export function reconHours(v: Vehicle, now: number) {
   if (!v.recon) return 0;
@@ -74,12 +83,16 @@ export function reconFlag(v: Vehicle, now: number): ReconFlag {
   return h > SLA.reconRedHours ? "red72" : h > SLA.reconAmberHours ? "red48" : "ok";
 }
 
+// Stage 8 specifically, not just "has a recon record": once a job card is signed off,
+// completeRecon() reverts `stage` to 7 (general stock evaluation) even though the recon record
+// itself (items, photos, cost) is kept, so these two stay scoped to a vehicle still actually
+// sitting at the gate.
 export function inRecon(v: Vehicle) {
-  return !!v.recon && !v.gate;
+  return !!v.recon && !v.gate && v.stage === 8;
 }
 
 export function awaitingGate(v: Vehicle) {
-  return !!v.recon?.completed && !v.gate;
+  return !!v.recon?.completed && !v.gate && v.stage === 8;
 }
 
 // ---- seller payment (7 working days from cross-verification) -----------------------

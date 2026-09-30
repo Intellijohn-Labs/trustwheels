@@ -17,7 +17,7 @@ import HrDashboard from "@/components/dashboards/hr";
 
 /** Each role lands on its own dashboard: KPIs and work queues for that role only. */
 const DASHBOARDS: Record<Role, ComponentType> = {
-  proprietor: ProprietorDashboard,
+  managing_partner: ProprietorDashboard,
   partner: PartnerDashboard,
   branch_manager: BranchManagerDashboard,
   branch_accountant: BranchAccountantDashboard,

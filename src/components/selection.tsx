@@ -64,12 +64,25 @@ export function SelectAllCheckbox({ checked, indeterminate, onChange, label = "S
 }
 
 /** Toolbar that appears once one or more rows are selected: count, clear, and a bulk delete button. */
-export function SelectionToolbar({ count, onClear, onDelete, noun = "item" }: { count: number; onClear: () => void; onDelete: () => void; noun?: string }) {
+export function SelectionToolbar({
+  count,
+  onClear,
+  onDelete,
+  noun = "item",
+  nounPlural = `${noun}s`,
+}: {
+  count: number;
+  onClear: () => void;
+  onDelete: () => void;
+  noun?: string;
+  /** Override for an irregular plural, e.g. noun="enquiry" needs nounPlural="enquiries". */
+  nounPlural?: string;
+}) {
   if (count === 0) return null;
   return (
     <div className={cn("anim-pop flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand-soft px-4 py-2.5")}>
       <p className="text-sm font-semibold text-brand">
-        {count} {count === 1 ? noun : `${noun}s`} selected
+        {count} {count === 1 ? noun : nounPlural} selected
       </p>
       <div className="flex items-center gap-2">
         <Button size="sm" variant="ghost" onClick={onClear}>

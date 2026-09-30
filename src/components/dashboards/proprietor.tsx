@@ -11,9 +11,8 @@ import { landedCostPaise, marginPaise } from "@/lib/workflow";
 import { KpiCard, KpiGrid, PageHeader, Panel } from "@/components/ui";
 import { EscalationList } from "@/components/panels/escalation-list";
 import { PipelineBoard } from "@/components/panels/pipeline-board";
-import { HrOverview } from "@/components/panels/hr-overview";
-import { CashFlowChart } from "@/components/panels/cash-flow-chart";
 import { BranchPerformancePanel } from "@/components/panels/branch-performance";
+import { AttendanceLogPanel } from "@/components/panels/attendance-log";
 
 export default function ProprietorDashboard() {
   const { user } = useRole();
@@ -72,12 +71,8 @@ export default function ProprietorDashboard() {
         </Panel>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <CashFlowChart title="Cash flow, all branches" />
-        <BranchPerformancePanel />
-      </div>
-
-      <HrOverview title="HR overview" />
+      <BranchPerformancePanel />
+      <AttendanceLogPanel />
     </div>
   );
 }

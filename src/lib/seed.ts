@@ -124,7 +124,10 @@ export function seedVehicles(now = Date.now()): Vehicle[] {
               },
             }
           : undefined,
-      dispatch: t.dispatched !== undefined ? { rider: ["Shibu", "Arun", "Nikhil"][n % 3], handoverAt: ago(t.dispatched), by: U.branch_manager.name } : undefined,
+      dispatch:
+        t.dispatched !== undefined
+          ? { rider: ["Shibu", "Arun", "Nikhil"][n % 3], handoverAt: ago(t.dispatched), by: U.branch_manager.name, from: s.branchId, to: "ang", prevStage: 4 }
+          : undefined,
       receipt: t.received !== undefined ? { ...signed(t.received, U.hub_admin.name), regConfirmed: s.registrationNo, notes: "" } : undefined,
       recon:
         t.received !== undefined

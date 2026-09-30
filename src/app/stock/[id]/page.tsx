@@ -10,7 +10,7 @@ import { LIFECYCLE_STAGES, PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise } from "@/lib/format";
 import type { Vehicle } from "@/lib/types";
 import { Button, StageBadge, cn } from "@/components/ui";
-import { VerifyCheckbox } from "@/components/verify-checkbox";
+import { VerifyButton } from "@/components/verify-button";
 import { VerifyTimer } from "@/components/verify-timer";
 import { SaleBadge } from "@/components/vehicle-row";
 import { SaleActions } from "@/components/sale-actions";
@@ -20,7 +20,7 @@ import { useRole } from "@/lib/role-context";
 import { ShieldX } from "lucide-react";
 import { SLA, TRANSFER_STEPS } from "@/lib/masters";
 import { Pill } from "@/components/ui";
-import { isCodeRed, landedCostPaise, paymentDue, reconCostPaise, reconFlag, reconHours, transferProgress, transitBreached, transitHours } from "@/lib/workflow";
+import { awaitingGate, currentBranchId, inTransit, isCodeRed, landedCostPaise, paymentDue, reconCostPaise, reconFlag, reconHours, transferProgress, transitBreached, transitHours } from "@/lib/workflow";
 import { DocumentVault } from "@/components/vehicle/document-vault";
 
 export default function VehicleDetailPage() {
@@ -120,7 +120,7 @@ function VehicleDetail() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <VerifyCheckbox vehicle={v} withLabel />
+        <VerifyButton vehicle={v} size="lg" />
         {v.verified ? (
           <p className="text-sm text-muted">
             by {v.verified.by} · {formatDateTime(v.verified.at)}
@@ -233,8 +233,9 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
       "Dispatch",
       v.dispatch ? (
         <>
-          {v.dispatch.rider} · {formatDateTime(v.dispatch.handoverAt)} · {Math.round(transitHours(v, now))}h in transit{" "}
-          {transitBreached(v, now) && <Pill tone="danger">Over {SLA.transitHours}h</Pill>}
+          {v.dispatch.rider} · {branchName(v.dispatch.from)} → {branchName(v.dispatch.to)} · {formatDateTime(v.dispatch.handoverAt)} ·{" "}
+          {Math.round(transitHours(v, now))}h in transit {transitBreached(v, now) && <Pill tone="danger">Over {SLA.transitHours}h</Pill>}
+          {v.dispatch.notes && <span className="mt-0.5 block text-xs text-muted">Note: {v.dispatch.notes}</span>}
         </>
       ) : (
         "Not dispatched"
@@ -242,18 +243,40 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
     ],
     ["Received at Angamaly", v.receipt ? `${v.receipt.by} · ${formatDateTime(v.receipt.at)}` : "—"],
     [
+      "Current location",
+      <>
+        {branchName(currentBranchId(v))} {inTransit(v) && <Pill tone="warn">In transit</Pill>}
+      </>,
+    ],
+    [
       "Reconditioning",
       v.recon ? (
         <>
-          {v.recon.supervisor} · {Math.round(reconHours(v, now))}h · job card {formatPaise(reconCostPaise(v))}
+          {v.recon.supervisor} · job card {formatPaise(reconCostPaise(v))}
           {v.recon.completed ? " · signed off" : ""}{" "}
-          {!v.gate && reconFlag(v, now) !== "ok" && <Pill tone={reconFlag(v, now) === "red72" ? "danger" : "warn"}>RED {reconFlag(v, now) === "red72" ? "72h" : "48h"}</Pill>}
+          {v.stage === 8 && (
+            <>
+              · {Math.round(reconHours(v, now))}h{" "}
+              {!v.gate && reconFlag(v, now) !== "ok" && (
+                <Pill tone={reconFlag(v, now) === "red72" ? "danger" : "warn"}>RED {reconFlag(v, now) === "red72" ? "72h" : "48h"}</Pill>
+              )}
+            </>
+          )}
         </>
       ) : (
         "—"
       ),
     ],
-    ["Quality gate", v.gate ? `Approved by ${v.gate.by} · ${formatDateTime(v.gate.at)}` : v.recon?.completed ? "Waiting for the manager" : "—"],
+    [
+      "Quality gate",
+      v.gate
+        ? `Approved by ${v.gate.by} · ${formatDateTime(v.gate.at)}`
+        : awaitingGate(v)
+          ? "Waiting for the manager"
+          : v.recon?.completed
+            ? "Skipped - returned to stock evaluation"
+            : "—",
+    ],
     ["Landed cost", `${formatPaise(landedCostPaise(v))}${v.proposedPricePaise ? ` · asking ${formatPaise(v.proposedPricePaise)}` : ""}`],
     [
       "Ownership transfer",

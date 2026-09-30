@@ -31,7 +31,7 @@ export function LeadCell({ lead }: { lead: Lead }) {
 export function CodeRedFollowUpPill({ day }: { day: FollowUpDay }) {
   return (
     <Pill tone="danger" icon={<Siren className="size-3.5" />} className="whitespace-normal!">
-      Code Red · Day {day} call missed · escalated to manager &amp; proprietor
+      Code Red · Day {day} call missed · escalated to manager &amp; Managing Partner
     </Pill>
   );
 }
@@ -121,7 +121,7 @@ export function FollowUpsTable({ kind, limit, title }: { kind: "due" | "overdue"
       flush
       tone={overdue && all.length ? "danger" : undefined}
       title={title ?? (overdue ? `Overdue follow-ups (escalated) · ${all.length}` : `Follow-ups due today · ${all.length}`)}
-      description={overdue ? "Calls not made within their day. The manager and proprietor have been alerted." : "Day 2, 3 and 4 calls whose window is open now."}
+      description={overdue ? "Calls not made within their day. The manager and Managing Partner have been alerted." : "Day 2, 3 and 4 calls whose window is open now."}
       actions={
         limit && all.length > limit ? (
           <Link href="/enquiries" className="text-sm font-medium text-brand hover:underline">

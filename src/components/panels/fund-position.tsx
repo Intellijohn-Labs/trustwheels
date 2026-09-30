@@ -1,18 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
-import { funds, type Contribution } from "@/lib/funds";
-import { isSold, useScopedLedger } from "@/lib/finance";
+import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { deleteFund, deleteFunds, funds, type Contribution } from "@/lib/funds";
+import { isSold } from "@/lib/finance";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { BRANCHES, branchName } from "@/lib/masters";
 import { landedCostPaise } from "@/lib/workflow";
 import { formatDate, formatPaise } from "@/lib/format";
 import { csvDate, rupees, type CsvColumn } from "@/lib/csv";
-import { DataTable } from "../data-table";
-import { Panel } from "../ui";
+import { DataTable, type Column } from "../data-table";
+import { Button, Panel } from "../ui";
 import { CsvButton } from "./csv-button";
-import { SignedAmount } from "./ledger-table";
+import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "../selection";
 
 export interface FundRow {
   branchId: string;
@@ -20,14 +22,11 @@ export interface FundRow {
   /** Unsold vehicles from this branch, at landed cost (wherever they are now). */
   stockPaise: number;
   stockUnits: number;
-  /** Capital plus every ledger movement booked to the branch. */
-  cashPaise: number;
 }
 
-/** Capital, stock deployed and cash position per branch in the role's scope. */
+/** Capital and stock deployed per branch in the role's scope. */
 export function useFundPositions() {
   const { items, ready: fReady } = funds.useItems();
-  const { entries, ready: lReady } = useScopedLedger();
   const { vehicles, ready: vReady } = useScopedVehicles();
   const { inScope } = useRole();
   const rows = useMemo<FundRow[]>(
@@ -35,14 +34,12 @@ export function useFundPositions() {
       BRANCHES.filter((b) => inScope(b.id)).map((b) => {
         const stock = vehicles.filter((v) => v.branchId === b.id && !isSold(v));
         const capitalPaise = items.filter((c) => c.branchId === b.id).reduce((s, c) => s + c.amountPaise, 0);
-        // "capital" ledger entries would duplicate the contributions list, so they're skipped here.
-        const movement = entries.filter((e) => e.branchId === b.id && e.type !== "capital").reduce((s, e) => s + e.amountPaise, 0);
-        return { branchId: b.id, capitalPaise, stockPaise: stock.reduce((s, v) => s + landedCostPaise(v), 0), stockUnits: stock.length, cashPaise: capitalPaise + movement };
+        return { branchId: b.id, capitalPaise, stockPaise: stock.reduce((s, v) => s + landedCostPaise(v), 0), stockUnits: stock.length };
       }),
-    [items, entries, vehicles, inScope],
+    [items, vehicles, inScope],
   );
   const contributions = useMemo(() => items.filter((c) => inScope(c.branchId)).sort((a, b) => b.at.localeCompare(a.at)), [items, inScope]);
-  return { rows, contributions, ready: fReady && lReady && vReady };
+  return { rows, contributions, ready: fReady && vReady };
 }
 
 const csv: CsvColumn<FundRow>[] = [
@@ -50,7 +47,6 @@ const csv: CsvColumn<FundRow>[] = [
   { header: "Capital in (INR)", value: (r) => rupees(r.capitalPaise) },
   { header: "Unsold vehicles", value: (r) => r.stockUnits },
   { header: "Deployed in stock at landed cost (INR)", value: (r) => rupees(r.stockPaise) },
-  { header: "Cash position (INR)", value: (r) => rupees(r.cashPaise) },
 ];
 
 export function FundPositionPanel() {
@@ -59,7 +55,7 @@ export function FundPositionPanel() {
     <Panel
       flush
       title="Fund tracking by branch"
-      description="Capital in · deployed in unsold stock (landed cost, including vehicles now at Angamaly) · cash = capital + ledger movements"
+      description="Capital in · deployed in unsold stock (landed cost, including vehicles now at Angamaly)"
       actions={<CsvButton filename="fund-positions" rows={rows} columns={csv} />}
     >
       <DataTable
@@ -82,7 +78,6 @@ export function FundPositionPanel() {
               </span>
             ),
           },
-          { header: "Cash position", align: "right", cell: (r) => <SignedAmount paise={r.cashPaise} /> },
         ]}
       />
     </Panel>
@@ -99,20 +94,72 @@ const contribCsv: CsvColumn<Contribution>[] = [
 
 export function ContributionsPanel() {
   const { contributions, ready } = useFundPositions();
+  const { can } = useRole();
+  const canDelete = can("funds.delete");
+  const label = (c: Contribution) => `${c.partner} · ${branchName(c.branchId)}`;
+  const selection = useSelection(contributions, (c) => c.id);
+  const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; labels: string[] } | null>(null);
+
+  const columns: Column<Contribution>[] = [
+    ...(canDelete
+      ? [
+          {
+            header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown contributions" />,
+            cell: (c: Contribution) => <RowCheckbox checked={selection.isSelected(c.id)} onChange={() => selection.toggle(c.id)} label={`Select ${label(c)}`} />,
+          } satisfies Column<Contribution>,
+        ]
+      : []),
+    { header: "Date", cell: (c) => <span className="whitespace-nowrap text-muted">{formatDate(c.at)}</span> },
+    { header: "Contributor", cell: (c) => <span className="font-medium whitespace-nowrap">{c.partner}</span> },
+    { header: "Branch", cell: (c) => branchName(c.branchId) },
+    { header: "Amount", align: "right", cell: (c) => <span className="font-semibold">{formatPaise(c.amountPaise)}</span> },
+    { header: "Note", cell: (c) => <span className="text-xs text-muted">{c.note}</span> },
+    ...(canDelete
+      ? [
+          {
+            header: "",
+            align: "right" as const,
+            cell: (c: Contribution) => (
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ ids: [c.id], labels: [label(c)] })} aria-label={`Delete contribution ${label(c)}`}>
+                <Trash2 className="size-3.5" />
+              </Button>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <Panel flush title="Capital contributions" description={`${contributions.length} contributions in your scope`} actions={<CsvButton filename="capital-contributions" rows={contributions} columns={contribCsv} />}>
-      <DataTable
-        rows={ready ? contributions : []}
-        rowKey={(c) => c.id}
-        empty={ready ? "No capital recorded." : "Loading…"}
-        columns={[
-          { header: "Date", cell: (c) => <span className="whitespace-nowrap text-muted">{formatDate(c.at)}</span> },
-          { header: "Contributor", cell: (c) => <span className="font-medium whitespace-nowrap">{c.partner}</span> },
-          { header: "Branch", cell: (c) => branchName(c.branchId) },
-          { header: "Amount", align: "right", cell: (c) => <span className="font-semibold">{formatPaise(c.amountPaise)}</span> },
-          { header: "Note", cell: (c) => <span className="text-xs text-muted">{c.note}</span> },
-        ]}
-      />
-    </Panel>
+    <div className="space-y-3">
+      {canDelete && selection.count > 0 && (
+        <SelectionToolbar
+          count={selection.count}
+          noun="contribution"
+          onClear={selection.clear}
+          onDelete={() =>
+            setConfirmDelete({
+              ids: [...selection.selected],
+              labels: contributions.filter((c) => selection.selected.has(c.id)).map(label),
+            })
+          }
+        />
+      )}
+      <Panel flush title="Capital contributions" description={`${contributions.length} contributions in your scope`} actions={<CsvButton filename="capital-contributions" rows={contributions} columns={contribCsv} />}>
+        <DataTable rows={ready ? contributions : []} rowKey={(c) => c.id} empty={ready ? "No capital recorded." : "Loading…"} columns={columns} />
+      </Panel>
+      {confirmDelete && (
+        <ConfirmDeleteDialog
+          count={confirmDelete.ids.length}
+          items={confirmDelete.labels}
+          noun="contribution"
+          onConfirm={async () => {
+            if (confirmDelete.ids.length === 1) await deleteFund(confirmDelete.ids[0]);
+            else await deleteFunds(confirmDelete.ids);
+            selection.clear();
+          }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
   );
 }

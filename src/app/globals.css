@@ -533,6 +533,18 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
 .lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
 .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -16px color-mix(in srgb, var(--brand) 55%, transparent); }
 
+/*
+ * Shared press/hover/focus micro-interaction for every button and button-like control (the
+ * shared Button component, Segmented options, filter chips, panel tabs): a light lift + brightness
+ * on hover, a quick scale-down on press so a tap always feels acknowledged, and a focus-visible
+ * ring that uses outline (never a layout-shifting border/shadow). Plain CSS transforms only - no
+ * animation library - and it already respects prefers-reduced-motion via the global rule below.
+ */
+.btn-tap { transition: transform 150ms ease-in-out, filter 150ms ease-in-out, box-shadow 150ms ease-in-out; touch-action: manipulation; }
+.btn-tap:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); box-shadow: 0 2px 6px -2px rgb(0 0 0 / 0.15); }
+.btn-tap:active:not(:disabled) { transform: scale(0.97); transition-duration: 80ms; box-shadow: none; }
+.btn-tap:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

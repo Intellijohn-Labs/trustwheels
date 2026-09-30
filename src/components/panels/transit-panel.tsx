@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Bike, Clock, ShieldAlert, Truck } from "lucide-react";
+import { AlertTriangle, Bike, Clock, Loader2, Plus, ShieldAlert, Trash2, Truck } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
-import { dispatchVehicle } from "@/lib/stock-store";
-import { BRANCHES, SLA } from "@/lib/masters";
-import { formatDateTime } from "@/lib/format";
+import { cancelDispatch, deleteVehicle, dispatchVehicle, quickAddToTransit, useVehicles } from "@/lib/stock-store";
+import { BRANCHES, LIFECYCLE_STAGES, SLA, branchName } from "@/lib/masters";
+import { displayReg, formatDateTime, normaliseReg } from "@/lib/format";
 import { formatDuration, verifyState } from "@/lib/verification";
 import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
-import { Button, Field, Panel, Pill, inputClass } from "../ui";
+import { Button, Field, Panel, Pill, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
 import { VehicleCell, formatHours } from "./vehicle-cell";
@@ -27,6 +27,139 @@ export function awaitingDispatch(v: Vehicle) {
 /** Past 75% of the transit limit but not yet breached. */
 export function transitNearLimit(v: Vehicle, now: number) {
   return inTransit(v) && !transitBreached(v, now) && transitHours(v, now) > SLA.transitHours * 0.75;
+}
+
+// ---- add to transit (manual, 5-field quick entry - not tied to a specific row) -------
+
+/** Opens the manual "Add vehicle" dialog. Placed at the top of the Transit page, independent of any one row. */
+export function AddToTransitButton() {
+  const [open, setOpen] = useState(false);
+  const { can } = useRole();
+  if (!can("transit.dispatch")) return null;
+  return (
+    <>
+      <Button variant="primary" onClick={() => setOpen(true)}>
+        <Plus className="size-4" /> Add vehicle
+      </Button>
+      {open && <AddToTransitDialog onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/**
+ * A deliberately bare-bones manual entry: five fields, no picking from a pre-filtered list and
+ * no verified/intake-stage gate. Typing a reg. no. that's already in inventory links that bike;
+ * anything else registers a quick stock entry on the spot (see `quickAddToTransit`).
+ */
+function AddToTransitDialog({ onClose }: { onClose: () => void }) {
+  // Unscoped: a reg. no. match must reflect the real record even if it's outside this role's
+  // branch scope, so the preview never contradicts what the store (which checks the full list,
+  // then enforces scope itself) is about to do.
+  const { vehicles } = useVehicles();
+  const { user, inScope } = useRole();
+  const originBranches = BRANCHES.filter((b) => b.id !== "ang" && inScope(b.id));
+  const [regNo, setRegNo] = useState("");
+  const [model, setModel] = useState("");
+  const [rider, setRider] = useState("");
+  const [fromBranch, setFromBranch] = useState(originBranches.some((b) => b.id === user.base) ? user.base : (originBranches[0]?.id ?? "b1"));
+  const [toBranch, setToBranch] = useState("ang");
+  const { submit: run, failure, busy } = useInlineAction();
+
+  const reg = normaliseReg(regNo);
+  const matched = reg ? vehicles.find((v) => v.registrationNo === reg) : undefined;
+  const toOptions = BRANCHES.filter((b) => b.id !== fromBranch);
+
+  function selectFrom(id: string) {
+    setFromBranch(id);
+    if (toBranch === id) setToBranch("ang");
+  }
+
+  async function submit() {
+    if (
+      await run(
+        () => quickAddToTransit({ registrationNo: regNo, model, rider, from: fromBranch, to: toBranch }),
+        `${matched ? `${matched.make} ${matched.model}` : displayReg(reg)} added to transit → ${branchName(toBranch)}`,
+      )
+    )
+      onClose();
+  }
+
+  return (
+    <Dialog
+      title="Add vehicle to transit"
+      subtitle="A quick manual entry - no need for the bike to already be fully logged in stock."
+      onClose={onClose}
+      onSubmit={submit}
+      footer={
+        <>
+          <Button size="lg" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button size="lg" type="submit" variant="primary" className="flex-[2]" disabled={busy}>
+            <Truck className="size-4" /> Add to transit
+          </Button>
+        </>
+      }
+    >
+      <Field label="Vehicle number" htmlFor="add-reg" required hint="e.g. KL-07-AB-1234">
+        <input
+          id="add-reg"
+          autoFocus
+          value={regNo}
+          onChange={(e) => setRegNo(e.target.value)}
+          autoCapitalize="characters"
+          autoComplete="off"
+          className={`${inputClass(!!failure)} font-mono tracking-wider uppercase`}
+        />
+      </Field>
+      {matched ? (
+        <p className="mt-2 text-xs font-medium text-ok">
+          Matched in inventory: {matched.make} {matched.model} · currently at {branchName(matched.branchId)}
+        </p>
+      ) : reg ? (
+        <p className="mt-2 text-xs text-muted">No match in inventory - a quick stock entry will be created with these details.</p>
+      ) : null}
+
+      <div className="mt-4">
+        <Field label="Model" htmlFor="add-model" required hint="e.g. Splendor, Pulsar">
+          <input id="add-model" value={model} onChange={(e) => setModel(e.target.value)} autoComplete="off" className={inputClass()} />
+        </Field>
+      </div>
+
+      <div className="mt-4">
+        <Field label="Rider / driver name" htmlFor="add-rider" required>
+          <input id="add-rider" value={rider} onChange={(e) => setRider(e.target.value)} autoComplete="off" className={inputClass()} />
+        </Field>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Field label="From (origin)" htmlFor="from">
+          <select id="from" value={fromBranch} onChange={(e) => selectFrom(e.target.value)} className={inputClass()}>
+            {originBranches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="To (destination)" htmlFor="to">
+          <select id="to" value={toBranch} onChange={(e) => setToBranch(e.target.value)} className={inputClass()}>
+            {toOptions.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {failure && (
+        <p role="alert" className="mt-3 text-sm font-medium text-danger">
+          {failure}
+        </p>
+      )}
+    </Dialog>
+  );
 }
 
 // ---- dispatch ------------------------------------------------------------------------
@@ -47,10 +180,11 @@ export function DispatchButton({ vehicle }: { vehicle: Vehicle }) {
 
 function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [rider, setRider] = useState("");
+  const [notes, setNotes] = useState("");
   const { submit: run, failure, busy } = useInlineAction();
 
   async function submit() {
-    if (await run(() => dispatchVehicle(vehicle.id, rider), `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for Angamaly`)) onClose();
+    if (await run(() => dispatchVehicle(vehicle.id, rider, notes), `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for Angamaly`)) onClose();
   }
 
   return (
@@ -73,6 +207,17 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
       <Field label="Rider name" htmlFor="rider" required hint={`The handover time is recorded now. Angamaly must receive it within ${SLA.transitHours} hours.`}>
         <input id="rider" autoFocus value={rider} onChange={(e) => setRider(e.target.value)} autoComplete="off" className={inputClass(!!failure)} />
       </Field>
+      <div className="mt-4">
+        <Field label="Handover notes (optional)" htmlFor="dispatch-notes" hint="Vehicle condition, handover instructions, driver contact, etc.">
+          <textarea
+            id="dispatch-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className={textareaClass()}
+            placeholder="e.g. Left with half tank, minor scratch on tank noted before handover"
+          />
+        </Field>
+      </div>
       {failure && (
         <p role="alert" className="mt-3 text-sm font-medium text-danger">
           {failure}
@@ -147,7 +292,7 @@ export function TransitSlaPill({ vehicle, now }: { vehicle: Vehicle; now: number
   if (transitBreached(vehicle, now))
     return (
       <Pill tone="danger" icon={<AlertTriangle className="size-3" />}>
-        Breached · escalated to manager &amp; proprietor
+        Breached · escalated to manager &amp; Managing Partner
       </Pill>
     );
   if (transitNearLimit(vehicle, now))
@@ -160,6 +305,73 @@ export function TransitSlaPill({ vehicle, now }: { vehicle: Vehicle; now: number
     <Pill tone="neutral" icon={<Clock className="size-3" />}>
       On time
     </Pill>
+  );
+}
+
+function RemoveFromTransitDialog({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => void }) {
+  const { submit, failure, busy } = useInlineAction();
+  const quick = !!v.quickEntry;
+
+  async function confirm() {
+    const ok = await submit(
+      () => (quick ? deleteVehicle(v.id) : cancelDispatch(v.id)),
+      quick ? `${displayReg(v.registrationNo)} deleted` : `${v.make} ${v.model} removed from transit`,
+    );
+    if (ok) onClose();
+  }
+
+  return (
+    <Dialog
+      title={quick ? "Delete this entry?" : "Remove from transit?"}
+      subtitle={<VehicleSummary vehicle={v} />}
+      onClose={onClose}
+      onSubmit={confirm}
+      footer={
+        <>
+          <Button size="lg" className="flex-1" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button type="submit" size="lg" variant="danger" className="flex-[2]" disabled={busy}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />} {quick ? "Delete" : "Remove"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex items-start gap-3 rounded-2xl bg-danger-soft/60 p-3.5 text-danger">
+        <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+        <p className="text-sm font-medium">
+          {quick
+            ? "This was a quick manual entry with no other inventory history - it will be permanently deleted."
+            : `This cancels the dispatch and reverses its transport-cost entry. The vehicle returns to "${LIFECYCLE_STAGES[v.dispatch!.prevStage - 1]}" at ${branchName(v.branchId)} - the vehicle record itself is not deleted.`}
+        </p>
+      </div>
+      {failure && (
+        <p role="alert" className="mt-3 text-sm font-medium text-danger">
+          {failure}
+        </p>
+      )}
+    </Dialog>
+  );
+}
+
+/**
+ * "Delete"/"Remove" action shared by the /transit and /receiving in-transit lists. A quick manual
+ * entry (no other inventory history) needs Managing-Partner delete rights, same as anywhere else
+ * in stock; cancelling a real vehicle's dispatch is a non-destructive undo, gated the same as
+ * dispatching it in the first place.
+ */
+export function RemoveFromTransitButton({ vehicle }: { vehicle: Vehicle }) {
+  const [open, setOpen] = useState(false);
+  const { can } = useRole();
+  const allowed = vehicle.quickEntry ? can("stock.delete") : can("transit.dispatch");
+  if (!allowed) return null;
+  return (
+    <>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)} aria-label={`Remove ${vehicle.make} ${vehicle.model} from transit`}>
+        <Trash2 className="size-3.5" /> {vehicle.quickEntry ? "Delete" : "Remove"}
+      </Button>
+      {open && <RemoveFromTransitDialog vehicle={vehicle} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -196,6 +408,7 @@ export function InTransitPanel({ limit }: { limit?: number }) {
               </span>
               <TransitSlaPill vehicle={v} now={now} />
             </CardMeta>
+            <RemoveFromTransitButton vehicle={v} />
           </>
         )}
         empty={ready ? "No vehicles on the road." : "Loading…"}
@@ -214,6 +427,7 @@ export function InTransitPanel({ limit }: { limit?: number }) {
             ),
           },
           { header: "SLA", cell: (v) => <TransitSlaPill vehicle={v} now={now} /> },
+          { header: "", align: "right", cell: (v) => <RemoveFromTransitButton vehicle={v} /> },
         ]}
       />
     </Panel>

@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import type { Customer, Document, JobItem, NewVehicle, Vehicle } from "./types";
+import type { Customer, Document, JobItem, NewVehicle, PaymentMode, SaleReadinessStatus, Vehicle } from "./types";
 import type { TransferStep } from "./masters";
 import { roleName } from "./user-names";
 import { getKey, putKey, tx } from "./db";
-import { postLedger } from "./ledger";
 import { VEHICLE_SEED_VERSION, seedVehicles } from "./seed";
 import { assertCan, assertScope, getActor } from "./session";
 import { supabase } from "./supabase";
-import { handoverBlockers, reconCostPaise, releaseBlockers } from "./workflow";
+import { beginSync, endSync, enqueueRetry } from "./sync-queue";
+import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
 import { normaliseReg, displayReg } from "./format";
 import { newId } from "./collections";
 import { missingDocuments, verifyDocument } from "./documents";
-import { documentLabel } from "./masters";
+import { documentLabel, inferMakeFromModel } from "./masters";
 
 /*
  * Browser-only stand-in for the vehicle API. Every mutation checks the caller's permission
@@ -112,11 +112,16 @@ export function useVehicle(id: string) {
  */
 function syncToSupabase(vehicle: Vehicle) {
   if (!supabase) return;
+  beginSync();
   supabase
     .from("vehicles")
     .upsert({ id: vehicle.id, data: vehicle })
     .then(({ error }) => {
-      if (error) console.error("Supabase sync failed:", error.message);
+      endSync();
+      if (error) {
+        console.error("Supabase sync failed:", error.message);
+        enqueueRetry({ table: "vehicles", kind: "upsert", rows: [{ id: vehicle.id, data: vehicle }] });
+      }
     });
 }
 
@@ -134,7 +139,6 @@ async function update(id: string, change: (v: Vehicle) => Vehicle) {
 
 const nowIso = () => new Date().toISOString();
 const signed = () => ({ at: nowIso(), by: getActor().name });
-const label = (v: Vehicle) => `${v.make} ${v.model} (${v.registrationNo})`;
 
 /** Move to `stage`, recording every stage passed through. */
 function advance(v: Vehicle, stage: number, at = nowIso()): Pick<Vehicle, "stage" | "stageHistory"> {
@@ -177,7 +181,7 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
   return vehicle;
 }
 
-/** Permanently remove one vehicle record. Proprietor only; every other role never sees the option. */
+/** Permanently remove one vehicle record. Managing Partner only; every other role never sees the option. */
 export async function deleteVehicle(id: string) {
   assertCan("stock.delete");
   await load();
@@ -214,8 +218,56 @@ export function setVerified(id: string, verified: boolean) {
   assertCan("stock.verify");
   return update(id, (v) => {
     assertScope(v.branchId);
-    if (!verified && (v.sale || v.dispatch)) fail("Blocked: verification is locked once a vehicle is dispatched or sold");
-    return { ...v, verified: verified ? signed() : undefined, ...(verified ? advance(v, 3) : {}) };
+    return {
+      ...v,
+      verified: verified ? signed() : undefined,
+      ...(verified ? advance(v, 3) : {}),
+      // Un-verifying invalidates an active "Ready for Sale" tag - it was only ever valid on a
+      // verified vehicle. Leave a "Rejected Stock" tag alone; that flag doesn't depend on verification.
+      saleReadiness: !verified && v.saleReadiness?.status === "ready_for_sale" ? undefined : v.saleReadiness,
+    };
+  });
+}
+
+/** Revoke verification - same as `setVerified(id, false)`, named for discoverability at unverify call sites. */
+export function unverifyVehicle(id: string) {
+  return setVerified(id, false);
+}
+
+/**
+ * Manual sales-readiness tag: a quick override independent of `stage`, so a branch can flag
+ * a bike as ready to sell (or reject it) without going through the recon/quality-gate
+ * pipeline that separately governs when a vehicle can actually reach "On display".
+ */
+export function setSaleReadiness(id: string, status: SaleReadinessStatus, reason?: string) {
+  assertCan("stock.verify");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    if (v.sale) fail("Blocked: this vehicle is already sold or booked - its sale readiness can't be changed");
+    if (inRecon(v)) fail("Blocked: this vehicle is actively in reconditioning - decide readiness once the job card is signed off");
+    return { ...v, saleReadiness: { status, reason: reason?.trim() || undefined, ...signed() } };
+  });
+}
+
+/**
+ * "Send to Reconditioning" from the Rejected Stock tab: books the vehicle straight into the
+ * same "Under reconditioning" stage `receiveVehicle` creates (advancing through any stages in
+ * between), and clears the Rejected Stock tag - it's now on a real path forward instead of a
+ * dead end. Refuses to clobber an existing job card, and refuses a vehicle already sold/booked.
+ */
+export function sendToReconditioning(id: string) {
+  assertCan("stock.verify");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    if (v.sale) fail("Blocked: this vehicle is already sold or booked");
+    if (v.recon) fail("Already in reconditioning");
+    const at = nowIso();
+    return {
+      ...v,
+      ...advance(v, 8, at),
+      recon: { supervisor: roleName("supervisor"), startedAt: at, items: [], photos: [], sendBacks: [] },
+      saleReadiness: undefined,
+    };
   });
 }
 
@@ -257,23 +309,86 @@ export async function markPayoutPaid(id: string, reference: string) {
     if (!reference.trim()) fail("Enter the payment reference (UTR / cheque no.)");
     return { ...v, purchase: { ...v.purchase, payout: { ...v.purchase.payout, status: "paid", paid: signed(), reference: reference.trim() } } };
   });
-  await postLedger({ branchId: v.branchId, vehicleId: v.id, type: "seller_payment", amountPaise: -v.purchase!.netPayablePaise, memo: `Seller payout · ${label(v)} · ${reference}`, by: getActor().name });
   return v;
 }
 
 // ---- dispatch & receipt ----------------------------------------------------------
 
-export async function dispatchVehicle(id: string, rider: string) {
+export async function dispatchVehicle(id: string, rider: string, notes?: string, to = "ang", from?: string) {
   assertCan("transit.dispatch");
   const v = await update(id, (v) => {
     assertScope(v.branchId);
-    if (!v.verified) fail("Blocked: vehicle not verified");
     if (v.dispatch) fail("Already dispatched");
     if (!rider.trim()) fail("Enter the rider's name");
-    return { ...v, ...advance(v, 6), dispatch: { rider: rider.trim(), handoverAt: nowIso(), by: getActor().name } };
+    const origin = from ?? v.branchId;
+    if (to === origin) fail("Destination must be different from the origin");
+    return {
+      ...v,
+      ...advance(v, 6),
+      dispatch: { rider: rider.trim(), handoverAt: nowIso(), by: getActor().name, from: origin, to, notes: notes?.trim() || undefined, prevStage: v.stage },
+    };
   });
-  await postLedger({ branchId: v.branchId, vehicleId: v.id, type: "transport", amountPaise: -60000, memo: `Rider to Angamaly · ${label(v)}`, by: getActor().name });
   return v;
+}
+
+/**
+ * The "remove" action on /transit and /receiving for a real inventory vehicle: undoes the
+ * dispatch and its transport-cost posting, restoring the pre-dispatch stage, without touching
+ * the vehicle record itself. (A quick/manual entry is deleted outright instead - see `deleteVehicle`.)
+ */
+export async function cancelDispatch(id: string) {
+  assertCan("transit.dispatch");
+  const v = await update(id, (v) => {
+    assertScope(v.branchId);
+    if (!v.dispatch) fail("Not dispatched");
+    if (v.receipt) fail("Already received - can't cancel a completed transit");
+    const { prevStage } = v.dispatch;
+    return { ...v, dispatch: undefined, stage: prevStage, stageHistory: v.stageHistory.filter((e) => e.stage <= prevStage) };
+  });
+  return v;
+}
+
+/**
+ * The manual "Add vehicle" form on /transit: matches an existing bike by registration number and
+ * dispatches it as-is, or - for a quick/direct entry with no inventory match - registers a bare
+ * stock record on the spot with just what the form captured, then dispatches that. Either way the
+ * result is a normal dispatched vehicle, so the transit table, "Mark as received", SLA tracking
+ * and badges need no special-casing for how the entry got there.
+ */
+export async function quickAddToTransit(input: { registrationNo: string; model: string; rider: string; from: string; to: string; notes?: string }) {
+  await load();
+  const reg = normaliseReg(input.registrationNo);
+  if (!reg) fail("Enter the vehicle's registration number");
+  const existing = cache!.find((v) => v.registrationNo === reg);
+  const vehicle =
+    existing ??
+    (await createVehicle({
+      enteredBy: getActor().name,
+      quickEntry: true,
+      source: "direct",
+      branchId: input.from,
+      registrationNo: reg,
+      make: inferMakeFromModel(input.model),
+      model: input.model.trim(),
+      variant: "",
+      year: new Date().getFullYear(),
+      engineCc: 0,
+      odometerKm: 0,
+      colour: "",
+      owners: 1,
+      fuel: "petrol",
+      chassisNo: "",
+      engineNo: "",
+      insurancePolicyNo: "",
+      financeStatus: "free",
+      conditionNotes: "Quick transit entry - full intake details pending.",
+      accidentHistory: "none",
+      knownDefects: "",
+      agreedValuePaise: 0,
+      seller: { name: "", phone: "" },
+      photos: {},
+    }));
+  return dispatchVehicle(vehicle.id, input.rider, input.notes, input.to, input.from);
 }
 
 function nextStockId() {
@@ -305,7 +420,7 @@ export function receiveVehicle(id: string, regConfirmed: string, notes: string) 
 function editRecon(id: string, change: (v: Vehicle, recon: NonNullable<Vehicle["recon"]>) => Partial<Vehicle>) {
   assertCan("recon.manage");
   return update(id, (v) => {
-    if (!v.recon || v.gate) fail("Blocked: vehicle is not in reconditioning");
+    if (!v.recon || v.gate || v.stage !== 8) fail("Blocked: vehicle is not in reconditioning");
     return { ...v, ...change(v, v.recon) };
   });
 }
@@ -337,24 +452,38 @@ export function setProposedPrice(id: string, paise: number) {
   return editRecon(id, () => ({ proposedPricePaise: paise }));
 }
 
+export function setTechnician(id: string, name: string) {
+  return editRecon(id, (_, r) => ({ recon: { ...r, technicianName: name.trim() || undefined } }));
+}
+
 export const MIN_COMPLETION_PHOTOS = 4;
 
-/** Supervisor sign-off. Responsibility continues until the manager passes the quality gate. */
+/**
+ * Supervisor sign-off. Signing off now returns the vehicle straight to general stock evaluation
+ * instead of waiting on a separate quality-gate approval - Ready for Sale / Not Ready for Sale
+ * is the decision point from here. The job card itself (items, photos, cost) is kept exactly as
+ * it is - only `stage` reverts - so landed cost and margin still account for this recon cycle.
+ */
 export function completeRecon(id: string) {
-  return editRecon(id, (_, r) => {
+  return editRecon(id, (v, r) => {
     if (r.completed) fail("Already signed off");
     if (r.photos.length < MIN_COMPLETION_PHOTOS) fail(`Blocked: add at least ${MIN_COMPLETION_PHOTOS} photos (four sides) before sign-off`);
-    return { recon: { ...r, completed: signed() } };
+    return { recon: { ...r, completed: signed() }, stage: 7, stageHistory: v.stageHistory.filter((e) => e.stage <= 7) };
   });
 }
 
 // ---- quality gate ----------------------------------------------------------------
+//
+// A completed job card no longer waits here - completeRecon() above returns the vehicle to
+// general stock evaluation directly. These two actions still work on any vehicle that was
+// already sitting at the gate (stage 8, completed, ungated) before that change.
 
 export async function approveGate(id: string) {
   assertCan("gate.approve");
   const v = await update(id, (v) => {
     if (!v.recon?.completed) fail("Blocked: supervisor has not signed off the job card");
     if (v.gate) fail("Already approved");
+    if (v.stage !== 8) fail("Blocked: this vehicle has already returned to general stock evaluation");
     if (!v.verified) fail("Blocked: documents not verified");
     // Hard lock: every mandatory document (RC, insurance, forms, KYC, purchase receipt) must be
     // uploaded and verified, and not expired, before the vehicle can go "On display".
@@ -363,15 +492,13 @@ export async function approveGate(id: string) {
     const at = nowIso();
     return { ...v, ...advance(v, 10, at), gate: { at, by: getActor().name } };
   });
-  const cost = reconCostPaise(v);
-  if (cost) await postLedger({ branchId: "ang", vehicleId: v.id, type: "recon_cost", amountPaise: -cost, memo: `Job card · ${label(v)}`, by: getActor().name });
   return v;
 }
 
 export function sendBackToRecon(id: string, reason: string) {
   assertCan("gate.approve");
   return update(id, (v) => {
-    if (!v.recon?.completed || v.gate) fail("Blocked: nothing waiting at the quality gate");
+    if (!v.recon?.completed || v.gate || v.stage !== 8) fail("Blocked: nothing waiting at the quality gate");
     if (!reason.trim()) fail("Give a reason for sending it back");
     return { ...v, recon: { ...v.recon, completed: undefined, sendBacks: [...v.recon.sendBacks, { ...signed(), reason: reason.trim() }] } };
   });
@@ -389,7 +516,7 @@ function enterSoldStage(v: Vehicle, at: string): Pick<Vehicle, "stage" | "stageH
 export async function bookVehicle(id: string, customer: Customer, bookingAmountPaise: number) {
   assertCan("sale.book");
   const v = await update(id, (v) => {
-    if (!v.verified) fail("Only verified vehicles can be booked");
+    if (v.saleReadiness?.status !== "ready_for_sale") fail("Only vehicles marked Ready for Sale can be booked");
     if (v.sale) fail(`Already ${v.sale.status}`);
     const at = nowIso();
     return {
@@ -398,14 +525,15 @@ export async function bookVehicle(id: string, customer: Customer, bookingAmountP
       sale: { status: "booked", customer, bookedAt: at, bookingAmountPaise, by: getActor().name, prevStage: v.stage },
     };
   });
-  await postLedger({ branchId: "ang", vehicleId: v.id, type: "booking", amountPaise: bookingAmountPaise, memo: `Booking · ${customer.name} · ${label(v)}`, by: getActor().name });
   return v;
 }
 
 export async function sellVehicle(id: string, customer: Customer, salePricePaise: number) {
   assertCan("sale.book");
   const v = await update(id, (v) => {
-    if (!v.verified) fail("Only verified vehicles can be sold");
+    // Only gates a *new* sale - a booking already in progress can still be completed even if
+    // the vehicle's readiness tag changes afterward.
+    if (!v.sale && v.saleReadiness?.status !== "ready_for_sale") fail("Only vehicles marked Ready for Sale can be sold");
     if (v.sale?.status === "sold") fail("Already sold");
     const at = nowIso();
     return {
@@ -415,19 +543,26 @@ export async function sellVehicle(id: string, customer: Customer, salePricePaise
       delivery: v.delivery ?? { transfer: {} },
     };
   });
-  await postLedger({ branchId: "ang", vehicleId: v.id, type: "sale_receipt", amountPaise: salePricePaise - (v.sale?.bookingAmountPaise ?? 0), memo: `Balance received · ${customer.name} · ${label(v)}`, by: getActor().name });
   return v;
+}
+
+/** Accounts: records how a sold vehicle's payment has come in so far - mode and running total collected. */
+export function recordPayment(id: string, paymentMode: PaymentMode, receivedAmountPaise: number) {
+  assertCan("accounts.manage");
+  return update(id, (v) => {
+    if (v.sale?.status !== "sold") fail("Blocked: this vehicle hasn't been sold yet");
+    if (receivedAmountPaise < 0) fail("Enter a valid amount");
+    return { ...v, sale: { ...v.sale, paymentMode, receivedAmountPaise } };
+  });
 }
 
 export async function cancelBooking(id: string) {
   assertCan("sale.book");
-  const refund = cache?.find((v) => v.id === id)?.sale?.bookingAmountPaise;
   const v = await update(id, (v) => {
     if (v.sale?.status !== "booked") fail("Only a booking can be cancelled");
     const { prevStage } = v.sale;
     return { ...v, sale: undefined, stage: prevStage, stageHistory: v.stageHistory.filter((e) => e.stage <= prevStage) };
   });
-  if (refund) await postLedger({ branchId: "ang", vehicleId: v.id, type: "booking", amountPaise: -refund, memo: `Booking cancelled, advance refunded · ${label(v)}`, by: getActor().name });
   return v;
 }
 
@@ -480,7 +615,6 @@ export async function payTransferFee(id: string) {
     const s = signed();
     return { ...v, delivery: { ...v.delivery!, feePayment: { ...fee, status: "paid", paid: s }, transfer: { ...v.delivery!.transfer, fee: v.delivery!.transfer.fee ?? s } } };
   });
-  await postLedger({ branchId: "ang", vehicleId: v.id, type: "transfer_fee", amountPaise: -(v.delivery!.transferFeePaise ?? 0), memo: `RTO transfer fee · ${label(v)}`, by: getActor().name });
   return v;
 }
 
@@ -525,5 +659,14 @@ export function verifyDocumentRecord(id: string, docId: string) {
     if (!doc) fail("Document not found");
     const verified = verifyDocument(doc, getActor().name);
     return { ...v, documents: v.documents.map((d) => (d.id === docId ? verified : d)) };
+  });
+}
+
+/** Remove one uploaded document. Managing Partner only; other roles keep upload/verify via stock.verify. */
+export function deleteDocumentRecord(id: string, docId: string) {
+  assertCan("documents.delete");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    return { ...v, documents: v.documents.filter((d) => d.id !== docId) };
   });
 }

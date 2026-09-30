@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   CalendarRange,
   ChartColumn,
+  CloudOff,
   FileSpreadsheet,
   KeyRound,
   Landmark,
@@ -23,6 +24,7 @@ import {
   PiggyBank,
   Plane,
   Plus,
+  RefreshCw,
   Settings,
   ShieldCheck,
   Siren,
@@ -33,6 +35,7 @@ import {
   Users,
   Wallet,
   Wrench,
+  Check,
   Circle,
   LogOut,
   Menu,
@@ -41,9 +44,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BRANCHES } from "@/lib/masters";
-import { NAV_GROUPS, ROUTES, canOpen, findRoute } from "@/lib/rbac";
+import { NAV_GROUPS, ROUTES, findRoute } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
+import { useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
 import { ThemeToggle } from "./theme-toggle";
@@ -56,7 +60,7 @@ const SETTINGS_PATHS = ["/settings", "/team", "/branches"];
 // Full-screen pages that bring their own layout.
 const BARE = ["/login"];
 
-const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
+const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
 
 function RouteIcon({ name, className }: { name: string; className?: string }) {
   const Icon = ICONS[name] ?? Circle;
@@ -64,9 +68,9 @@ function RouteIcon({ name, className }: { name: string; className?: string }) {
 }
 
 function Sidebar({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
-  const { role } = useRole();
+  const { canOpenRoute } = useRole();
   const badges = useNavBadges();
-  const visible = ROUTES.filter((r) => !r.hidden && canOpen(role, r));
+  const visible = ROUTES.filter((r) => !r.hidden && canOpenRoute(r));
   const active = findRoute(pathname);
 
   return (
@@ -138,6 +142,25 @@ function Sidebar({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
   );
 }
 
+const SYNC_STATUS: Record<SyncStatus, { dot: string; text: string; label: string; title: string; icon: LucideIcon }> = {
+  synced: { dot: "bg-ok", text: "text-ok", label: "Synced", title: "Everything is synced to the cloud", icon: Check },
+  syncing: { dot: "bg-warn animate-pulse", text: "text-warn", label: "Syncing…", title: "Syncing with the cloud…", icon: RefreshCw },
+  offline: { dot: "bg-faint", text: "text-muted", label: "Offline", title: "Offline - saved on this device, will sync once you're back online", icon: CloudOff },
+};
+
+function SyncStatusPill() {
+  const status = useSyncStatus();
+  const s = SYNC_STATUS[status];
+  const Icon = s.icon;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2.5 py-1 text-xs font-medium" title={s.title}>
+      <span className={cn("size-2 shrink-0 rounded-full", s.dot)} />
+      <Icon className={cn("size-3 shrink-0 sm:hidden", s.text, status === "syncing" && "animate-spin")} />
+      <span className={cn("hidden sm:inline", s.text)}>{s.label}</span>
+    </span>
+  );
+}
+
 function ScopeChip() {
   const { roleDef } = useRole();
   const label = roleDef.scope === "all" ? "All branches" : roleDef.scope.map((id) => BRANCHES.find((b) => b.id === id)?.name ?? id).join(", ");
@@ -151,7 +174,7 @@ function ScopeChip() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { role } = useRole();
+  const { role, canOpenRoute } = useRole();
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
@@ -164,7 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (BARE.includes(pathname)) return <>{children}</>;
 
   const route = findRoute(pathname);
-  const allowed = !route || canOpen(role, route);
+  const allowed = !route || canOpenRoute(route);
 
   return (
     <div className="relative min-h-dvh lg:pl-64">
@@ -194,6 +217,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo className="h-9 w-auto min-[400px]:h-10" />
           </Link>
           <div className="ml-auto flex min-w-0 items-center gap-3">
+            <SyncStatusPill />
             <ScopeChip />
             <Link
               href="/settings"

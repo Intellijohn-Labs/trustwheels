@@ -87,7 +87,7 @@ export function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "h-10 flex-1 rounded-lg px-3 text-sm font-medium transition",
+            "btn-tap h-10 flex-1 rounded-lg px-3 text-sm font-medium transition",
             value === o.value ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
           )}
         >
@@ -141,7 +141,7 @@ export function Button({
       type="button"
       {...props}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-semibold whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-50",
+        "btn-tap inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl font-semibold whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "h-8 px-2.5 text-xs" : size === "lg" ? "h-12 px-5 text-sm" : "h-10 px-3.5 text-sm",
         buttonTone[variant],
         className,

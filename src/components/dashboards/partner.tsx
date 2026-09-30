@@ -1,11 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeftRight, Banknote, Bike, IndianRupee, TrendingUp } from "lucide-react";
+import { Banknote, Bike, IndianRupee, TrendingUp } from "lucide-react";
 import { KpiCard, PageHeader } from "@/components/ui";
 import { BranchPerformancePanel } from "@/components/panels/branch-performance";
-import { RecentTransactionsPanel } from "@/components/panels/ledger-table";
-import { useBranchPositions } from "@/components/panels/settlement-position";
 import { useFundPositions } from "@/components/panels/fund-position";
 import { useSoldVehicles } from "@/components/panels/sales-report";
 import { formatSignedPaise, monthKey, monthLabel } from "@/lib/finance";
@@ -19,7 +17,6 @@ export default function PartnerDashboard() {
   const { user, roleDef } = useRole();
   const { rows } = useFundPositions();
   const { sold } = useSoldVehicles();
-  const { outstandingPaise } = useBranchPositions();
   const now = useNow(300_000);
   const month = monthKey(new Date(now).toISOString());
   const m = useMemo(() => {
@@ -35,17 +32,13 @@ export default function PartnerDashboard() {
   return (
     <div className="space-y-6">
       <PageHeader title={`Welcome, ${user.name.split(" ")[0]}`} description={`${scope} · ${roleDef.description}`} />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard label="Capital invested" value={formatPaise(capital)} icon={<Banknote />} href="/funds" />
         <KpiCard label="Stock value" value={formatPaise(stock)} hint={`${units} unsold at landed cost`} icon={<Bike />} href="/reports" />
         <KpiCard label="Sales this month" value={formatPaise(m.revenue)} hint={`${m.units} vehicle${m.units === 1 ? "" : "s"} · ${monthLabel(month)}`} icon={<IndianRupee />} href="/reports" />
         <KpiCard label="Margin this month" value={formatSignedPaise(m.margin)} hint={m.revenue ? `${((m.margin / m.revenue) * 100).toFixed(1)}% of sales` : "No sales yet"} icon={<TrendingUp />} href="/reports" />
-        <div className="col-span-2 lg:col-span-1">
-          <KpiCard label="Outstanding settlements" value={formatPaise(outstandingPaise)} hint="Owed by Angamaly to your branches" icon={<ArrowLeftRight />} href="/settlements" />
-        </div>
       </div>
       <BranchPerformancePanel />
-      <RecentTransactionsPanel limit={8} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, Loader2, RotateCcw } from "lucide-react";
-import { compressImage } from "@/lib/image";
+import { uploadVehiclePhoto } from "@/lib/vehicle-media";
 import { cn } from "./ui";
 
 export function PhotoSlotInput({
@@ -27,7 +27,9 @@ export function PhotoSlotInput({
     setBusy(true);
     setError(undefined);
     try {
-      onChange(await compressImage(file));
+      // Shows the compressed local preview the moment it's ready, then swaps in the hosted
+      // Supabase URL once the upload finishes - the slower network round trip happens invisibly.
+      onChange(await uploadVehiclePhoto(file, onChange));
     } catch {
       setError("Couldn't read that image");
     } finally {
@@ -46,14 +48,9 @@ export function PhotoSlotInput({
         !value && (invalid ? "border-danger" : "border-line-strong"),
       )}
     >
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => handle(e.target.files?.[0])}
-      />
+      {/* No `capture` attribute: that forces the OS camera open directly on mobile, skipping
+          the "Take Photo / Photo Library" picker and blocking gallery selection entirely. */}
+      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
       {value ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}

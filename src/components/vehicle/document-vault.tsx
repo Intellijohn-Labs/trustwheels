@@ -6,10 +6,10 @@ import { Button, Pill, cn, inputClass } from "../ui";
 import { useAction } from "../toast";
 import { useRole } from "@/lib/role-context";
 import { DOCUMENT_TYPES, documentLabel } from "@/lib/masters";
-import { readDocumentFile } from "@/lib/image";
+import { uploadVehicleDocument } from "@/lib/vehicle-media";
 import { formatDateTime } from "@/lib/format";
 import { allRequiredDocsVerified, getLatestDocument, isExpired, missingDocuments } from "@/lib/documents";
-import { updateDocuments, verifyDocumentRecord } from "@/lib/stock-store";
+import { deleteDocumentRecord, updateDocuments, verifyDocumentRecord } from "@/lib/stock-store";
 import { newId } from "@/lib/collections";
 import type { Document, DocumentStatus, DocumentType, Vehicle } from "@/lib/types";
 
@@ -37,6 +37,7 @@ const STATUS_LABEL: Record<DocumentStatus, string> = {
 export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
   const { can } = useRole();
   const manage = can("stock.verify");
+  const canDelete = can("documents.delete");
   const today = new Date().toISOString().slice(0, 10);
   const missing = missingDocuments(v);
   const complete = allRequiredDocsVerified(v);
@@ -66,7 +67,7 @@ export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
 
       <ul className="divide-y divide-line">
         {DOCUMENT_TYPES.map((dt) => (
-          <DocumentRow key={dt.type} vehicle={v} type={dt.type} required={dt.required} hasExpiry={dt.hasExpiry} manage={manage} today={today} />
+          <DocumentRow key={dt.type} vehicle={v} type={dt.type} required={dt.required} hasExpiry={dt.hasExpiry} manage={manage} canDelete={canDelete} today={today} />
         ))}
       </ul>
 
@@ -88,6 +89,7 @@ function DocumentRow({
   required,
   hasExpiry,
   manage,
+  canDelete,
   today,
 }: {
   vehicle: Vehicle;
@@ -95,6 +97,7 @@ function DocumentRow({
   required: boolean;
   hasExpiry: boolean;
   manage: boolean;
+  canDelete: boolean;
   today: string;
 }) {
   const doc = getLatestDocument(v, type);
@@ -110,7 +113,7 @@ function DocumentRow({
     setBusy(true);
     setError(undefined);
     try {
-      const fileUrl = await readDocumentFile(file);
+      const fileUrl = await uploadVehicleDocument(file);
       const next: Document = {
         id: doc?.id ?? newId("doc"),
         type,
@@ -184,22 +187,22 @@ function DocumentRow({
             </Button>
           )}
           {doc && (
-            <>
-              <a href={doc.fileUrl} target="_blank" rel="noreferrer" aria-label={`View ${documentLabel(type)}`}>
-                <Button size="sm" variant="ghost">
-                  <Eye className="size-3.5" />
-                </Button>
-              </a>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={acting}
-                onClick={() => run(() => updateDocuments(v.id, v.documents.filter((d) => d.id !== doc.id)), `${documentLabel(type)} removed`)}
-                aria-label={`Remove ${documentLabel(type)}`}
-              >
-                <Trash2 className="size-3.5" />
+            <a href={doc.fileUrl} target="_blank" rel="noreferrer" aria-label={`View ${documentLabel(type)}`}>
+              <Button size="sm" variant="ghost">
+                <Eye className="size-3.5" />
               </Button>
-            </>
+            </a>
+          )}
+          {doc && canDelete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={acting}
+              onClick={() => run(() => deleteDocumentRecord(v.id, doc.id), `${documentLabel(type)} removed`)}
+              aria-label={`Remove ${documentLabel(type)}`}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
           )}
         </div>
       )}

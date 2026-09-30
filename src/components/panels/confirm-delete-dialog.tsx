@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { Dialog, useInlineAction } from "./dialog";
 import { Button } from "../ui";
@@ -12,6 +13,8 @@ export function ConfirmDeleteDialog({
   count,
   items,
   noun = "item",
+  nounPlural = `${noun}s`,
+  cascadeNote,
   onConfirm,
   onClose,
 }: {
@@ -21,11 +24,15 @@ export function ConfirmDeleteDialog({
   items?: string[];
   /** Singular noun for the message, e.g. "vehicle". */
   noun?: string;
+  /** Override for an irregular plural, e.g. noun="enquiry" needs nounPlural="enquiries". */
+  nounPlural?: string;
+  /** Extra warning shown above the standard notice, e.g. "This will also remove 2 linked ledger entries." */
+  cascadeNote?: ReactNode;
   onConfirm: () => Promise<unknown>;
   onClose: () => void;
 }) {
   const { submit, failure, busy } = useInlineAction();
-  const plural = count === 1 ? noun : `${noun}s`;
+  const plural = count === 1 ? noun : nounPlural;
 
   async function handleConfirm() {
     if (await submit(onConfirm, `Deleted ${count} ${plural}`)) onClose();
@@ -53,6 +60,12 @@ export function ConfirmDeleteDialog({
           Are you sure you want to delete {count === 1 ? "this" : "these"} {count} selected {plural}? This cannot be undone.
         </p>
       </div>
+      {cascadeNote && (
+        <div className="mt-3 flex items-start gap-3 rounded-2xl bg-warn-soft/60 p-3.5 text-warn">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+          <p className="text-sm font-medium">{cascadeNote}</p>
+        </div>
+      )}
       {items && items.length > 0 && (
         <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line p-3 text-sm">
           {items.slice(0, 20).map((label, i) => (

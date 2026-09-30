@@ -235,8 +235,8 @@ function seed() {
   return { campaigns, tasks };
 }
 
-export const callTasks = defineCollection<CallTask>("call-tasks", () => seed().tasks, 2);
-export const campaigns = defineCollection<Campaign>("campaigns", () => seed().campaigns, 1);
+export const callTasks = defineCollection<CallTask>("call-tasks", () => seed().tasks, 2, { supabaseTable: "calls" });
+export const campaigns = defineCollection<Campaign>("campaigns", () => seed().campaigns, 1, { supabaseTable: "campaigns" });
 
 // ---- mutations --------------------------------------------------------------------
 
@@ -264,21 +264,19 @@ export function setDoNotCall(id: string, doNotCall: boolean) {
   return callTasks.update(id, (t) => ({ ...t, doNotCall }));
 }
 
-/** Permanently remove one call task. Proprietor only; every other role never sees the option. */
+/** Permanently remove one call task. Managing Partner only; every other role never sees the option. */
 export async function deleteCallTask(id: string) {
   assertCan("calls.delete");
   const all = await callTasks.all();
   if (!all.some((t) => t.id === id)) throw new Error("Call not found");
-  await callTasks.replaceAll(all.filter((t) => t.id !== id));
+  await callTasks.remove(id);
 }
 
 /** Permanently remove several call tasks at once, e.g. from a bulk selection. */
 export async function deleteCallTasks(ids: string[]) {
   assertCan("calls.delete");
   if (!ids.length) return;
-  const all = await callTasks.all();
-  const remove = new Set(ids);
-  await callTasks.replaceAll(all.filter((t) => !remove.has(t.id)));
+  await callTasks.removeMany(ids);
 }
 
 /** Permanently remove one entry from a call's history. `index` is its position in `task.history`. */
@@ -307,6 +305,12 @@ export function addCampaign(input: NewCampaign) {
   if (!(input.target > 0)) throw new Error("Set a call target");
   if (new Date(input.endsAt) < new Date(input.startsAt)) throw new Error("The end date must be after the start date");
   return campaigns.add({ ...input, id: newId("camp"), name: input.name.trim(), offer: input.offer.trim(), model: input.model || undefined });
+}
+
+/** Permanently remove one campaign. Managing Partner only; every other role never sees the option. */
+export function deleteCampaign(id: string) {
+  assertCan("calls.delete");
+  return campaigns.remove(id);
 }
 
 /** Move call tasks into a campaign's call list. */

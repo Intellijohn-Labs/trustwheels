@@ -7,7 +7,7 @@ import { useNow } from "@/lib/use-now";
 import { VERIFY_LIMIT_HOURS } from "@/lib/masters";
 import { verifyDeadline, verifyState } from "@/lib/verification";
 import { VehicleRow } from "@/components/vehicle-row";
-import { VerifyCheckbox } from "@/components/verify-checkbox";
+import { VerifyButton } from "@/components/verify-button";
 
 export default function OverduePage() {
   const { vehicles, ready } = useScopedVehicles();
@@ -25,7 +25,7 @@ export default function OverduePage() {
             <AlertTriangle className="size-6" /> Not verified in time
           </h1>
           <p className="text-sm text-muted">
-            Added more than {VERIFY_LIMIT_HOURS} hours ago and still not verified. Tick a vehicle once it has been checked.
+            Added more than {VERIFY_LIMIT_HOURS} hours ago and still not verified. Verify a vehicle once it has been checked.
           </p>
         </div>
         {ready && overdue.length === 0 ? (
@@ -35,7 +35,7 @@ export default function OverduePage() {
         ) : (
           <ul className="divide-y divide-danger/20 overflow-hidden rounded-2xl border border-danger/40 bg-surface">
             {overdue.map((v) => (
-              <VehicleRow key={v.id} vehicle={v} now={now} leading={<VerifyCheckbox vehicle={v} />} />
+              <VehicleRow key={v.id} vehicle={v} now={now} actions={<VerifyButton vehicle={v} />} />
             ))}
           </ul>
         )}
@@ -55,7 +55,7 @@ export default function OverduePage() {
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {pending.map((v) => (
-              <VehicleRow key={v.id} vehicle={v} now={now} leading={<VerifyCheckbox vehicle={v} />} />
+              <VehicleRow key={v.id} vehicle={v} now={now} actions={<VerifyButton vehicle={v} />} />
             ))}
           </ul>
         )}

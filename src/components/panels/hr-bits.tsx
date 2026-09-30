@@ -166,7 +166,7 @@ export function BranchSelect({ value, onChange, id, allLabel = "All branches" }:
   );
 }
 
-/** True for HR / Admin; the proprietor sees HR read-only. */
+/** True for HR / Admin; the Managing Partner sees HR read-only. */
 export function useCanManageHr() {
   const { role } = useRole();
   return canManageHr(role);

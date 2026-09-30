@@ -1,4 +1,4 @@
-import type { PhotoSlot, DocumentType } from "./types";
+import type { PhotoSlot, DocumentType, SaleReadinessStatus } from "./types";
 import { branchOverride } from "./branch-names";
 
 // Placeholder masters. These become admin-editable masters (Module 16) served by the API.
@@ -38,6 +38,16 @@ export const MAKES: Record<string, string[]> = {
 
 export const COLOURS = ["Black", "White", "Red", "Blue", "Grey", "Silver", "Green", "Yellow", "Brown", "Other"];
 
+/** Best-effort make lookup from a bare model name (e.g. "Splendor" -> "Hero"), for quick manual entries that only capture the model. */
+export function inferMakeFromModel(model: string): string {
+  const q = model.trim().toLowerCase();
+  if (!q) return "";
+  for (const [make, models] of Object.entries(MAKES)) {
+    if (models.some((m) => m.toLowerCase().includes(q) || q.includes(m.toLowerCase()))) return make;
+  }
+  return "";
+}
+
 export const PHOTO_SLOTS: { slot: PhotoSlot; label: string; hint: string }[] = [
   { slot: "front", label: "Front", hint: "Full front view" },
   { slot: "rear", label: "Rear", hint: "Full rear with number plate" },
@@ -64,6 +74,11 @@ export function documentLabel(type: DocumentType) {
 export function isDocumentRequired(type: DocumentType) {
   return DOCUMENT_TYPES.find((d) => d.type === type)?.required ?? false;
 }
+
+export const SALE_READINESS_LABEL: Record<SaleReadinessStatus, string> = {
+  ready_for_sale: "Ready for Sale",
+  rejected_stock: "Rejected Stock",
+};
 
 export const LIFECYCLE_STAGES = [
   "Entered",

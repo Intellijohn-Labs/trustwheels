@@ -6,7 +6,7 @@ import type { Lead } from "./leads";
 import { daysSinceSale, inRecon, isCodeRed, paymentDue, reconFlag, reconHours, transitBreached, transitHours } from "./workflow";
 
 /*
- * Every open SLA breach in one list: what the proprietor and the Angamaly manager monitor.
+ * Every open SLA breach in one list: what the Managing Partner and the Angamaly manager monitor.
  * Each source (vehicles, enquiries…) contributes items; severity drives the Code Red styling.
  */
 

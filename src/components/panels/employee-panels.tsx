@@ -2,10 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Building2, CalendarDays, Mail, MessageCircle, Pencil, Phone, UserRound, X } from "lucide-react";
+import { Check, Building2, CalendarDays, Mail, MessageCircle, Pencil, Phone, UserRound, X } from "lucide-react";
 import { BRANCHES, branchName } from "@/lib/masters";
 import { formatIsoDate } from "@/lib/format";
-import { ROLES } from "@/lib/rbac";
+import { PANEL_MODULES, ROLE_ORDER, ROLES, effectivePermissions, roleDefaultPanels, type PanelModule, type Role } from "@/lib/rbac";
 import { EMPLOYEE_STATUS_LABEL, addEmployee, employeeErrors, updateEmployee, type Employee, type EmployeeInput, type EmployeeStatus } from "@/lib/hr";
 import { Button, Field, cn, inputClass } from "../ui";
 import { Dialog, useInlineAction } from "./dialog";
@@ -40,17 +40,74 @@ function PhoneInput({ id, value, onChange, invalid }: { id: string; value: strin
   );
 }
 
+/** Read-only checklist of the modules a role (with this employee's own overrides, if any) actually unlocks - derived live from rbac.ts, so it can never drift from what the app really enforces. */
+export function ModuleAccessChips({ role, allowedPanels }: { role?: Role; allowedPanels?: PanelModule[] }) {
+  const permissions = role ? effectivePermissions(role, allowedPanels) : [];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {PANEL_MODULES.map((m) => {
+        const allowed = permissions.includes(m.permission);
+        return (
+          <span
+            key={m.key}
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium",
+              allowed ? "bg-ok-soft text-ok" : "bg-sunken text-faint line-through decoration-1",
+            )}
+          >
+            {m.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Interactive per-employee panel toggles for the Add/Edit form. Starts from the selected system
+ * role's defaults and lets the admin flip any panel on or off from there - the result is saved as
+ * this employee's explicit `allowedPanels` override, taking effect the moment they sign in.
+ */
+function ModuleAccessToggles({ selected, onChange, disabled }: { selected: PanelModule[]; onChange: (next: PanelModule[]) => void; disabled?: boolean }) {
+  const toggle = (key: PanelModule) => onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {PANEL_MODULES.map((m) => {
+        const on = selected.includes(m.key);
+        return (
+          <button
+            key={m.key}
+            type="button"
+            disabled={disabled}
+            aria-pressed={on}
+            onClick={() => toggle(m.key)}
+            className={cn(
+              "btn-tap inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60",
+              on ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
+            )}
+          >
+            {on && <Check className="size-3" />} {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Add (no `employee`) or edit an employee. HR only; the store re-checks hr.manage. */
 export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee; onClose: () => void }) {
   const today = useToday();
   const { employees } = useEmployees();
-  const [form, setForm] = useState<EmployeeInput>(() => (employee ? { ...employee } : blank(today)));
+  const [form, setForm] = useState<EmployeeInput>(() =>
+    employee ? { ...employee, allowedPanels: employee.allowedPanels ?? roleDefaultPanels(employee.rbacRole) } : blank(today),
+  );
   const [submitted, setSubmitted] = useState(false);
   const { submit, failure, busy } = useInlineAction();
   const errors = employeeErrors(form);
   const show = (k: keyof EmployeeInput) => (submitted ? errors[k] : undefined);
   const set = <K extends keyof EmployeeInput>(k: K, v: EmployeeInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const managers = employees.filter((e) => e.status !== "exited" && e.id !== employee?.id).sort((a, b) => a.name.localeCompare(b.name));
+  const roleHolder = form.rbacRole ? employees.find((e) => e.rbacRole === form.rbacRole && e.status !== "exited" && e.id !== employee?.id) : undefined;
 
   async function save() {
     setSubmitted(true);
@@ -115,6 +172,33 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
             ))}
           </select>
         </Field>
+        <Field
+          label="System login role"
+          htmlFor="emp-rbac-role"
+          hint={roleHolder ? `${roleHolder.name} currently holds this role too - saving will not remove it from them` : "Leave blank if this person doesn't sign in to the app"}
+        >
+          <select
+            id="emp-rbac-role"
+            value={form.rbacRole ?? ""}
+            onChange={(e) => {
+              const rbacRole = (e.target.value || undefined) as Role | undefined;
+              setForm((f) => ({ ...f, rbacRole, allowedPanels: roleDefaultPanels(rbacRole) }));
+            }}
+            className={inputClass()}
+          >
+            <option value="">No system login</option>
+            {ROLE_ORDER.map((r) => (
+              <option key={r} value={r}>
+                {ROLES[r].label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="sm:col-span-2">
+          <p className="mb-1.5 text-sm font-medium">Panel access</p>
+          <p className="mb-2 text-xs text-muted">Starts from the role&apos;s defaults above - toggle any panel on or off for this person specifically.</p>
+          <ModuleAccessToggles selected={form.allowedPanels ?? []} onChange={(allowedPanels) => set("allowedPanels", allowedPanels)} disabled={!form.rbacRole} />
+        </div>
         <Field label="Mobile" htmlFor="emp-phone" required error={show("phone")}>
           <PhoneInput id="emp-phone" value={form.phone} onChange={(v) => set("phone", v)} invalid={!!show("phone")} />
         </Field>

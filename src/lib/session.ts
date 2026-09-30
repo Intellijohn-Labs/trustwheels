@@ -8,7 +8,7 @@ import { roleName } from "./user-names";
  */
 
 const KEY = "tw-role";
-export const DEFAULT_ROLE: Role = "proprietor";
+export const DEFAULT_ROLE: Role = "managing_partner";
 
 const listeners = new Set<() => void>();
 

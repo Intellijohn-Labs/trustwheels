@@ -1,9 +1,8 @@
 "use client";
 
 import { defineCollection, newId } from "./collections";
-import { getKey } from "./db";
 import { HOLIDAYS } from "./masters";
-import { can, type Role } from "./rbac";
+import { can, type PanelModule, type Role } from "./rbac";
 import { assertCan, currentRole, getActor } from "./session";
 import type { Vehicle } from "./types";
 import { istDate } from "./working-days";
@@ -29,12 +28,14 @@ export interface Employee {
   role: string;
   /** System login role, for the people who use this app. */
   rbacRole?: Role;
+  /** Per-employee override of which panels rbacRole's permissions actually grant. Unset = use the role's own defaults untouched. */
+  allowedPanels?: PanelModule[];
   branchId: string;
   phone: string;
   whatsapp: string;
   email: string;
   joinedAt: string; // YYYY-MM-DD
-  /** Employee id of the manager. Empty for the proprietor. */
+  /** Employee id of the manager. Empty for the Managing Partner. */
   reportingTo: string;
   status: EmployeeStatus;
   salaryBand?: string;
@@ -103,9 +104,9 @@ export const LATE_AFTER = "09:30";
  */
 export const INCENTIVE_PER_SALE_RUPEES = 500;
 
-/** The proprietor and partners don't punch in; they're kept out of attendance, roster and payroll input. */
+/** The Managing Partner and partners don't punch in; they're kept out of attendance, roster and payroll input. */
 export function attendanceExempt(e: Employee) {
-  return e.rbacRole === "proprietor" || e.rbacRole === "partner";
+  return e.rbacRole === "managing_partner" || e.rbacRole === "partner";
 }
 
 /** People expected at work on `date`: not exited, joined by then, not exempt. */
@@ -122,17 +123,21 @@ export function isSalesStaff(e: Employee) {
 }
 
 /**
- * HR / Admin manages people records; everyone else with hr.view (the proprietor) is read-only.
- * rbac.ts gives the proprietor every permission including hr.manage, so this narrows it here
- * until rbac.ts drops hr.manage from the proprietor.
+ * HR / Admin manages people records; everyone else with hr.view (the Managing Partner) is read-only.
+ * rbac.ts gives the Managing Partner every permission including hr.manage, so this narrows it here
+ * until rbac.ts drops hr.manage from the Managing Partner.
  */
 export function canManageHr(role: Role) {
-  return role !== "proprietor" && can(role, "hr.manage");
+  return role !== "managing_partner" && can(role, "hr.manage");
 }
 
 function assertManage() {
+  // The dedicated Employee & Access panel is Managing-Partner-only and deliberately overrides the
+  // "HR is view-only for the Managing Partner" rule below - everyone else still goes through the
+  // normal hr.manage check.
+  if (can(currentRole(), "staff.manage")) return;
   assertCan("hr.manage");
-  if (!canManageHr(currentRole())) throw new Error("Not allowed: HR records are view-only for the Proprietor");
+  if (!canManageHr(currentRole())) throw new Error("Not allowed: HR records are view-only for the Managing Partner");
 }
 
 // ---- date helpers --------------------------------------------------------------------
@@ -204,7 +209,7 @@ const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2
 type SeedRow = [name: string, role: string, branchId: string, reportingTo: string, joinedAt: string, band: string, rbacRole?: Role, status?: EmployeeStatus];
 
 const SEED_ROWS: SeedRow[] = [
-  ["Anoop", "Proprietor", "ang", "", "2012-04-01", "Owner", "proprietor"],
+  ["Anoop", "Managing Partner", "ang", "", "2012-04-01", "Owner", "managing_partner"],
   ["Mathew Joseph", "Partner", "b1", "e-01", "2015-06-15", "Partner", "partner"],
   ["Jithin Varghese", "Branch Manager", "b1", "e-01", "2017-03-10", "M2", "branch_manager"],
   ["Divya Menon", "Branch Accountant", "b1", "e-03", "2019-07-01", "S3", "branch_accountant"],
@@ -377,7 +382,7 @@ function seedRosters(): Roster[] {
   }));
 }
 
-export const employees = defineCollection<Employee>("hr-employees", seedEmployees, 3);
+export const employees = defineCollection<Employee>("hr-employees", seedEmployees, 3, { supabaseTable: "hr_employees" });
 export const attendance = defineCollection<Attendance>("hr-attendance", seedAttendance, 3);
 export const leaveRequests = defineCollection<LeaveRequest>("hr-leave", seedLeaves, 2);
 export const rosters = defineCollection<Roster>("hr-rosters", seedRosters, 3);
@@ -392,9 +397,13 @@ export const rosters = defineCollection<Roster>("hr-rosters", seedRosters, 3);
  */
 type Collection<T> = { name: string; all(): Promise<T[]>; replaceAll(items: T[]): Promise<void> };
 
+/**
+ * The collection's current items, from whatever source it actually reads from (Supabase when
+ * configured, local IndexedDB otherwise) - never a raw local read, so this stays correct for
+ * a Supabase-backed collection like `employees` instead of silently reading stale local data.
+ */
 async function latest<T>(c: Collection<T>) {
-  await c.all(); // seeds on first use
-  return (await getKey<{ items: T[] }>(`c:${c.name}`))?.items ?? [];
+  return c.all();
 }
 
 let queue: Promise<unknown> = Promise.resolve();
@@ -440,11 +449,21 @@ function clean(input: EmployeeInput): EmployeeInput {
   return { ...input, name: input.name.trim(), role: input.role.trim(), email: input.email.trim(), whatsapp: input.whatsapp || input.phone };
 }
 
+/** Hard cap on active employees - deliberately small for this deployment's headcount. */
+export const MAX_EMPLOYEES = 15;
+
+export function activeEmployeeCount(all: Employee[]) {
+  return all.filter((e) => e.status === "active").length;
+}
+
 export function addEmployee(input: EmployeeInput) {
   assertManage();
   const data = clean(input);
   return serial(async () => {
     const all = await latest(employees);
+    if (data.status === "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
+      throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
+    }
     const next = all.reduce((max, e) => Math.max(max, Number(e.id.replace(/\D/g, "")) || 0), 0) + 1;
     const employee: Employee = { ...data, id: `e-${String(next).padStart(2, "0")}` };
     await employees.replaceAll([employee, ...all]);
@@ -456,7 +475,32 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
   assertManage();
   if (input.reportingTo === id) throw new Error("Blocked: an employee can't report to themselves");
   const data = clean(input);
-  return serial(() => modify(employees, id, (e) => ({ ...e, ...data, id })));
+  return serial(async () => {
+    const all = await latest(employees);
+    const current = all.find((e) => e.id === id);
+    if (data.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
+      throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
+    }
+    return modify(employees, id, (e) => ({ ...e, ...data, id }));
+  });
+}
+
+/** Permanently remove one employee record. Managing Partner only; every other role never sees the option. */
+export function deleteEmployee(id: string) {
+  assertCan("hr.delete");
+  return serial(async () => {
+    const all = await latest(employees);
+    if (!all.some((e) => e.id === id)) throw new Error("Employee not found");
+    await employees.remove(id);
+  });
+}
+
+/** Permanently remove several employee records in one write, e.g. from a bulk selection. */
+export function deleteEmployees(ids: string[]) {
+  assertCan("hr.delete");
+  return serial(async () => {
+    await employees.removeMany(ids);
+  });
 }
 
 function upsertDay(rows: Attendance[], employee: Employee, date: string, change: Omit<Attendance, "id" | "employeeId" | "date" | "branchId">) {
@@ -665,6 +709,19 @@ export function payrollCsv(month: string, rows: PayrollRow[], branchName: (id: s
       .join(","),
   );
   return [header.map(esc).join(","), ...lines].join("\n");
+}
+
+/**
+ * Whether `role` may sign in right now, i.e. an active employee is actually registered to hold
+ * it. Managing Partner always passes - deactivating or deleting every Managing Partner record
+ * must never be able to lock the whole system out. Every other role needs a matching, active
+ * `rbacRole` holder in the employee master, so removing someone from Employees & Access takes
+ * their login away immediately, not just their in-app permissions.
+ */
+export async function isRoleLoginAllowed(role: Role): Promise<boolean> {
+  if (role === "managing_partner") return true;
+  const all = await latest(employees);
+  return all.some((e) => e.rbacRole === role && e.status === "active");
 }
 
 /**

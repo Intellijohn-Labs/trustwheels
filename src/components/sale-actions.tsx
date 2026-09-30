@@ -25,8 +25,10 @@ export function SaleActions({ vehicle, size = "sm" }: { vehicle: Vehicle; size?:
   if (vehicle.sale?.status === "sold") return null;
   if (!can("sale.book")) return <p className="text-xs text-muted">Only the sales team can book or sell vehicles.</p>;
 
-  if (!vehicle.verified)
-    return <p className="text-xs text-muted">Verify this vehicle before booking or selling it.</p>;
+  // Only gates a *new* booking/sale - an existing one already in progress can still be
+  // completed or cancelled even if the vehicle's readiness tag changes afterward.
+  if (!vehicle.sale && vehicle.saleReadiness?.status !== "ready_for_sale")
+    return <p className="text-xs text-muted">Mark this vehicle Ready for Sale (Stock page) before booking or selling it.</p>;
 
   function cancel() {
     if (!confirm(`Cancel the booking for ${vehicle.sale!.customer.name}?`)) return;

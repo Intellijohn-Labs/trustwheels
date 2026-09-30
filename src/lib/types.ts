@@ -72,6 +72,10 @@ export interface Vehicle {
 
   verified?: { by: string; at: string };
   sale?: Sale;
+  /** Manual sales-readiness tag, independent of `stage` - a quick override for "can this go out the door", separate from the recon/quality-gate pipeline that already governs `stage`. */
+  saleReadiness?: SaleReadiness;
+  /** Set only by the /transit "Add vehicle" quick entry when no inventory match was found - a bare placeholder record, not a real intake. Removing it from transit deletes it outright rather than just cancelling the dispatch. */
+  quickEntry?: true;
 
   // Workflow after entry. Each is set by the role that owns that step.
   purchase?: Purchase; // branch accountant -> central accountant
@@ -88,6 +92,15 @@ export interface Signed {
   by: string;
 }
 
+export type SaleReadinessStatus = "ready_for_sale" | "rejected_stock";
+
+export interface SaleReadiness {
+  status: SaleReadinessStatus;
+  reason?: string; // set when status is "rejected_stock"; optional
+  at: string;
+  by: string;
+}
+
 export interface Purchase {
   deductionsPaise: number;
   deductionNote: string;
@@ -100,6 +113,13 @@ export interface Dispatch {
   rider: string;
   handoverAt: string;
   by: string;
+  /** Origin branch for this leg - usually `branchId`, but independently settable from the manual /transit form. */
+  from: string;
+  /** Destination branch for this leg - the Angamaly hub by default, but any other branch can be chosen. */
+  to: string;
+  notes?: string;
+  /** Stage the vehicle was at right before this dispatch, restored if the dispatch is cancelled. */
+  prevStage: number;
 }
 
 export interface Receipt extends Signed {
@@ -118,6 +138,8 @@ export interface JobItem {
 
 export interface Recon {
   supervisor: string;
+  /** Individual mechanic doing the work on this vehicle - distinct from `supervisor`, the fixed role holder who manages the workshop. */
+  technicianName?: string;
   startedAt: string;
   items: JobItem[];
   photos: string[];
@@ -134,6 +156,7 @@ export interface Delivery {
 }
 
 export type SaleStatus = "booked" | "sold";
+export type PaymentMode = "cash" | "upi" | "bank_transfer" | "finance";
 
 export interface Customer {
   name: string;
@@ -150,6 +173,9 @@ export interface Sale {
   by: string;
   prevStage: number; // restored if a booking is cancelled
   docsVerified?: Signed; // buyer KYC and booking documents signed off by sales
+  paymentMode?: PaymentMode;
+  /** Total collected from the customer to date (booking token + anything since) - distinct from bookingAmountPaise, which is just the initial token. */
+  receivedAmountPaise?: number;
 }
 
 export type NewVehicle = Omit<Vehicle, "id" | "provisionalId" | "createdAt" | "stage" | "stageHistory" | "stockId" | "verified" | "sale" | "documents">;

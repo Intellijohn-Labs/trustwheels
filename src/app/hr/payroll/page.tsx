@@ -28,7 +28,7 @@ export default function PayrollPage() {
   const { employees, ready } = useEmployees();
   const { items: records } = attendance.useItems();
   const { items: leaves } = leaveRequests.useItems();
-  // Sales in the viewer's scope (HR and the proprietor see every branch).
+  // Sales in the viewer's scope (HR and the Managing Partner see every branch).
   const { vehicles } = useScopedVehicles();
 
   const rows = useMemo(

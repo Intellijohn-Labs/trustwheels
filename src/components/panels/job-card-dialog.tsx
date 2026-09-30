@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Loader2, Plus, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
+import { Camera, CheckCircle2, Loader2, Plus, ShieldCheck, Trash2, Undo2, Wrench, X } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
-import { compressImage } from "@/lib/image";
+import { uploadVehiclePhoto } from "@/lib/vehicle-media";
+import { employees } from "@/lib/hr";
 import {
   MIN_COMPLETION_PHOTOS,
   addJobItem,
@@ -14,6 +15,7 @@ import {
   removeJobItem,
   removeReconPhoto,
   setProposedPrice,
+  setTechnician,
 } from "@/lib/stock-store";
 import { formatDateTime, formatPaise, groupIndian } from "@/lib/format";
 import { landedCostPaise, reconCostPaise, reconHours } from "@/lib/workflow";
@@ -33,7 +35,7 @@ export const JOB_KINDS: { value: JobKind; label: string }[] = [
 const kindLabel = (k: JobKind) => JOB_KINDS.find((j) => j.value === k)!.label;
 
 /** ₹ amount typed as whole rupees with Indian grouping; returns the digits. */
-function RupeeInput({ id, value, onChange, placeholder, disabled }: { id: string; value: string; onChange: (digits: string) => void; placeholder?: string; disabled?: boolean }) {
+export function RupeeInput({ id, value, onChange, placeholder, disabled }: { id: string; value: string; onChange: (digits: string) => void; placeholder?: string; disabled?: boolean }) {
   return (
     <div className="relative">
       <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">₹</span>
@@ -97,8 +99,12 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
   const [description, setDescription] = useState("");
   const [cost, setCost] = useState("");
   const [price, setPrice] = useState(v.proposedPricePaise ? String(v.proposedPricePaise / 100) : "");
+  const [technician, setTechnicianInput] = useState(recon.technicianName ?? "");
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const { items: staff } = employees.useItems();
+  const technicianOptions = [...new Set(staff.filter((e) => e.status === "active").map((e) => e.name))].sort();
 
   const total = reconCostPaise(v);
   const landed = landedCostPaise(v);
@@ -118,7 +124,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
     if (!files?.length) return;
     setUploading(true);
     await run(async () => {
-      for (const file of Array.from(files)) await addReconPhoto(v.id, await compressImage(file));
+      for (const file of Array.from(files)) await addReconPhoto(v.id, await uploadVehiclePhoto(file));
     }, files.length > 1 ? `${files.length} photos added` : "Photo added");
     setUploading(false);
     if (fileInput.current) fileInput.current.value = "";
@@ -166,6 +172,35 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
             {formatHours(reconHours(v, now))} since stock entry · Supervisor <span className="font-medium text-ink">{recon.supervisor}</span>
           </span>
         </div>
+
+        {/* Technician - typed inline, saves quietly when you move on to the next field */}
+        <div className="flex items-center gap-2">
+          <Wrench className="size-4 shrink-0 text-muted" />
+          {manage && !locked ? (
+            <>
+              <input
+                aria-label="Technician name"
+                list="technician-options"
+                value={technician}
+                onChange={(e) => setTechnicianInput(e.target.value)}
+                onBlur={() => technician.trim() !== (recon.technicianName ?? "") && run(() => setTechnician(v.id, technician))}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                placeholder="Technician name"
+                className={cn(inputClass(), "max-w-64")}
+              />
+              <datalist id="technician-options">
+                {technicianOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </>
+          ) : (
+            <span className="text-sm text-muted">
+              Technician: <span className="font-medium text-ink">{recon.technicianName || "Not assigned"}</span>
+            </span>
+          )}
+        </div>
+
         {locked && (
           <p className="flex items-start gap-2 rounded-xl bg-brand-soft px-3.5 py-2.5 text-sm text-brand">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />

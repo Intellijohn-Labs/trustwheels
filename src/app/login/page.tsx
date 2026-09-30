@@ -1,20 +1,38 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { Check, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { cn, inputClass } from "@/components/ui";
+import { Button, Pill, cn, inputClass } from "@/components/ui";
+import { Dialog } from "@/components/panels/dialog";
 import { ROLES, ROLE_ORDER, type Role } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
+import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
+import { isRoleLoginAllowed } from "@/lib/hr";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./login.module.css";
 
-type Status = "idle" | "loading" | "success";
+/**
+ * Sign-in itself is never blocked by location, day or time - only whether a punch-in is actually
+ * attempted is. Inside the Mon-Sat 9am-6pm attendance window, the location prompt is requested
+ * before the dashboard opens ("denied" blocks entry with a retry, since attendance genuinely can't
+ * be marked without it there); outside that window sign-in proceeds straight through and a short
+ * notice explains why nothing was punched in. A successful check-in shows its details in a
+ * confirmation dialog before the person is actually routed in.
+ */
+type Gate =
+  | { phase: "form" }
+  | { phase: "locating" }
+  | { phase: "denied"; message: string }
+  | { phase: "confirmed"; record: GpsCheckin }
+  | { phase: "already-marked" }
+  | { phase: "ineligible"; reason: IneligibleReason }
+  | { phase: "access-denied" };
 
 const rise = (i: number) => ({ "--i": i }) as CSSProperties;
+const formatTime = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,9 +40,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [status, setStatus] = useState<Status>("idle");
+  const [gate, setGate] = useState<Gate>({ phase: "form" });
   const [resetNote, setResetNote] = useState(false);
-  
+
   useEffect(() => {
     router.prefetch("/dashboard");
   }, [router]);
@@ -32,18 +50,30 @@ export default function LoginPage() {
   const { role: currentRole, setRole, nameOf } = useRole();
   const [picked, setPicked] = useState<Role>();
   const signInAs = picked ?? currentRole;
+  const leaving = gate.phase === "confirmed" || gate.phase === "already-marked" || gate.phase === "ineligible";
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (status !== "idle") return;
-
-    setStatus("loading");
+  async function attemptSignIn() {
+    if (gate.phase === "locating") return;
+    setGate({ phase: "locating" });
+    if (!(await isRoleLoginAllowed(signInAs))) {
+      setGate({ phase: "access-denied" });
+      return;
+    }
     setRole(signInAs);
+    const result = await requestGpsCheckIn();
+    if (result.status === "error") setGate({ phase: "denied", message: result.message });
+    else if (result.status === "already-done") setGate({ phase: "already-marked" });
+    else if (result.status === "ineligible") setGate({ phase: "ineligible", reason: result.reason });
+    else setGate({ phase: "confirmed", record: result.record });
+  }
 
-    setTimeout(() => {
-      setStatus("success");
-      router.push("/dashboard");
-    }, 400);
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    attemptSignIn();
+  }
+
+  function continueToDashboard() {
+    router.push("/dashboard");
   }
 
   return (
@@ -51,7 +81,7 @@ export default function LoginPage() {
       <div aria-hidden className="aurora-bg" />
       <div className="relative z-[1]">
         <ThemeToggle onDark className="absolute top-5 right-5 z-10 sm:top-8 sm:right-8" />
-        <LoginScene leaving={status === "success"} className="h-[42dvh] min-h-64 rounded-b-3xl lg:sticky lg:top-0 lg:h-dvh lg:rounded-none" />
+        <LoginScene leaving={leaving} className="h-[42dvh] min-h-64 rounded-b-3xl lg:sticky lg:top-0 lg:h-dvh lg:rounded-none" />
         <div className="pointer-events-none absolute inset-x-0 top-0 p-5 text-white sm:p-8">
           <div style={rise(0)} className={styles.rise}>
             <div className="logo-light logo-card">
@@ -68,11 +98,7 @@ export default function LoginPage() {
       </div>
 
       <div className="relative flex items-start justify-center px-5 pt-8 pb-12 lg:items-center lg:py-12">
-        <form
-          onSubmit={onSubmit}
-          noValidate
-          className="w-full max-w-sm"
-        >
+        <form onSubmit={onSubmit} noValidate className="w-full max-w-sm">
           <div style={rise(1)} className={styles.rise}>
             <h1 className="text-gradient text-3xl font-semibold tracking-tight">Welcome back</h1>
             <p className="mt-1 text-sm text-muted">Sign in to manage stock across your branches.</p>
@@ -142,7 +168,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-ink"
+                className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted hover:bg-sunken"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -157,23 +183,42 @@ export default function LoginPage() {
             </label>
           </div>
 
+          {gate.phase === "denied" && (
+            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>Location access is required. Please turn on device GPS and allow browser location permission to continue.</p>
+            </div>
+          )}
+
+          {gate.phase === "access-denied" && (
+            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>Access Denied: You are not an authorized employee. Only registered staff members can log in.</p>
+            </div>
+          )}
+
           <div style={rise(5)} className={cn(styles.rise, "mt-6")}>
             <button
               type="submit"
-              disabled={status !== "idle"}
+              disabled={gate.phase === "locating" || leaving}
               className={cn(
-                "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all duration-300",
-                status === "success" ? "bg-ok" : "bg-brand hover:brightness-110",
-                status === "loading" && "opacity-90",
+                "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all duration-300 disabled:cursor-not-allowed",
+                leaving ? "bg-ok" : gate.phase === "denied" || gate.phase === "access-denied" ? "bg-danger hover:brightness-110" : "bg-brand hover:brightness-110",
+                gate.phase === "locating" && "opacity-90",
               )}
             >
-              {status === "idle" && "Sign in"}
-              {status === "loading" && (
+              {(gate.phase === "form" || gate.phase === "access-denied") && "Sign in"}
+              {gate.phase === "locating" && (
                 <>
-                  <Loader2 className="size-4 animate-spin" /> Signing in…
+                  <Loader2 className="size-4 animate-spin" /> Getting your location…
                 </>
               )}
-              {status === "success" && (
+              {gate.phase === "denied" && (
+                <>
+                  <MapPin className="size-4" /> Turn on Location & Retry
+                </>
+              )}
+              {leaving && (
                 <>
                   <Check className="size-4" strokeWidth={3} /> Signed in
                 </>
@@ -183,12 +228,86 @@ export default function LoginPage() {
 
           <p style={rise(6)} className={cn(styles.rise, "mt-6 text-center text-xs text-faint")}>
             Demo: any email and password will work.{" "}
-            <Link href="/dashboard" className="underline hover:text-muted">
+            <button type="button" onClick={attemptSignIn} disabled={gate.phase === "locating" || leaving} className="underline hover:text-muted disabled:cursor-not-allowed">
               Skip to dashboard
-            </Link>
+            </button>
           </p>
         </form>
       </div>
+
+      {gate.phase === "confirmed" && (
+        <Dialog
+          title="Attendance Marked Successfully!"
+          onClose={continueToDashboard}
+          footer={
+            <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>
+              Continue to Dashboard
+            </Button>
+          }
+        >
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
+            <span className="grid size-16 place-items-center rounded-full bg-ok-soft text-ok">
+              <CheckCircle2 className="size-9" />
+            </span>
+            <dl className="w-full space-y-2.5 text-sm">
+              <div className="flex items-center justify-between border-b border-line pb-2.5">
+                <dt className="text-muted">Punch-in time</dt>
+                <dd className="font-semibold">{formatTime(gate.record.checkInTime)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-line pb-2.5">
+                <dt className="text-muted">Location</dt>
+                <dd className="text-right font-semibold">{gate.record.placeName ?? "Unknown location"}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted">Status</dt>
+                <dd>
+                  <Pill tone={gate.record.status === "late" ? "warn" : "ok"}>{gate.record.status === "late" ? "Late" : "On Time"}</Pill>
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </Dialog>
+      )}
+
+      {gate.phase === "already-marked" && (
+        <Dialog
+          title="Already checked in today"
+          onClose={continueToDashboard}
+          footer={
+            <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>
+              Continue to Dashboard
+            </Button>
+          }
+        >
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <span className="grid size-16 place-items-center rounded-full bg-ok-soft text-ok">
+              <CheckCircle2 className="size-9" />
+            </span>
+            <p className="text-sm text-muted">Your attendance for today is already on record - no need to check in again.</p>
+          </div>
+        </Dialog>
+      )}
+
+      {gate.phase === "ineligible" && (
+        <Dialog
+          title="Logged in successfully"
+          onClose={continueToDashboard}
+          footer={
+            <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>
+              Continue to Dashboard
+            </Button>
+          }
+        >
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <span className="grid size-16 place-items-center rounded-full bg-ok-soft text-ok">
+              <CheckCircle2 className="size-9" />
+            </span>
+            <p className="text-sm text-muted">
+              {gate.reason === "sunday" ? "Attendance is not marked on Sundays." : "Attendance window is 9:00 AM to 6:00 PM."}
+            </p>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

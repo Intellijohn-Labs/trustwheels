@@ -36,7 +36,7 @@ export function useHrStats() {
 
 /**
  * Compact, read-only HR summary (headcount, present today %, pending leave, on notice)
- * for embedding in other dashboards, e.g. the Proprietor's.
+ * for embedding in other dashboards, e.g. the Managing Partner's.
  */
 export function HrOverview({ title = "People", href = "/hr/attendance" }: { title?: string; href?: string }) {
   const s = useHrStats();

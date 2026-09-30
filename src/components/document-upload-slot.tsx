@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Eye, FileText, Loader2, Upload, X } from "lucide-react";
-import { readDocumentFile } from "@/lib/image";
+import { uploadVehicleDocument } from "@/lib/vehicle-media";
 import { cn, inputClass } from "./ui";
 
 export interface DocumentDraft {
@@ -36,7 +36,7 @@ export function DocumentUploadSlot({
     setBusy(true);
     setError(undefined);
     try {
-      const fileUrl = await readDocumentFile(file);
+      const fileUrl = await uploadVehicleDocument(file);
       onChange({ fileUrl, fileName: file.name, expiresAt: value?.expiresAt });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't read that file");

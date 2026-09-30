@@ -1,8 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-import { ledger, type LedgerEntry } from "./ledger";
-import { useRole } from "./role-context";
 import type { Vehicle } from "./types";
 import { landedCostPaise, marginPaise } from "./workflow";
 import { istDate } from "./working-days";
@@ -10,7 +7,7 @@ import { formatPaise } from "./format";
 
 /*
  * Finance selectors shared by the finance pages, dashboards and reports. Pure functions
- * over vehicles / ledger entries, plus the scoped ledger hook.
+ * over vehicles.
  */
 
 const DAY = 86_400_000;
@@ -18,29 +15,6 @@ const DAY = 86_400_000;
 /** Money with an explicit minus for losses: "−₹2,500" (formatPaise alone gives "₹-2,500"). */
 export function formatSignedPaise(paise: number) {
   return paise < 0 ? `−${formatPaise(-paise)}` : formatPaise(paise);
-}
-
-/** Ledger entries the signed-in role may see. Hub ("ang") entries need group-wide scope. */
-export function useScopedLedger() {
-  const { items, ready } = ledger.useItems();
-  const { inScope } = useRole();
-  const entries = useMemo(() => items.filter((e) => inScope(e.branchId)).sort((a, b) => b.at.localeCompare(a.at)), [items, inScope]);
-  return { entries, ready };
-}
-
-/** Ids of entries that have been reversed. */
-export function reversedIds(entries: LedgerEntry[]) {
-  return new Set(entries.filter((e) => e.reversesId).map((e) => e.reversesId!));
-}
-
-export function totals(entries: LedgerEntry[]) {
-  let inPaise = 0;
-  let outPaise = 0;
-  for (const e of entries) {
-    if (e.amountPaise >= 0) inPaise += e.amountPaise;
-    else outPaise -= e.amountPaise;
-  }
-  return { inPaise, outPaise, netPaise: inPaise - outPaise };
 }
 
 // ---- payouts -------------------------------------------------------------------------
@@ -133,36 +107,4 @@ export function salesByMonth(vehicles: Vehicle[]) {
     map.set(k, row);
   }
   return [...map.values()].sort((a, b) => b.month.localeCompare(a.month));
-}
-
-// ---- cash flow -----------------------------------------------------------------------
-
-/** Monday (YYYY-MM-DD, IST) of the week containing `ms`. */
-export function weekStart(ms: number | string) {
-  const ymd = istDate(ms);
-  const d = new Date(`${ymd}T00:00:00Z`);
-  const back = (d.getUTCDay() + 6) % 7;
-  return new Date(d.getTime() - back * DAY).toISOString().slice(0, 10);
-}
-
-export interface WeekFlow {
-  week: string; // Monday, YYYY-MM-DD
-  inPaise: number;
-  outPaise: number;
-  netPaise: number;
-}
-
-/** Money in vs out per week for the last `weeks` weeks (oldest first), including the current week. */
-export function weeklyCashFlow(entries: LedgerEntry[], weeks: number, now: number): WeekFlow[] {
-  const current = weekStart(now);
-  const starts = Array.from({ length: weeks }, (_, i) => new Date(new Date(`${current}T00:00:00Z`).getTime() - (weeks - 1 - i) * 7 * DAY).toISOString().slice(0, 10));
-  const rows = new Map(starts.map((w) => [w, { week: w, inPaise: 0, outPaise: 0, netPaise: 0 }]));
-  for (const e of entries) {
-    const row = rows.get(weekStart(e.at));
-    if (!row) continue;
-    if (e.amountPaise >= 0) row.inPaise += e.amountPaise;
-    else row.outPaise -= e.amountPaise;
-    row.netPaise += e.amountPaise;
-  }
-  return [...rows.values()];
 }

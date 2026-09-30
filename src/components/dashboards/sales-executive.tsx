@@ -36,7 +36,7 @@ export default function SalesExecutiveDashboard() {
           tone={overdue ? "danger" : "neutral"}
           icon={<Siren />}
           href="/enquiries"
-          hint={overdue ? "Escalated to manager & proprietor" : "Every call made on time"}
+          hint={overdue ? "Escalated to manager & Managing Partner" : "Every call made on time"}
         />
         <KpiCard
           label="Bookings awaiting doc sign-off"
