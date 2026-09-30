@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { deleteVehicle } from "@/lib/stock-store";
 import { displayReg } from "@/lib/format";
+import { collapseThenRun } from "@/lib/exit-animation";
 import type { Vehicle } from "@/lib/types";
 import { Button } from "./ui";
 import { ConfirmDeleteDialog } from "./panels/confirm-delete-dialog";
@@ -25,7 +26,9 @@ export function DeleteVehicleButton({ vehicle: v, size = "sm" }: { vehicle: Vehi
       <Button size={size} variant="ghost" onClick={() => setConfirming(true)} aria-label={`Delete ${label}`}>
         <Trash2 className="size-3.5" />
       </Button>
-      {confirming && <ConfirmDeleteDialog count={1} items={[label]} noun="vehicle" onConfirm={() => deleteVehicle(v.id)} onClose={() => setConfirming(false)} />}
+      {confirming && (
+        <ConfirmDeleteDialog count={1} items={[label]} noun="vehicle" onConfirm={() => collapseThenRun([v.id], () => deleteVehicle(v.id))} onClose={() => setConfirming(false)} />
+      )}
     </>
   );
 }

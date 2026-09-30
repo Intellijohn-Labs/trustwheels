@@ -38,6 +38,7 @@ export function ResponsiveTable<T>({
               return (
                 <li
                   key={rowKey(row)}
+                  data-vehicle-id={rowKey(row)}
                   className={cn(
                     "space-y-2.5 px-4 py-3",
                     tone === "danger" && "bg-danger-soft/60 shadow-[inset_4px_0_0_var(--danger)]",

@@ -8,8 +8,12 @@ import { VehicleCell } from "@/components/panels/vehicle-cell";
 import { DocsSignOff, HandoverControl, ReleaseControl, SaleAgePill } from "@/components/panels/delivery-gate";
 import { TransferChecklist } from "@/components/panels/transfer-checklist";
 import { awaitingDelivery, byUrgency } from "@/components/panels/release-queue";
+import { DeleteVehicleButton } from "@/components/delete-vehicle-button";
+import { BulkDeleteBar } from "@/components/bulk-delete-bar";
+import { RowCheckbox, SelectAllCheckbox, useSelection } from "@/components/selection";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { useScopedVehicles } from "@/lib/scoped";
+import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { SLA } from "@/lib/masters";
 import { isCodeRed, releaseBlockers } from "@/lib/workflow";
@@ -20,14 +24,19 @@ const RECENT_DAYS = 30;
 
 export default function DeliveriesPage() {
   const { vehicles, ready } = useScopedVehicles();
+  const { can } = useRole();
   const now = useNow(60_000);
   const [tab, setTab] = useState<Tab>("pending");
+  const canDelete = can("stock.delete");
 
   const pending = vehicles.filter(awaitingDelivery).sort(byUrgency(now));
   const delivered = vehicles
     .filter((v) => v.delivery?.delivered && now - new Date(v.delivery.delivered.at).getTime() < RECENT_DAYS * 86_400_000)
     .sort((a, b) => b.delivery!.delivered!.at.localeCompare(a.delivery!.delivered!.at));
   const codeRed = pending.filter((v) => isCodeRed(v, now)).length;
+
+  const pendingSelection = useSelection(pending, (v: Vehicle) => v.id);
+  const deliveredSelection = useSelection(delivered, (v: Vehicle) => v.id);
 
   return (
     <div className="space-y-5">
@@ -69,13 +78,27 @@ export default function DeliveriesPage() {
           </Panel>
         ) : (
           <div className="space-y-4">
+            {canDelete && <BulkDeleteBar vehicles={pending} selected={pendingSelection.selected} onClear={pendingSelection.clear} />}
+            {canDelete && (
+              <label className="flex items-center gap-2.5 rounded-2xl border border-line bg-sunken/60 px-4 py-2.5 text-sm text-muted">
+                <SelectAllCheckbox checked={pendingSelection.allVisibleSelected} indeterminate={pendingSelection.count > 0} onChange={pendingSelection.toggleAll} label="Select all shown vehicles" />
+                Select all ({pending.length} shown)
+              </label>
+            )}
             {pending.map((v) => (
-              <DeliveryCard key={v.id} vehicle={v} now={now} />
+              <DeliveryCard
+                key={v.id}
+                vehicle={v}
+                now={now}
+                selected={canDelete && pendingSelection.isSelected(v.id)}
+                onToggleSelect={canDelete ? () => pendingSelection.toggle(v.id) : undefined}
+                showDelete={canDelete}
+              />
             ))}
           </div>
         )
       ) : (
-        <DeliveredTable rows={delivered} ready={ready} />
+        <DeliveredTable rows={delivered} ready={ready} canDelete={canDelete} selection={deliveredSelection} />
       )}
     </div>
   );
@@ -93,19 +116,37 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-function DeliveryCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
+function DeliveryCard({
+  vehicle: v,
+  now,
+  selected,
+  onToggleSelect,
+  showDelete,
+}: {
+  vehicle: Vehicle;
+  now: number;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+  showDelete?: boolean;
+}) {
   const red = isCodeRed(v, now);
   const sale = v.sale!;
   return (
     <section
       aria-label={`${v.make} ${v.model} delivery`}
-      data-vehicle={v.id}
+      data-vehicle-id={v.id}
       className={cn("overflow-hidden rounded-2xl border bg-surface", red ? "border-danger/50 shadow-[inset_4px_0_0_var(--danger)]" : "border-line")}
     >
       <header className={cn("flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5", red && "bg-danger-soft/60")}>
-        <VehicleCell vehicle={v} />
+        <div className="flex items-center gap-2">
+          {onToggleSelect && <RowCheckbox checked={!!selected} onChange={onToggleSelect} label={`Select ${v.make} ${v.model}`} />}
+          <VehicleCell vehicle={v} />
+        </div>
         <div className="flex flex-col items-start gap-1 sm:items-end">
-          <SaleAgePill vehicle={v} now={now} />
+          <div className="flex items-center gap-2">
+            <SaleAgePill vehicle={v} now={now} />
+            {showDelete && <DeleteVehicleButton vehicle={v} />}
+          </div>
           <p className="text-xs text-muted">
             <span className="font-medium text-ink">{sale.customer.name}</span> ·{" "}
             <a href={`tel:+91${sale.customer.phone}`} className="text-brand tabular-nums">
@@ -138,8 +179,26 @@ function DeliveryCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
   );
 }
 
-function DeliveredTable({ rows, ready }: { rows: Vehicle[]; ready: boolean }) {
+function DeliveredTable({
+  rows,
+  ready,
+  canDelete,
+  selection,
+}: {
+  rows: Vehicle[];
+  ready: boolean;
+  canDelete: boolean;
+  selection: ReturnType<typeof useSelection<Vehicle>>;
+}) {
   const columns: Column<Vehicle>[] = [
+    ...(canDelete
+      ? [
+          {
+            header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown vehicles" />,
+            cell: (v: Vehicle) => <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} />,
+          },
+        ]
+      : []),
     { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
     { header: "Customer", cell: (v) => v.sale?.customer.name },
     { header: "Sold", cell: (v) => <span className="whitespace-nowrap">{v.sale?.soldAt ? formatDateTime(v.sale.soldAt) : "—"}</span> },
@@ -161,10 +220,14 @@ function DeliveredTable({ rows, ready }: { rows: Vehicle[]; ready: boolean }) {
         </span>
       ),
     },
+    ...(canDelete ? [{ header: "", align: "right" as const, cell: (v: Vehicle) => <DeleteVehicleButton vehicle={v} /> }] : []),
   ];
   return (
-    <Panel flush title="Recently delivered">
-      <DataTable columns={columns} rows={rows} rowKey={(v) => v.id} empty={ready ? "Nothing delivered recently." : "Loading…"} />
-    </Panel>
+    <div className="space-y-3">
+      {canDelete && <BulkDeleteBar vehicles={rows} selected={selection.selected} onClear={selection.clear} />}
+      <Panel flush title="Recently delivered">
+        <DataTable columns={columns} rows={rows} rowKey={(v) => v.id} empty={ready ? "Nothing delivered recently." : "Loading…"} />
+      </Panel>
+    </div>
   );
 }

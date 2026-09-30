@@ -56,6 +56,7 @@ export function VehicleRow({
   const state = verifyState(v, now);
   return (
     <li
+      data-vehicle-id={v.id}
       className={cn(
         "flex items-center gap-1 transition",
         leading ? "pl-1" : "pl-3",

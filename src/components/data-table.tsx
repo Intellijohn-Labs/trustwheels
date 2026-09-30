@@ -44,6 +44,7 @@ export function DataTable<T>({
             return (
               <tr
                 key={rowKey(row)}
+                data-vehicle-id={rowKey(row)}
                 className={cn(
                   "align-middle",
                   tone === "danger" && "bg-danger-soft/60 shadow-[inset_4px_0_0_var(--danger)]",

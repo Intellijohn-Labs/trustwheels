@@ -12,6 +12,8 @@ import { inRecon, reconCostPaise, reconFlag, reconHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
 import { DeleteVehicleButton } from "../delete-vehicle-button";
+import { BulkDeleteBar } from "../bulk-delete-bar";
+import { RowCheckbox, SelectAllCheckbox, useSelection } from "../selection";
 import { Button, Panel, Pill } from "../ui";
 import { JobCardDialog } from "./job-card-dialog";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
@@ -80,21 +82,35 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
   const now = useNow(30_000);
   const [openId, setOpenId] = useState<string>();
   const rows = vehicles.filter(inRecon).sort((a, b) => reconHours(b, now) - reconHours(a, now));
+  const shown = limit ? rows.slice(0, limit) : rows;
   const red = rows.filter((v) => reconFlag(v, now) !== "ok").length;
   const manage = can("recon.manage");
+  const canDelete = can("stock.delete") && !compact;
+  const selection = useSelection(shown, (v: Vehicle) => v.id);
 
   return (
+    <div className="space-y-3">
+      {canDelete && <BulkDeleteBar vehicles={shown} selected={selection.selected} onClear={selection.clear} />}
     <Panel
       flush
       tone={rows.some((v) => reconFlag(v, now) === "red72") ? "danger" : undefined}
       title="Reconditioning queue"
       description={`${rows.length} in the workshop · ${red} RED · clock runs from stock entry until the quality gate`}
     >
+      {canDelete && shown.length > 0 && (
+        <label className="flex items-center gap-2.5 border-b border-line bg-sunken/60 px-4 py-2 text-sm text-muted">
+          <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown vehicles" />
+          Select all ({shown.length} shown)
+        </label>
+      )}
       <ResponsiveTable
-        rows={ready ? (limit ? rows.slice(0, limit) : rows) : []}
+        rows={ready ? shown : []}
         card={(v) => (
           <>
-            <VehicleCell vehicle={v} />
+            <div className="flex items-center gap-2">
+              {canDelete && <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} />}
+              <VehicleCell vehicle={v} />
+            </div>
             <CardMeta>
               <ReconFlagPill vehicle={v} now={now} />
               <span className="tabular-nums">{formatHours(reconHours(v, now))} since stock entry</span>
@@ -123,6 +139,9 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
         rowTone={(v) => (reconFlag(v, now) === "red72" ? "danger" : reconFlag(v, now) === "red48" ? "warn" : undefined)}
         empty={ready ? "Nothing in reconditioning." : "Loading…"}
         columns={[
+          ...(canDelete
+            ? [{ header: "", cell: (v: Vehicle) => <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} /> }]
+            : []),
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
           ...(compact
             ? []
@@ -183,6 +202,7 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
       />
       {openId && <JobCardDialog vehicleId={openId} onClose={() => setOpenId(undefined)} />}
     </Panel>
+    </div>
   );
 }
 

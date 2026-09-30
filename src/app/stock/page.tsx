@@ -7,6 +7,7 @@ import { useNow } from "@/lib/use-now";
 import { inRecon, inTransit } from "@/lib/workflow";
 import { VehicleRow } from "@/components/vehicle-row";
 import { deleteVehicle, deleteVehicles, useVehicles } from "@/lib/stock-store";
+import { collapseThenRun } from "@/lib/exit-animation";
 import { BRANCHES } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
 import { displayReg, normaliseReg } from "@/lib/format";
@@ -323,11 +324,13 @@ export default function StockPage() {
           count={confirmDelete.ids.length}
           items={confirmDelete.labels}
           noun="vehicle"
-          onConfirm={async () => {
-            if (confirmDelete.ids.length === 1) await deleteVehicle(confirmDelete.ids[0]);
-            else await deleteVehicles(confirmDelete.ids);
-            selection.clear();
-          }}
+          onConfirm={() =>
+            collapseThenRun(confirmDelete.ids, async () => {
+              if (confirmDelete.ids.length === 1) await deleteVehicle(confirmDelete.ids[0]);
+              else await deleteVehicles(confirmDelete.ids);
+              selection.clear();
+            })
+          }
           onClose={() => setConfirmDelete(null)}
         />
       )}

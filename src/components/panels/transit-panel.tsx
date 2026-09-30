@@ -13,6 +13,8 @@ import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
 import { DeleteVehicleButton } from "../delete-vehicle-button";
+import { BulkDeleteBar } from "../bulk-delete-bar";
+import { RowCheckbox, SelectAllCheckbox, useSelection } from "../selection";
 import { Button, Field, Panel, Pill, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
@@ -249,24 +251,38 @@ function DispatchStatus({ vehicle: v, now }: { vehicle: Vehicle; now: number }) 
 /** Branch vehicles not yet dispatched. Verified ones can go; the rest say why they can't. */
 export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
   const { vehicles, ready } = useScopedVehicles();
+  const { can } = useRole();
   const now = useNow(60_000);
   const rows = vehicles
     .filter(awaitingDispatch)
     .sort((a, b) => Number(!!b.verified) - Number(!!a.verified) || a.createdAt.localeCompare(b.createdAt));
   const shown = limit ? rows.slice(0, limit) : rows;
   const readyCount = rows.filter((v) => v.verified).length;
+  const canDelete = can("stock.delete") && !limit;
+  const selection = useSelection(shown, (v: Vehicle) => v.id);
 
   return (
+    <div className="space-y-3">
+      {canDelete && <BulkDeleteBar vehicles={shown} selected={selection.selected} onClear={selection.clear} />}
     <Panel
       flush
       title="Ready to dispatch"
       description={`${readyCount} verified and ready · ${rows.length - readyCount} waiting for verification`}
     >
+      {canDelete && shown.length > 0 && (
+        <label className="flex items-center gap-2.5 border-b border-line bg-sunken/60 px-4 py-2 text-sm text-muted">
+          <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown vehicles" />
+          Select all ({shown.length} shown)
+        </label>
+      )}
       <ResponsiveTable
         rows={ready ? shown : []}
         card={(v) => (
           <>
-            <VehicleCell vehicle={v} />
+            <div className="flex items-center gap-2">
+              {canDelete && <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} />}
+              <VehicleCell vehicle={v} />
+            </div>
             <CardMeta>
               <DispatchStatus vehicle={v} now={now} />
               <span>Entered {formatDateTime(v.createdAt)}</span>
@@ -280,6 +296,9 @@ export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
         rowKey={(v) => v.id}
         empty={ready ? "Nothing waiting at the branch. Every vehicle has left for Angamaly." : "Loading…"}
         columns={[
+          ...(canDelete
+            ? [{ header: "", cell: (v: Vehicle) => <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} /> }]
+            : []),
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
           { header: "Entered", cell: (v) => <span className="whitespace-nowrap text-muted">{formatDateTime(v.createdAt)}</span> },
           { header: "Status", cell: (v) => <DispatchStatus vehicle={v} now={now} /> },
@@ -296,6 +315,7 @@ export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
         ]}
       />
     </Panel>
+    </div>
   );
 }
 
@@ -391,24 +411,39 @@ export function RemoveFromTransitButton({ vehicle }: { vehicle: Vehicle }) {
 /** Live list of vehicles between the branch and Angamaly, oldest handover first. */
 export function InTransitPanel({ limit }: { limit?: number }) {
   const { vehicles, ready } = useScopedVehicles();
+  const { can } = useRole();
   const now = useNow();
   const rows = vehicles.filter(inTransit).sort((a, b) => a.dispatch!.handoverAt.localeCompare(b.dispatch!.handoverAt));
+  const shown = limit ? rows.slice(0, limit) : rows;
   const breached = rows.filter((v) => transitBreached(v, now)).length;
+  const canDelete = can("stock.delete") && !limit;
+  const selection = useSelection(shown, (v: Vehicle) => v.id);
 
   return (
+    <div className="space-y-3">
+      {canDelete && <BulkDeleteBar vehicles={shown} selected={selection.selected} onClear={selection.clear} />}
     <Panel
       flush
       tone={breached ? "danger" : undefined}
       title="In transit"
       description={`${rows.length} on the road · limit ${SLA.transitHours} hours from handover${breached ? ` · ${breached} breached` : ""}`}
     >
+      {canDelete && shown.length > 0 && (
+        <label className="flex items-center gap-2.5 border-b border-line bg-sunken/60 px-4 py-2 text-sm text-muted">
+          <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown vehicles" />
+          Select all ({shown.length} shown)
+        </label>
+      )}
       <ResponsiveTable
-        rows={ready ? (limit ? rows.slice(0, limit) : rows) : []}
+        rows={ready ? shown : []}
         rowKey={(v) => v.id}
         rowTone={(v) => (transitBreached(v, now) ? "danger" : transitNearLimit(v, now) ? "warn" : undefined)}
         card={(v) => (
           <>
-            <VehicleCell vehicle={v} />
+            <div className="flex items-center gap-2">
+              {canDelete && <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} />}
+              <VehicleCell vehicle={v} />
+            </div>
             <CardMeta>
               <span>
                 Rider <span className="font-medium text-ink">{v.dispatch!.rider}</span>
@@ -429,6 +464,9 @@ export function InTransitPanel({ limit }: { limit?: number }) {
         )}
         empty={ready ? "No vehicles on the road." : "Loading…"}
         columns={[
+          ...(canDelete
+            ? [{ header: "", cell: (v: Vehicle) => <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} /> }]
+            : []),
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
           { header: "Rider", cell: (v) => v.dispatch!.rider },
           { header: "Handed over", cell: (v) => <span className="whitespace-nowrap text-muted">{formatDateTime(v.dispatch!.handoverAt)}</span> },
@@ -456,6 +494,7 @@ export function InTransitPanel({ limit }: { limit?: number }) {
         ]}
       />
     </Panel>
+    </div>
   );
 }
 

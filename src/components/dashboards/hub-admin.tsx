@@ -45,7 +45,7 @@ export default function HubAdminDashboard() {
         />
       </KpiGrid>
       <ArrivingPanel />
-      <ReceivedPanel limit={5} />
+      <ReceivedPanel limit={5} compact />
     </div>
   );
 }
