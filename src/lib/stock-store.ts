@@ -266,10 +266,19 @@ export function sendToReconditioning(id: string) {
     if (v.sale) fail("Blocked: this vehicle is already sold or booked");
     if (inRecon(v)) fail("Already in reconditioning");
     const at = nowIso();
+    // advance() only ever moves stage forward, so it can't be relied on here on its own - a
+    // vehicle sitting at a stage past 8 (e.g. an old gate-approved/on-display record that later
+    // picked up a rejected tag) must still land on exactly stage 8, not stay wherever it was.
+    const stage = 8;
+    const stageHistory = v.stage < stage ? advance(v, stage, at).stageHistory : v.stageHistory.filter((e) => e.stage <= stage);
     return {
       ...v,
-      ...advance(v, 8, at),
+      stage,
+      stageHistory,
       recon: { supervisor: roleName("supervisor"), startedAt: at, items: [], photos: [], sendBacks: [] },
+      // inRecon() requires !v.gate too - clear any stale gate sign-off from a much older cycle
+      // so this vehicle is never silently excluded from the recon queue by a leftover field.
+      gate: undefined,
       saleReadiness: undefined,
     };
   });
