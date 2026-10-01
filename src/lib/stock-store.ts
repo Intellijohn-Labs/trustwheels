@@ -87,6 +87,36 @@ function load() {
   return loading;
 }
 
+/**
+ * Re-fetches from Supabase and replaces the cache, same as collections.ts's own revalidate() -
+ * load()'s promise is cached forever, so without this a long-lived tab only ever sees the fleet
+ * as it was when the tab first opened, never picking up another device's changes. A no-op when
+ * Supabase isn't configured (fetchFromSupabase() just returns null).
+ */
+async function revalidate() {
+  const remote = await fetchFromSupabase();
+  if (remote) {
+    cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
+    emit();
+  }
+}
+
+let revalidationWired = false;
+function wireRevalidation() {
+  if (revalidationWired || typeof window === "undefined") return;
+  revalidationWired = true;
+  window.addEventListener("online", revalidate);
+  window.addEventListener("tw:refresh", revalidate);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) revalidate();
+  });
+}
+
+/** Manual "sync now" - also reachable from the navbar's refresh button via the shared `tw:refresh` event. */
+export function refreshVehicles() {
+  return revalidate();
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -96,6 +126,7 @@ export function useVehicles() {
   const vehicles = useSyncExternalStore(subscribe, () => cache, () => null);
   useEffect(() => {
     load();
+    wireRevalidation();
   }, []);
   return { vehicles: vehicles ?? [], ready: vehicles !== null };
 }

@@ -46,7 +46,7 @@ import { BRANCHES } from "@/lib/masters";
 import { NAV_GROUPS, ROUTES, findRoute } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
-import { useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
+import { drain, useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
 import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
@@ -162,6 +162,36 @@ function SyncStatusPill() {
   );
 }
 
+/**
+ * Manual "sync now": pulls fresh data from Supabase for every collection currently in use (via
+ * the shared `tw:refresh` event every collection listens for once mounted) and flushes any writes
+ * still stuck in the local retry queue. The quick workaround for "my other device shows different
+ * data" without waiting for a tab to regain focus or come back online on its own.
+ */
+function RefreshButton() {
+  const [spinning, setSpinning] = useState(false);
+
+  async function refresh() {
+    if (spinning) return;
+    setSpinning(true);
+    window.dispatchEvent(new Event("tw:refresh"));
+    await drain();
+    setTimeout(() => setSpinning(false), 600);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={refresh}
+      aria-label="Refresh data"
+      title="Refresh data from the cloud"
+      className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-strong bg-surface text-muted transition hover:bg-sunken hover:text-ink"
+    >
+      <RefreshCw className={cn("size-4", spinning && "animate-spin")} />
+    </button>
+  );
+}
+
 function ScopeChip() {
   const { roleDef } = useRole();
   const label = roleDef.scope === "all" ? "All branches" : roleDef.scope.map((id) => BRANCHES.find((b) => b.id === id)?.name ?? id).join(", ");
@@ -219,6 +249,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <SyncStatusPill />
+            <RefreshButton />
             <ScopeChip />
             <Link
               href="/settings"

@@ -120,6 +120,34 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
     return loading;
   }
 
+  /**
+   * Re-fetches from Supabase and replaces the cache if it's configured - `load()`'s own promise
+   * is cached forever (so a long-lived tab only ever fetches once), which is exactly how a second
+   * device's changes stop showing up without a hard reload. This is the stale-while-revalidate
+   * half: `load()` still resolves instantly from whatever's cached, revalidate() pulls what's
+   * actually current in the background and lets a normal mutation update (`save()` + `emit()`)
+   * carry it to every subscriber. A no-op for collections with no `supabaseTable` - there's
+   * nothing to revalidate against.
+   */
+  async function revalidate() {
+    const remote = await fetchFromSupabase();
+    if (remote) {
+      cache = remote;
+      emit();
+    }
+  }
+
+  let revalidationWired = false;
+  function wireRevalidation() {
+    if (revalidationWired || typeof window === "undefined") return;
+    revalidationWired = true;
+    window.addEventListener("online", revalidate);
+    window.addEventListener("tw:refresh", revalidate);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) revalidate();
+    });
+  }
+
   async function save(items: T[]) {
     cache = items;
     emit();
@@ -137,11 +165,14 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
       const items = useSyncExternalStore(subscribe, () => cache, () => null);
       useEffect(() => {
         load();
+        wireRevalidation();
       }, []);
       return { items: items ?? [], ready: items !== null };
     },
+    revalidate,
     async all() {
       await load();
+      wireRevalidation();
       return cache!;
     },
     async add(item: T) {
