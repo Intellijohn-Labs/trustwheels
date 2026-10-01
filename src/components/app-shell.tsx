@@ -60,7 +60,10 @@ import { cn } from "./ui";
 const SETTINGS_PATHS = ["/settings", "/team", "/branches"];
 
 // Full-screen pages that bring their own layout - and that never require a session to reach.
-const BARE = ["/login", "/signup"];
+// /reset-password is reachable with only a short-lived recovery session (or none yet, while the
+// link's tokens are still being parsed from the URL), which the guard below must not mistake for
+// "not logged in, redirect away" or "fully authed, let them anywhere".
+const BARE = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
 const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
 

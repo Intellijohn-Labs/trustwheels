@@ -8,7 +8,6 @@ import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
 import { signInWithPassword, hasActiveSession } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
 import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -41,7 +40,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [gate, setGate] = useState<Gate>({ phase: "form" });
-  const [resetState, setResetState] = useState<{ sent: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     router.prefetch("/dashboard");
@@ -79,20 +77,6 @@ export default function LoginPage() {
     router.push("/dashboard");
   }
 
-  async function handleForgotPassword() {
-    if (!email.trim()) {
-      setResetState({ sent: false, error: "Enter your email above first, then tap this again." });
-      return;
-    }
-    try {
-      if (!supabase) throw new Error("Password reset isn't available - this deployment isn't connected to Supabase yet.");
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/login` });
-      if (error) throw new Error(error.message);
-      setResetState({ sent: true });
-    } catch (err) {
-      setResetState({ sent: false, error: err instanceof Error ? err.message : "Couldn't send the reset email" });
-    }
-  }
 
   return (
     <div className="relative grid min-h-dvh bg-page lg:grid-cols-[1.15fr_1fr]">
@@ -145,9 +129,9 @@ export default function LoginPage() {
               <label htmlFor="password" className="text-sm font-medium">
                 Password
               </label>
-              <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-brand hover:underline">
+              <Link href="/forgot-password" className="text-sm font-medium text-brand hover:underline">
                 Forgot password?
-              </button>
+              </Link>
             </div>
             <div className="relative mt-1.5">
               <Lock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-faint" />
@@ -169,8 +153,6 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
-            {resetState?.sent && <p className="mt-2 text-xs text-ok">Check your email for a password reset link.</p>}
-            {resetState?.error && <p className="mt-2 text-xs text-danger">{resetState.error}</p>}
           </div>
 
           {gate.phase === "auth-error" && (
