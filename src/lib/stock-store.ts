@@ -110,6 +110,18 @@ function wireRevalidation() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) revalidate();
   });
+  // Live cross-device sync: any insert/update/delete on the vehicles table from any client (or a
+  // direct DB edit) re-pulls the full list rather than trying to merge the single changed row in -
+  // this store already holds the whole fleet in memory, so a wholesale refresh is simpler and
+  // can't drift from a partial merge. A no-op until Supabase is actually configured for this
+  // deployment, and still harmless if the project's Realtime replication isn't enabled for this
+  // table - the channel just never fires.
+  if (supabase) {
+    supabase
+      .channel("vehicles-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "vehicles" }, () => revalidate())
+      .subscribe();
+  }
 }
 
 /** Manual "sync now" - also reachable from the navbar's refresh button via the shared `tw:refresh` event. */

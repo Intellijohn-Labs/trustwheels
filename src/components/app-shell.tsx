@@ -147,6 +147,13 @@ const SYNC_STATUS: Record<SyncStatus, { dot: string; text: string; label: string
   synced: { dot: "bg-ok", text: "text-ok", label: "Synced", title: "Everything is synced to the cloud", icon: Check },
   syncing: { dot: "bg-warn animate-pulse", text: "text-warn", label: "Syncing…", title: "Syncing with the cloud…", icon: RefreshCw },
   offline: { dot: "bg-faint", text: "text-muted", label: "Offline", title: "Offline - saved on this device, will sync once you're back online", icon: CloudOff },
+  "not-configured": {
+    dot: "bg-danger",
+    text: "text-danger",
+    label: "Local only",
+    title: "Not connected to the shared database on this deployment - changes made here stay on this device only and won't appear on others until Supabase is configured",
+    icon: TriangleAlert,
+  },
 };
 
 function SyncStatusPill() {

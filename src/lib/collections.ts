@@ -146,6 +146,16 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) revalidate();
     });
+    // Live cross-device sync: any change to this collection's table from any client re-pulls the
+    // whole list (simpler and safer than merging a single changed row into the cache). A no-op
+    // until Supabase is configured for this deployment, and harmless if Realtime replication
+    // isn't enabled for this table - the channel just never fires.
+    if (supabase && table) {
+      supabase
+        .channel(`${table}-live`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => revalidate())
+        .subscribe();
+    }
   }
 
   async function save(items: T[]) {

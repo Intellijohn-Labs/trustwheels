@@ -13,7 +13,7 @@ import { supabase } from "./supabase";
  * whichever happens first. `useSyncStatus()` exposes the result for the navbar's status pill.
  */
 
-export type SyncStatus = "synced" | "syncing" | "offline";
+export type SyncStatus = "synced" | "syncing" | "offline" | "not-configured";
 
 interface PendingOp {
   id: string;
@@ -91,7 +91,16 @@ export async function drain() {
   emit();
 }
 
+/**
+ * A distinct state from "offline": the device has no connectivity problem, there's simply no
+ * Supabase project configured for this deployment (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY missing
+ * at build time). Every device in that state is working against its own local, never-shared
+ * IndexedDB copy, which is exactly what makes two devices "see completely different data" -
+ * silently falling back to "offline" here would hide that this isn't temporary and won't resolve
+ * itself by reconnecting.
+ */
 function computeStatus(): SyncStatus {
+  if (!supabase) return "not-configured";
   if (!isOnline()) return "offline";
   if (inFlight > 0 || queue.length > 0) return "syncing";
   return "synced";
