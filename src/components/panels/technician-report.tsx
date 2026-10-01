@@ -1,31 +1,31 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Wrench } from "lucide-react";
+import { Trash2, Wrench } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { istDate } from "@/lib/working-days";
 import { displayReg } from "@/lib/format";
+import { clearReconCompletion } from "@/lib/stock-store";
+import { collapseThenRun } from "@/lib/exit-animation";
+import { useRole } from "@/lib/role-context";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
-import { Panel, cn, inputClass } from "../ui";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "../selection";
+import { Button, Panel, cn, inputClass } from "../ui";
+import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 
 const UNASSIGNED = "Unassigned";
-
 interface TechRow {
   technician: string;
   vehicles: Vehicle[];
 }
 
-/**
- * Monthly reconditioning count per technician: every job card signed off in the selected month,
- * grouped by whoever was recorded as the assigned technician. Reads the same vehicles the rest of
- * the app does - completeRecon() keeps `recon` on a vehicle even after it moves on (sold,
- * delivered, ...), so a technician's history isn't lost once their vehicles leave the workshop.
- * Deliberately minimal: a count and a vehicle list, nothing else.
- */
 export function TechnicianReportPanel() {
   const { vehicles, ready } = useScopedVehicles();
+  const { can } = useRole();
+  const canDelete = can("stock.delete");
   const [month, setMonth] = useState(istDate(new Date()).slice(0, 7));
+  const [confirming, setConfirming] = useState<TechRow[] | null>(null);
 
   const rows = useMemo(() => {
     const byTechnician = new Map<string, Vehicle[]>();
@@ -38,6 +38,21 @@ export function TechnicianReportPanel() {
     const list: TechRow[] = [...byTechnician.entries()].map(([technician, list]) => ({ technician, vehicles: list }));
     return list.sort((a, b) => b.vehicles.length - a.vehicles.length);
   }, [vehicles, month]);
+
+  const selection = useSelection(rows, (r) => r.technician);
+
+  /** Every vehicle id counted by the given technician rows, deduped - a vehicle can only belong to one technician per month so this is mostly for bulk delete across several rows at once. */
+  function vehicleIdsFor(targets: TechRow[]) {
+    return [...new Set(targets.flatMap((r) => r.vehicles.map((v) => v.id)))];
+  }
+
+  async function doDelete(targets: TechRow[]) {
+    const names = targets.map((r) => r.technician);
+    await collapseThenRun(names, async () => {
+      await clearReconCompletion(vehicleIdsFor(targets));
+      selection.clear();
+    });
+  }
 
   return (
     <Panel
@@ -55,11 +70,25 @@ export function TechnicianReportPanel() {
         />
       }
     >
+      {canDelete && (
+        <div className="px-4 pt-3">
+          <SelectionToolbar count={selection.count} noun="technician report" onClear={selection.clear} onDelete={() => setConfirming(rows.filter((r) => selection.isSelected(r.technician)))} />
+        </div>
+      )}
       <DataTable
         rows={ready ? rows : []}
         rowKey={(r) => r.technician}
         empty={ready ? "No job cards signed off in this month." : "Loading…"}
         columns={[
+          ...(canDelete
+            ? [
+                {
+                  header: <SelectAllCheckbox checked={selection.allVisibleSelected} onChange={selection.toggleAll} label="Select all technician reports" />,
+                  cell: (r: TechRow) => <RowCheckbox checked={selection.isSelected(r.technician)} onChange={() => selection.toggle(r.technician)} label={`Select ${r.technician}`} />,
+                  className: "w-10",
+                },
+              ]
+            : []),
           {
             header: "Technician",
             cell: (r) => (
@@ -81,8 +110,31 @@ export function TechnicianReportPanel() {
               </div>
             ),
           },
+          ...(canDelete
+            ? [
+                {
+                  header: "",
+                  align: "right" as const,
+                  cell: (r: TechRow) => (
+                    <Button size="sm" variant="ghost" onClick={() => setConfirming([r])} aria-label={`Delete ${r.technician}'s report`}>
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
+      {confirming && (
+        <ConfirmDeleteDialog
+          count={confirming.length}
+          items={confirming.map((r) => `${r.technician} · ${r.vehicles.length} vehicle${r.vehicles.length === 1 ? "" : "s"}`)}
+          noun="technician report"
+          cascadeNote="This clears the sign-off and technician credit for these job cards so they drop off every month's report. The underlying job card items, photos, and cost history are kept."
+          onConfirm={() => doDelete(confirming!)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
     </Panel>
   );
 }

@@ -520,6 +520,27 @@ export const MIN_COMPLETION_PHOTOS = 4;
  * is the decision point from here. The job card itself (items, photos, cost) is kept exactly as
  * it is - only `stage` reverts - so landed cost and margin still account for this recon cycle.
  */
+/**
+ * Clears a completed job card's sign-off and technician attribution (items/photos/cost history
+ * are kept) - this is what "deleting" a row in the Technician Report actually does: that report
+ * has no table of its own, it's a live aggregation over exactly these two fields grouped by month
+ * and technician, so removing a vehicle from it means clearing what it's counting, not deleting a
+ * database row. Deliberately bypasses editRecon()'s stage===8 guard: a vehicle only ever shows up
+ * in this report once its job card is complete and its stage has already reverted to 7, so
+ * requiring stage 8 here would make the action permanently unusable.
+ */
+export function clearReconCompletion(ids: string[]) {
+  assertCan("stock.delete");
+  return Promise.all(
+    ids.map((id) =>
+      update(id, (v) => {
+        if (!v.recon) return v;
+        return { ...v, recon: { ...v.recon, completed: undefined, technicianName: undefined } };
+      }),
+    ),
+  );
+}
+
 export function completeRecon(id: string) {
   return editRecon(id, (v, r) => {
     if (r.completed) fail("Already signed off");
