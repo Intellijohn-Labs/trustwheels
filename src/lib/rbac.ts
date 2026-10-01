@@ -165,19 +165,25 @@ export interface DemoUser {
   base: string; // branch id where the person sits
 }
 
-/** One demo login per role, used by the role switcher. */
+/**
+ * Per-role structural defaults (a stable id for non-name references, a default home branch) -
+ * NOT display names. `.name` is always "Unassigned": the real display name for whoever holds a
+ * role comes from the active `hr_employees` record via roleName()/nameOf() (lib/user-names.ts),
+ * never from here. Still used for id/base by session.ts's getActor(), attendance-sheet.tsx's GPS
+ * user id, and the dev-only role switcher's login role list.
+ */
 export const DEMO_USERS: Record<Role, DemoUser> = {
-  managing_partner: { id: "u-prop", name: "Anoop", role: "managing_partner", base: "ang" },
-  partner: { id: "u-partner", name: "Mathew Joseph", role: "partner", base: "b1" },
-  branch_manager: { id: "u-bm", name: "Jithin Varghese", role: "branch_manager", base: "b1" },
-  branch_accountant: { id: "u-bacc", name: "Divya Menon", role: "branch_accountant", base: "b1" },
-  hub_admin: { id: "u-hub", name: "Rahul Nair", role: "hub_admin", base: "ang" },
-  supervisor: { id: "u-sup", name: "Biju Paul", role: "supervisor", base: "ang" },
-  gate_manager: { id: "u-gate", name: "Sanjay Pillai", role: "gate_manager", base: "ang" },
-  sales_executive: { id: "u-sales", name: "Aswathy Raj", role: "sales_executive", base: "ang" },
-  telecaller: { id: "u-tele", name: "Fathima Beevi", role: "telecaller", base: "ang" },
-  central_accountant: { id: "u-cacc", name: "Lakshmi Iyer", role: "central_accountant", base: "ang" },
-  hr: { id: "u-hr", name: "Reshma George", role: "hr", base: "ang" },
+  managing_partner: { id: "u-prop", name: "Unassigned", role: "managing_partner", base: "ang" },
+  partner: { id: "u-partner", name: "Unassigned", role: "partner", base: "b1" },
+  branch_manager: { id: "u-bm", name: "Unassigned", role: "branch_manager", base: "b1" },
+  branch_accountant: { id: "u-bacc", name: "Unassigned", role: "branch_accountant", base: "b1" },
+  hub_admin: { id: "u-hub", name: "Unassigned", role: "hub_admin", base: "ang" },
+  supervisor: { id: "u-sup", name: "Unassigned", role: "supervisor", base: "ang" },
+  gate_manager: { id: "u-gate", name: "Unassigned", role: "gate_manager", base: "ang" },
+  sales_executive: { id: "u-sales", name: "Unassigned", role: "sales_executive", base: "ang" },
+  telecaller: { id: "u-tele", name: "Unassigned", role: "telecaller", base: "ang" },
+  central_accountant: { id: "u-cacc", name: "Unassigned", role: "central_accountant", base: "ang" },
+  hr: { id: "u-hr", name: "Unassigned", role: "hr", base: "ang" },
 };
 
 export function can(role: Role, permission: Permission) {

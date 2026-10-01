@@ -4,8 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import type { Customer, Document, JobItem, NewVehicle, PaymentMode, SaleReadinessStatus, Vehicle } from "./types";
 import type { TransferStep } from "./masters";
 import { roleName } from "./user-names";
-import { getKey, putKey, tx } from "./db";
-import { VEHICLE_SEED_VERSION, seedVehicles } from "./seed";
+import { tx } from "./db";
 import { assertCan, assertScope, getActor } from "./session";
 import { supabase } from "./supabase";
 import { beginSync, endSync, enqueueRetry } from "./sync-queue";
@@ -66,22 +65,10 @@ function load() {
       emit();
       return;
     }
+    // No demo seed is ever written here - this is purely the local IndexedDB copy, read as-is.
     const rows = (await tx<Vehicle[]>("vehicles", "readonly", (s) => s.getAll())) ?? [];
-    // Replace demo records when the demo seed changes; vehicles people added are kept.
-    const version = await getKey<number>("vehicle-seed-version");
-    let result = rows;
-    if (version !== VEHICLE_SEED_VERSION) {
-      const seeds = seedVehicles();
-      const own = rows.filter((v) => !v.id.startsWith("seed-"));
-      await tx("vehicles", "readwrite", (s) => {
-        rows.filter((v) => v.id.startsWith("seed-")).forEach((v) => s.delete(v.id));
-        seeds.forEach((v) => s.put(v));
-      });
-      await putKey("vehicle-seed-version", VEHICLE_SEED_VERSION);
-      result = [...own, ...seeds];
-    }
     // Records saved before the document vault existed have no `documents` field.
-    cache = result.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
+    cache = rows.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
     emit();
   })();
   return loading;

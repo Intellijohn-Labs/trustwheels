@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { DEMO_USERS, type Role } from "./rbac";
+import type { Role } from "./rbac";
 
 /*
  * Display names of the people holding each role. The HR employee master is the source
@@ -15,8 +15,9 @@ let names: Partial<Record<Role, string>> = {};
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
+/** The real display name for whoever holds `role`, from the active hr_employees record - never a mock name. */
 export function roleName(role: Role) {
-  return names[role]?.trim() || DEMO_USERS[role].name;
+  return names[role]?.trim() || "Unassigned";
 }
 
 /** Apply the last known names after hydration (the server always renders the defaults). */
@@ -62,7 +63,8 @@ export function useRoleNames() {
   return roleName;
 }
 
-// Staff pickers: the named role holder plus the other people in that job.
-export const salesExecutives = () => [roleName("sales_executive"), "Nithin Babu"];
-export const telecallers = () => [roleName("telecaller"), "Anju Thomas"];
-export const supervisors = () => [roleName("supervisor"), "Sajan Thomas"];
+// Staff pickers: whoever actually holds the role right now (or "Unassigned" if no active
+// employee does) - no hardcoded second name standing in for a colleague who doesn't exist.
+export const salesExecutives = () => [roleName("sales_executive")];
+export const telecallers = () => [roleName("telecaller")];
+export const supervisors = () => [roleName("supervisor")];

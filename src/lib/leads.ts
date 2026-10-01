@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { defineCollection, newId } from "./collections";
 import { salesExecutives } from "./user-names";
 import { SLA } from "./masters";
-import { DEMO_USERS } from "./rbac";
 import { useRole } from "./role-context";
 import { assertCan, getActor } from "./session";
 import { useNow } from "./use-now";
@@ -79,8 +78,6 @@ export const LOSS_REASONS = [
   "Postponed purchase",
   "Not reachable",
 ];
-
-export const SALES_EXECUTIVES = [DEMO_USERS.sales_executive.name, "Nithin Babu"];
 
 export const sourceLabel = (s: LeadSource) => LEAD_SOURCES.find((o) => o.value === s)?.label ?? s;
 export const stageLabel = (s: LeadStage) => LEAD_STAGES.find((o) => o.value === s)?.label ?? s;
@@ -172,100 +169,9 @@ export function conversionBy(leads: Lead[], keyOf: (l: Lead) => string, labelOf:
     .sort((a, b) => b.leads - a.leads);
 }
 
-// ---- demo seed ----------------------------------------------------------------------
-
+/** No demo enquiries: this app runs on real leads only. */
 function seedLeads(): Lead[] {
-  const now = Date.now();
-  const ago = (h: number) => new Date(now - h * HOUR).toISOString();
-  const [aswathy, nithin] = SALES_EXECUTIVES;
-  const call = (created: number, day: FollowUpDay, outcome: FollowUpOutcome, note: string, by = aswathy): FollowUp => ({
-    day,
-    at: ago(created - (day - 1) * 24 - 3),
-    outcome,
-    note,
-    by,
-  });
-  const lead = (n: number, created: number, l: Omit<Lead, "id" | "createdAt" | "followUps"> & { followUps?: FollowUp[] }): Lead => ({
-    id: `lead-${n}`,
-    createdAt: ago(created),
-    followUps: [],
-    ...l,
-  });
-
-  return [
-    lead(1, 2, { name: "Anand Krishnan", phone: "9847012301", source: "walk_in", branchId: "ang", interest: "Classic 350, budget ₹1.5L", assignedTo: aswathy, stage: "new" }),
-    lead(2, 5, { name: "Shabna Rasheed", phone: "9656023402", source: "whatsapp", branchId: "b2", vehicleId: "seed-11", interest: "Activa 6G for daily office use", assignedTo: nithin, stage: "new" }),
-    lead(3, 10, { name: "Kiran Mohan", phone: "9995034503", source: "facebook", branchId: "b1", interest: "Any 125cc scooter under ₹70k", assignedTo: aswathy, stage: "new" }),
-    lead(4, 30, { name: "Deepa Suresh", phone: "9744045604", source: "website", branchId: "ang", vehicleId: "seed-12", interest: "Duke 200, wants exchange for old Pulsar", assignedTo: aswathy, stage: "contacted" }),
-    lead(5, 40, { name: "Rijo Thomas", phone: "9846056705", source: "phone", branchId: "b4", interest: "FZ or Pulsar, ₹80k", assignedTo: nithin, stage: "new" }),
-    lead(6, 52, { name: "Fousiya Ali", phone: "9562067806", source: "instagram", branchId: "b3", interest: "Ather / Ola electric, finance needed", assignedTo: aswathy, stage: "new" }),
-    lead(7, 80, {
-      name: "Vineeth Kumar",
-      phone: "9447078907",
-      source: "walk_in",
-      branchId: "b1",
-      interest: "Hunter 350, cash buyer",
-      assignedTo: nithin,
-      stage: "contacted",
-      followUps: [call(80, 2, "call_back", "Busy at work, call tomorrow evening", nithin)],
-    }),
-    lead(8, 28, {
-      name: "Neha Varghese",
-      phone: "9895089008",
-      source: "whatsapp",
-      branchId: "b2",
-      interest: "Access 125, first bike",
-      assignedTo: aswathy,
-      stage: "contacted",
-      followUps: [{ day: 2, at: ago(2), outcome: "interested", note: "Coming Saturday with father", by: aswathy }],
-    }),
-    lead(9, 60, {
-      name: "Sreekanth P",
-      phone: "9746090109",
-      source: "website",
-      branchId: "ang",
-      interest: "R15 V4, test ride requested",
-      assignedTo: aswathy,
-      stage: "test_ride",
-      followUps: [call(60, 2, "test_ride", "Test ride fixed for Friday 11 am")],
-    }),
-    lead(10, 100, {
-      name: "Jobin Jose",
-      phone: "9633001210",
-      source: "phone",
-      branchId: "b5",
-      interest: "NTorq 125, negotiating on price",
-      assignedTo: nithin,
-      stage: "negotiation",
-      followUps: [
-        call(100, 2, "interested", "Wants ₹3k off", nithin),
-        call(100, 3, "test_ride", "Took test ride, liked it", nithin),
-        call(100, 4, "call_back", "Discussing with family", nithin),
-      ],
-    }),
-    lead(11, 130, {
-      name: "Meera Joseph",
-      phone: "9446023456",
-      source: "walk_in",
-      branchId: "b3",
-      vehicleId: "seed-13",
-      interest: "Apache RTR 160 4V",
-      assignedTo: aswathy,
-      stage: "booked",
-      followUps: [call(130, 2, "interested", "Asked for best price"), call(130, 3, "test_ride", "Test ride done"), call(130, 4, "interested", "Booking tomorrow")],
-    }),
-    lead(12, 90, {
-      name: "Arjun Das",
-      phone: "9048012312",
-      source: "facebook",
-      branchId: "b1",
-      interest: "Pulsar NS200",
-      assignedTo: aswathy,
-      stage: "lost",
-      lossReason: "Bought elsewhere",
-      followUps: [call(90, 2, "interested", "Comparing with another dealer"), call(90, 3, "not_interested", "Bought a new NS200 from showroom")],
-    }),
-  ];
+  return [];
 }
 
 export const leads = defineCollection<Lead>("leads", seedLeads, 1, { supabaseTable: "leads" });

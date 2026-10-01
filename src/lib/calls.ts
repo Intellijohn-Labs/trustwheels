@@ -1,7 +1,6 @@
 "use client";
 
 import { defineCollection, newId } from "./collections";
-import { DEMO_USERS } from "./rbac";
 import { assertCan, getActor } from "./session";
 import { istDate } from "./working-days";
 import { SLA } from "./masters";
@@ -71,8 +70,6 @@ export const DISPOSITIONS: { value: Disposition; label: string; closes?: boolean
   { value: "purchased_elsewhere", label: "Purchased elsewhere", closes: true, connected: true },
   { value: "wrong_number", label: "Wrong number", closes: true, connected: false },
 ];
-
-export const TELECALLERS = [DEMO_USERS.telecaller.name, "Anju Thomas"];
 
 export const CALL_SOURCES: { value: CallSource; label: string; lead: LeadSource }[] = [
   { value: "inbound_call", label: "Inbound call", lead: "phone" },
@@ -187,52 +184,9 @@ export function campaignProgress(c: Campaign, tasks: CallTask[], convertedPhones
   return { tasks: mine.length, called, interested, conversions, pct: c.target ? Math.min(1, called / c.target) : 0 };
 }
 
-// ---- demo seed ----------------------------------------------------------------------
-
-function seed() {
-  const now = Date.now();
-  const at = (h: number) => new Date(now + h * HOUR).toISOString();
-  const [fathima, anju] = TELECALLERS;
-  const log = (h: number, disposition: Disposition, note: string, by = fathima): CallLog => ({ at: at(h), disposition, note, by });
-
-  const campaigns: Campaign[] = [
-    { id: "camp-onam", name: "Onam exchange offer", offer: "Extra ₹5,000 on exchange of any old two-wheeler", startsAt: at(-24 * 10), endsAt: at(24 * 12), assignedTo: fathima, target: 40 },
-    { id: "camp-classic", name: "Classic 350 owners", offer: "Free service + accessory kit on upgrade to a Meteor / Hunter", model: "Classic 350", startsAt: at(-24 * 3), endsAt: at(24 * 20), assignedTo: anju, target: 20 },
-    { id: "camp-ev", name: "EV switch week", offer: "Free home charger installation on any electric scooter", startsAt: at(24 * 3), endsAt: at(24 * 10), assignedTo: fathima, target: 25 },
-  ];
-
-  const task = (n: number, t: Omit<CallTask, "id" | "assignedTo" | "history"> & { assignedTo?: string; history?: CallLog[] }): CallTask => ({
-    id: `call-${n}`,
-    assignedTo: fathima,
-    history: [],
-    ...t,
-  });
-
-  const tasks: CallTask[] = [
-    task(1, { customer: "Rahul Menon", phone: "9847100101", list: "new_enquiry", vehicleInterest: "Activa 6G", dueAt: at(-3) }),
-    task(2, { customer: "Sneha Pillai", phone: "9847100102", list: "new_enquiry", vehicleInterest: "Jupiter / Access", dueAt: at(2) }),
-    task(3, { customer: "Ashik Hameed", phone: "9847100103", list: "cold_lead", vehicleInterest: "Pulsar 150", dueAt: at(-30), callbackAt: at(-2), history: [log(-28, "callback", "At a wedding, call back today afternoon")] }),
-    task(4, { customer: "Manju Varghese", phone: "9847100104", list: "cold_lead", dueAt: at(-50), callbackAt: at(1), history: [log(-26, "no_answer", ""), log(-1, "callback", "Driving, call in an hour")] }),
-    task(5, { customer: "Joseph Antony", phone: "9847100105", list: "past_customer", vehicleInterest: "Upgrade from Splendor", dueAt: at(-1) }),
-    task(6, { customer: "Latha Nair", phone: "9847100106", list: "service_due", vehicleInterest: "Service reminder: Access 125", dueAt: at(4), assignedTo: anju }),
-    task(7, { customer: "Irfan Salim", phone: "9847100107", list: "service_due", vehicleInterest: "Service reminder: FZ-S", dueAt: at(-5), history: [log(-4, "no_answer", "", anju)], assignedTo: anju }),
-    task(8, { customer: "Akhil Raj", phone: "9895012345", list: "campaign", campaignId: "camp-onam", vehicleInterest: "Exchange old Passion", dueAt: at(-24 * 6), history: [log(-24 * 5, "interested", "Visiting Angamaly on Sunday")] }),
-    task(9, { customer: "Bindu Mathew", phone: "9847100109", list: "campaign", campaignId: "camp-onam", dueAt: at(-2), history: [log(-1.5, "interested", "Wants a scooter for daughter, sent to sales")] }),
-    task(10, { customer: "Prakash Kumar", phone: "9847100110", list: "campaign", campaignId: "camp-onam", dueAt: at(-6), history: [log(-0.5, "not_interested", "Not planning this year")] }),
-    task(11, { customer: "Sabu Chacko", phone: "9847100111", list: "campaign", campaignId: "camp-onam", dueAt: at(3) }),
-    task(12, { customer: "Thomas Kuruvilla", phone: "9847100112", list: "campaign", campaignId: "camp-classic", vehicleInterest: "Owns Classic 350 (2017)", dueAt: at(-4), assignedTo: anju, history: [log(-3, "purchased_elsewhere", "Bought a Himalayan last month", anju)] }),
-    task(13, { customer: "Nikhil Suresh", phone: "9847100113", list: "campaign", campaignId: "camp-classic", vehicleInterest: "Owns Classic 350 (2019)", dueAt: at(-8), callbackAt: at(-26), assignedTo: anju, history: [log(-30, "callback", "Call tomorrow morning", anju)] }),
-    task(14, { customer: "Wrong Contact", phone: "9847100114", list: "cold_lead", dueAt: at(-20), history: [log(-19, "wrong_number", "Number belongs to someone else")] }),
-    task(15, { customer: "Ramesh Babu", phone: "9847100115", list: "past_customer", dueAt: at(-10), doNotCall: true, history: [log(-9, "not_interested", "Asked not to be called again")] }),
-    task(16, { customer: "Gopika S", phone: "9847100116", list: "new_enquiry", vehicleInterest: "Ather Rizta", dueAt: at(26) }),
-    // Incoming calls: on time, running late, no-answer retry, follow-up booked, handed to sales.
-    task(17, { customer: "Vishnu Prasad", phone: "9847200117", list: "inbound", source: "inbound_call", vehicleInterest: "Honda Activa 6G", notes: "Budget ₹55k, wants 2021 or newer", receivedAt: at(-0.1), dueAt: at(0.4), createdBy: fathima }),
-    task(18, { customer: "Anitha George", phone: "9847200118", list: "inbound", source: "whatsapp", vehicleInterest: "TVS Jupiter", notes: "Has an old Scooty Pep to exchange", receivedAt: at(-0.9), dueAt: at(-0.4), createdBy: fathima }),
-    task(19, { customer: "Faisal Rahman", phone: "9847200119", list: "inbound", source: "website", vehicleInterest: "Royal Enfield Classic 350", notes: "Asked for finance options", receivedAt: at(-3), dueAt: at(0.5), createdBy: fathima, history: [log(-1.5, "no_answer", "Rang out")] }),
-    task(20, { customer: "Deepa Krishnan", phone: "9847200120", list: "inbound", source: "walk_in", vehicleInterest: "Yamaha Fascino 125", notes: "Visited Angamaly, wants a test ride on Saturday", receivedAt: at(-5), dueAt: at(-4.5), callbackAt: at(20), createdBy: fathima, history: [log(-4.6, "callback", "Call Friday evening to confirm the test ride")] }),
-  ];
-
-  return { campaigns, tasks };
+/** No demo call lists or campaigns: this app runs on real data only. */
+function seed(): { campaigns: Campaign[]; tasks: CallTask[] } {
+  return { campaigns: [], tasks: [] };
 }
 
 export const callTasks = defineCollection<CallTask>("call-tasks", () => seed().tasks, 2, { supabaseTable: "calls" });

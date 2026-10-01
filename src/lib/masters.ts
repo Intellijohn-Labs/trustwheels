@@ -124,8 +124,6 @@ export const TRANSFER_STEPS = [
 
 export type TransferStep = (typeof TRANSFER_STEPS)[number]["id"];
 
-export const SUPERVISORS = ["Biju Paul", "Sajan Thomas"];
-
 export function branchName(id: string) {
   return BRANCHES.find((b) => b.id === id)?.name ?? id;
 }

@@ -187,200 +187,25 @@ export function todayIst() {
   return istDate(Date.now());
 }
 
-// ---- deterministic seed --------------------------------------------------------------
-
-/** FNV-1a hash -> [0, 1). Keeps the demo seed stable between reloads and screenshots. */
-function rand(key: string) {
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  // murmur3 finaliser, so keys that differ only in the last character don't land close together
-  h ^= h >>> 16;
-  h = Math.imul(h, 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
-
-const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-
-type SeedRow = [name: string, role: string, branchId: string, reportingTo: string, joinedAt: string, band: string, rbacRole?: Role, status?: EmployeeStatus];
-
-const SEED_ROWS: SeedRow[] = [
-  ["Anoop", "Managing Partner", "ang", "", "2012-04-01", "Owner", "managing_partner"],
-  ["Mathew Joseph", "Partner", "b1", "e-01", "2015-06-15", "Partner", "partner"],
-  ["Jithin Varghese", "Branch Manager", "b1", "e-01", "2017-03-10", "M2", "branch_manager"],
-  ["Divya Menon", "Branch Accountant", "b1", "e-03", "2019-07-01", "S3", "branch_accountant"],
-  ["Rahul Nair", "Hub Administrator", "ang", "e-07", "2018-11-05", "S3", "hub_admin"],
-  ["Biju Paul", "Reconditioning Supervisor", "ang", "e-07", "2016-02-20", "S3", "supervisor"],
-  ["Sanjay Pillai", "Hub Manager (Gatekeeper)", "ang", "e-01", "2014-09-01", "M3", "gate_manager"],
-  ["Aswathy Raj", "Sales Executive", "ang", "e-07", "2021-01-18", "S2", "sales_executive"],
-  ["Fathima Beevi", "Telecaller", "ang", "e-11", "2022-08-08", "S1", "telecaller"],
-  ["Lakshmi Iyer", "Central Accountant", "ang", "e-01", "2016-05-02", "M2", "central_accountant"],
-  ["Reshma George", "HR / Admin Executive", "ang", "e-01", "2020-10-12", "M1", "hr"],
-  ["Shibu Kuriakose", "Rider", "b1", "e-03", "2020-01-06", "W2"],
-  ["Arun Das", "Rider", "b2", "e-14", "2021-04-12", "W2"],
-  ["Joby Mathew", "Branch Manager", "b2", "e-01", "2018-06-04", "M2"],
-  ["Nikhil Suresh", "Rider", "b3", "e-16", "2023-02-01", "W1"],
-  ["Vineeth Kumar", "Branch Manager", "b3", "e-01", "2019-09-16", "M2"],
-  ["Sajan Thomas", "Reconditioning Supervisor", "ang", "e-07", "2019-03-25", "S3"],
-  ["Manoj Pappachan", "Mechanic", "ang", "e-06", "2017-08-14", "W3"],
-  ["Salim Ahammed", "Mechanic", "ang", "e-06", "2022-05-09", "W2"],
-  ["Jisha Antony", "Sales Executive", "b2", "e-14", "2023-06-19", "S1"],
-  ["Arjun Menon", "Sales Executive", "b4", "e-22", "2024-01-08", "S1"],
-  ["Prasanth Nair", "Branch In-charge", "b4", "e-01", "2020-07-20", "M1"],
-  ["Sneha Joseph", "Telecaller", "ang", "e-11", "2023-11-13", "S1", undefined, "on_notice"],
-  ["Deepak Raj", "Sales Executive", "b5", "e-25", "2024-03-04", "S1"],
-  ["Anjali Krishnan", "Branch In-charge", "b5", "e-01", "2021-12-01", "M1"],
-  ["Rajesh Kumar", "Mechanic", "ang", "e-06", "2019-01-14", "W2", undefined, "exited"],
-];
-
+/*
+ * No demo roster: this app runs on real hr_employees records only. These stay as functions
+ * (not plain []) so each defineCollection(...) call site and its seedVersion's "bump to re-seed"
+ * convention stay meaningful if a genuine local fixture is ever needed again.
+ */
 function seedEmployees(): Employee[] {
-  return SEED_ROWS.map(([name, role, branchId, reportingTo, joinedAt, band, rbacRole, status], i) => {
-    const id = `e-${String(i + 1).padStart(2, "0")}`;
-    const phone = `9${String(Math.floor(rand(`${id}:phone`) * 1e9)).padStart(9, "0")}`;
-    return {
-      id,
-      name,
-      role,
-      rbacRole,
-      branchId,
-      phone,
-      whatsapp: i % 5 === 3 ? `9${String(Math.floor(rand(`${id}:wa`) * 1e9)).padStart(9, "0")}` : phone,
-      email: `${name.split(" ")[0].toLowerCase()}.${name.split(" ").slice(-1)[0].toLowerCase()}@trustwheels.in`,
-      joinedAt,
-      reportingTo,
-      status: status ?? "active",
-      salaryBand: band,
-    };
-  });
+  return [];
 }
 
 function seedLeaves(): LeaveRequest[] {
-  const today = todayIst();
-  const at = (d: string, t = "10:15") => new Date(`${d}T${t}:00+05:30`).toISOString();
-  const monthStart = `${today.slice(0, 8)}01`;
-  const hr = "Reshma George";
-  return [
-    {
-      id: "lv-01",
-      employeeId: "e-20",
-      from: addDays(today, 3),
-      to: addDays(today, 4),
-      type: "casual",
-      reason: "Sister's wedding at Thodupuzha",
-      status: "pending",
-      requestedAt: at(addDays(today, -1)),
-    },
-    {
-      id: "lv-02",
-      employeeId: "e-18",
-      from: addDays(today, 7),
-      to: addDays(today, 11),
-      type: "earned",
-      reason: "Family trip to Velankanni",
-      status: "pending",
-      requestedAt: at(addDays(today, -2), "16:40"),
-    },
-    {
-      id: "lv-03",
-      employeeId: "e-13",
-      from: addDays(today, 2),
-      to: addDays(today, 2),
-      type: "casual",
-      reason: "Bank visit for house loan documents",
-      status: "pending",
-      requestedAt: at(today, "09:05"),
-    },
-    {
-      id: "lv-04",
-      employeeId: "e-19",
-      from: addDays(today, -1),
-      to: today,
-      type: "sick",
-      reason: "Viral fever, doctor's certificate attached",
-      status: "approved",
-      requestedAt: at(addDays(today, -1), "08:20"),
-      decided: { at: at(addDays(today, -1), "09:10"), by: hr, note: "Get well soon" },
-    },
-    {
-      id: "lv-05",
-      employeeId: "e-04",
-      from: addDays(monthStart, 3),
-      to: addDays(monthStart, 5),
-      type: "earned",
-      reason: "Housewarming at Muvattupuzha",
-      status: "approved",
-      requestedAt: at(addDays(monthStart, -6)),
-      decided: { at: at(addDays(monthStart, -5)), by: hr, note: "Approved, Jithin to cover purchases" },
-    },
-    {
-      id: "lv-06",
-      employeeId: "e-21",
-      from: addDays(today, 1),
-      to: addDays(today, 1),
-      type: "casual",
-      reason: "Personal work",
-      status: "rejected",
-      requestedAt: at(addDays(today, -3)),
-      decided: { at: at(addDays(today, -2), "11:30"), by: hr, note: "Month-end sales push, please pick another day" },
-    },
-  ];
+  return [];
 }
 
 function seedAttendance(): Attendance[] {
-  const today = todayIst();
-  const employees = seedEmployees();
-  const leaves = seedLeaves().filter((l) => l.status === "approved");
-  const rows: Attendance[] = [];
-  for (const date of datesBetween(`${today.slice(0, 8)}01`, today)) {
-    for (const e of employees) {
-      if (!onRollOn(e, date)) continue;
-      const r = rand(`${e.id}:${date}`);
-      const base = { id: `att-${e.id}-${date}`, employeeId: e.id, date, branchId: e.branchId };
-      if (isWeeklyOff(date)) {
-        rows.push({ ...base, status: "week_off" });
-        continue;
-      }
-      if (leaves.some((l) => l.employeeId === e.id && l.from <= date && date <= l.to)) {
-        rows.push({ ...base, status: "leave" });
-        continue;
-      }
-      // Today: a few people haven't been marked yet, nobody has checked out.
-      if (date === today && r > 0.93) continue;
-      if (r < 0.04) {
-        rows.push({ ...base, status: "absent" });
-        continue;
-      }
-      const late = rand(`${e.id}:${date}:late`) > 0.86;
-      const inMin = late ? 9 * 60 + 31 + Math.floor(rand(`${e.id}:${date}:in`) * 40) : 8 * 60 + 45 + Math.floor(rand(`${e.id}:${date}:in`) * 44);
-      const half = r < 0.07;
-      const outMin = half ? 13 * 60 + 30 + Math.floor(rand(`${e.id}:${date}:out`) * 30) : 18 * 60 + Math.floor(rand(`${e.id}:${date}:out`) * 50);
-      rows.push({ ...base, status: half ? "half_day" : "present", checkIn: hhmm(inMin), checkOut: date === today ? undefined : hhmm(outMin) });
-    }
-  }
-  return rows;
-}
-
-function defaultShift(employeeId: string, weekStart: string, day: number): Shift {
-  if (day === 6) return "off";
-  const r = rand(`${employeeId}:${weekStart}:${day}`);
-  return r < 0.2 ? "morning" : r < 0.8 ? "general" : "evening";
+  return [];
 }
 
 function seedRosters(): Roster[] {
-  const weekStart = mondayOf(todayIst());
-  const employees = seedEmployees().filter((e) => onRollOn(e, weekStart));
-  const branches = [...new Set(employees.map((e) => e.branchId))];
-  return branches.map((branchId) => ({
-    id: `ros-${branchId}-${weekStart}`,
-    branchId,
-    weekStart,
-    shifts: employees.filter((e) => e.branchId === branchId).flatMap((e) => WEEKDAYS.map((_, day) => ({ employeeId: e.id, day, shift: defaultShift(e.id, weekStart, day) }))),
-  }));
+  return [];
 }
 
 export const employees = defineCollection<Employee>("hr-employees", seedEmployees, 3, { supabaseTable: "hr_employees" });
