@@ -10,10 +10,11 @@ import { assertCan, assertScope, getActor } from "./session";
 import { supabase } from "./supabase";
 import { beginSync, endSync, enqueueRetry } from "./sync-queue";
 import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
-import { normaliseReg, displayReg } from "./format";
+import { normaliseReg, displayReg, formatPaise } from "./format";
 import { newId } from "./collections";
 import { missingDocuments, verifyDocument } from "./documents";
 import { documentLabel, inferMakeFromModel } from "./masters";
+import { logActivity } from "./activity-log";
 
 /*
  * Browser-only stand-in for the vehicle API. Every mutation checks the caller's permission
@@ -221,6 +222,7 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
   cache = [vehicle, ...cache!];
   emit();
   syncToSupabase(vehicle);
+  logActivity("CREATE", displayReg(vehicle.registrationNo), `Added ${vehicle.make} ${vehicle.model} · ${displayReg(vehicle.registrationNo)} to stock`);
   return vehicle;
 }
 
@@ -238,6 +240,7 @@ export async function deleteVehicle(id: string) {
   await tx("vehicles", "readwrite", (s) => s.delete(id));
   cache = cache!.filter((x) => x.id !== id);
   emit();
+  logActivity("DELETE", displayReg(v.registrationNo), `Deleted vehicle ${v.make} ${v.model} · ${displayReg(v.registrationNo)}`);
 }
 
 /** Permanently remove several vehicle records in one transaction, e.g. from a bulk selection. */
@@ -255,6 +258,7 @@ export async function deleteVehicles(ids: string[]) {
   const removed = new Set(targets.map((v) => v.id));
   cache = cache!.filter((v) => !removed.has(v.id));
   emit();
+  logActivity("DELETE", `${targets.length} vehicles`, `Deleted ${targets.length} vehicles: ${targets.map((v) => displayReg(v.registrationNo)).join(", ")}`);
 }
 
 export function setVerified(id: string, verified: boolean) {
@@ -289,6 +293,11 @@ export function setSaleReadiness(id: string, status: SaleReadinessStatus, reason
     if (v.sale) fail("Blocked: this vehicle is already sold or booked - its sale readiness can't be changed");
     if (inRecon(v)) fail("Blocked: this vehicle is actively in reconditioning - decide readiness once the job card is signed off");
     return { ...v, saleReadiness: { status, reason: reason?.trim() || undefined, ...signed() } };
+  }).then((updated) => {
+    const reg = displayReg(updated.registrationNo);
+    if (status === "ready_for_sale") logActivity("READY_FOR_SALE", reg, `Marked ${reg} ready for sale`);
+    else logActivity("REJECTED_STOCK", reg, `Rejected ${reg} as stock${reason ? ` - ${reason.trim()}` : ""}`);
+    return updated;
   });
 }
 
@@ -324,6 +333,9 @@ export function sendToReconditioning(id: string) {
       gate: undefined,
       saleReadiness: undefined,
     };
+  }).then((updated) => {
+    logActivity("RECONDITIONING", displayReg(updated.registrationNo), `Sent ${displayReg(updated.registrationNo)} to Reconditioning (Stage 8)`);
+    return updated;
   });
 }
 
@@ -509,7 +521,11 @@ export function setProposedPrice(id: string, paise: number) {
 }
 
 export function setTechnician(id: string, name: string) {
-  return editRecon(id, (_, r) => ({ recon: { ...r, technicianName: name.trim() || undefined } }));
+  return editRecon(id, (_, r) => ({ recon: { ...r, technicianName: name.trim() || undefined } })).then((updated) => {
+    const reg = displayReg(updated.registrationNo);
+    logActivity("EDIT", reg, `Set technician to "${name.trim() || "(none)"}" on ${reg}'s job card`);
+    return updated;
+  });
 }
 
 export const MIN_COMPLETION_PHOTOS = 4;
@@ -538,7 +554,10 @@ export function clearReconCompletion(ids: string[]) {
         return { ...v, recon: { ...v.recon, completed: undefined, technicianName: undefined } };
       }),
     ),
-  );
+  ).then((updated) => {
+    logActivity("DELETE_REPORT", `${updated.length} vehicles`, `Deleted ${updated.length} technician report ${updated.length === 1 ? "entry" : "entries"}: ${updated.map((v) => displayReg(v.registrationNo)).join(", ")}`);
+    return updated;
+  });
 }
 
 export function completeRecon(id: string) {
@@ -546,6 +565,9 @@ export function completeRecon(id: string) {
     if (r.completed) fail("Already signed off");
     if (r.photos.length < MIN_COMPLETION_PHOTOS) fail(`Blocked: add at least ${MIN_COMPLETION_PHOTOS} photos (four sides) before sign-off`);
     return { recon: { ...r, completed: signed() }, stage: 7, stageHistory: v.stageHistory.filter((e) => e.stage <= 7) };
+  }).then((updated) => {
+    logActivity("STATUS_CHANGE", displayReg(updated.registrationNo), `Signed off reconditioning for ${displayReg(updated.registrationNo)}`);
+    return updated;
   });
 }
 
@@ -630,6 +652,10 @@ export function recordPayment(id: string, paymentMode: PaymentMode, receivedAmou
     if (v.sale?.status !== "sold") fail("Blocked: this vehicle hasn't been sold yet");
     if (receivedAmountPaise < 0) fail("Enter a valid amount");
     return { ...v, sale: { ...v.sale, paymentMode, receivedAmountPaise } };
+  }).then((updated) => {
+    const reg = displayReg(updated.registrationNo);
+    logActivity("PAYMENT", reg, `Recorded ${paymentMode} payment of ${formatPaise(receivedAmountPaise)} for ${reg}`);
+    return updated;
   });
 }
 

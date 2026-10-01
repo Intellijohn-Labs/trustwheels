@@ -55,6 +55,7 @@ export const PERMISSIONS = [
   "escalations.view",
   "attendance.view",
   "staff.manage",
+  "audit.view",
   "hr.view",
   "hr.manage",
   "hr.delete",
@@ -246,6 +247,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/reports", label: "Reports", group: "Overview", icon: "ChartColumn", anyOf: ["reports.view"] },
   { path: "/attendance-log", label: "Attendance Log", group: "Overview", icon: "MapPin", anyOf: ["attendance.view"] },
   { path: "/employees", label: "Employees & Access", group: "Overview", icon: "Users", anyOf: ["staff.manage"] },
+  { path: "/audit-logs", label: "Activity Log", group: "Overview", icon: "BookOpen", anyOf: ["audit.view"] },
 
   { path: "/stock", label: "All stock", group: "Stock & hub", icon: "LayoutList", anyOf: ["stock.view"] },
   { path: "/stock/new", label: "Add stock", group: "Stock & hub", icon: "Plus", anyOf: ["stock.create"] },
