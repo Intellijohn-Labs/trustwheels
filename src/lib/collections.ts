@@ -54,6 +54,10 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
       }
       if (!data || data.length === 0) {
         const seeds = seed();
+        // A collection with no demo seed (e.g. an audit log that's meant to start empty and grow
+        // from zero) has nothing to insert - skip the round trip entirely instead of sending an
+        // empty insert and treating a no-op response as "seeded".
+        if (seeds.length === 0) return seeds;
         const { error: insertError } = await supabase.from(table).insert(seeds.map((item) => ({ id: item.id, data: item })));
         if (insertError) {
           warnSyncFailed("seed", insertError.message);

@@ -47,8 +47,10 @@ export function logActivity(actionType: ActivityActionType, targetEntity: string
       targetEntity,
       details,
     };
-    void activityLogs.add(entry).catch(() => {});
-  } catch {
-    // Logging must never break the action that triggered it.
+    // add() itself only ever rejects on a local IndexedDB failure - a rejected Supabase write is
+    // caught inside the collection and logged there (and queued for retry), not surfaced here.
+    void activityLogs.add(entry).catch((error) => console.error("Failed to insert activity log:", error));
+  } catch (error) {
+    console.error("Failed to insert activity log:", error);
   }
 }
