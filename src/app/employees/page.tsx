@@ -5,7 +5,7 @@ import { Search, TriangleAlert, Trash2, UserPlus, Users } from "lucide-react";
 import { branchName } from "@/lib/masters";
 import { ROLES } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
-import { activeEmployeeCount, deleteEmployee, deleteEmployees, EMPLOYEE_STATUS_LABEL, MAX_EMPLOYEES, type Employee, type EmployeeStatus } from "@/lib/hr";
+import { activeEmployeeCount, deleteEmployee, deleteEmployees, isManagingPartner, EMPLOYEE_STATUS_LABEL, MAX_EMPLOYEES, type Employee, type EmployeeStatus } from "@/lib/hr";
 import { DataTable } from "@/components/data-table";
 import { Button, PageHeader, Panel, Pill, Segmented, cn, inputClass } from "@/components/ui";
 import { BranchSelect, EmployeeCell, EmployeeStatusPill, useEmployees } from "@/components/panels/hr-bits";
@@ -40,7 +40,10 @@ export default function EmployeeAccessPage() {
     .filter((e) => !q || [e.name, e.role, e.phone, e.email, e.id].some((f) => f.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name));
   const count = (s: StatusFilter) => inBranch.filter((e) => s === "all" || e.status === s).length;
-  const selection = useSelection(rows, (e) => e.id);
+  // Managing Partner never enters the selectable set, so "select all" can't silently sweep it up
+  // alongside the rows that actually show a checkbox.
+  const selectableRows = rows.filter((e) => !isManagingPartner(e));
+  const selection = useSelection(selectableRows, (e) => e.id);
   const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; labels: string[] } | null>(null);
   const activeCount = activeEmployeeCount(employees);
   const atCap = activeCount >= MAX_EMPLOYEES;
@@ -121,7 +124,7 @@ export default function EmployeeAccessPage() {
                     {
                       header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown employees" />,
                       cell: (e: Employee) =>
-                        e.rbacRole === "managing_partner" ? (
+                        isManagingPartner(e) ? (
                           <span className="grid place-items-center p-2.5" title="Managing Partner can't be bulk-deleted" />
                         ) : (
                           <RowCheckbox checked={selection.isSelected(e.id)} onChange={() => selection.toggle(e.id)} label={`Select ${label(e)}`} />
@@ -155,8 +158,8 @@ export default function EmployeeAccessPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            disabled={e.rbacRole === "managing_partner"}
-                            title={e.rbacRole === "managing_partner" ? "Managing Partner cannot be deleted" : undefined}
+                            disabled={isManagingPartner(e)}
+                            title={isManagingPartner(e) ? "Managing Partner cannot be deleted" : undefined}
                             onClick={() => setConfirmDelete({ ids: [e.id], labels: [label(e)] })}
                             aria-label={`Delete ${e.name}`}
                           >

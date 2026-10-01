@@ -6,7 +6,7 @@ import { Check, Building2, CalendarDays, Mail, MessageCircle, Pencil, Phone, Use
 import { BRANCHES, branchName } from "@/lib/masters";
 import { formatIsoDate } from "@/lib/format";
 import { PANEL_MODULES, ROLE_ORDER, ROLES, effectivePermissions, roleDefaultPanels, type PanelModule, type Role } from "@/lib/rbac";
-import { EMPLOYEE_STATUS_LABEL, addEmployee, employeeErrors, updateEmployee, type Employee, type EmployeeInput, type EmployeeStatus } from "@/lib/hr";
+import { EMPLOYEE_STATUS_LABEL, addEmployee, employeeErrors, isManagingPartner, updateEmployee, type Employee, type EmployeeInput, type EmployeeStatus } from "@/lib/hr";
 import { Button, Field, cn, inputClass } from "../ui";
 import { Dialog, useInlineAction } from "./dialog";
 import { EmployeeCell, EmployeeStatusPill, useEmployees, useToday, useCanManageHr } from "./hr-bits";
@@ -111,7 +111,7 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
   // Managing Partner is the protected head role: it can't be handed to anyone else, so the option
   // is hidden from every other employee's dropdown, and once an employee holds it the whole
   // control locks so it can't be changed, demoted, or cleared from here.
-  const isProtectedHead = employee?.rbacRole === "managing_partner";
+  const isProtectedHead = !!employee && isManagingPartner(employee);
   const roleOptions = ROLE_ORDER.filter((r) => r !== "managing_partner" || isProtectedHead);
 
   async function save() {

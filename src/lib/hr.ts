@@ -459,16 +459,30 @@ export function activeEmployeeCount(all: Employee[]) {
 
 /**
  * Managing Partner is the protected head role: exactly one account holds it, and it can't be
- * handed to, or taken from, anyone via this form. Reassigning it would mean either locking the
- * current holder out of their own master-admin account or quietly minting a second one - both
- * are mistakes this app should refuse outright rather than rely on everyone remembering not to.
+ * handed to, or taken from, anyone, nor deleted, via this app. Reassigning or removing it would
+ * mean either locking the current holder out of their own master-admin account or quietly minting
+ * a second one - both are mistakes this app should refuse outright rather than rely on everyone
+ * remembering not to.
  */
 const PROTECTED_ROLE: Role = "managing_partner";
+const PROTECTED_LABEL = ROLES[PROTECTED_ROLE].label;
+
+/**
+ * Whether `e` is the protected Managing Partner account. Checked two ways on purpose: the
+ * authoritative `rbacRole` enum, and a case-insensitive fallback against the free-text job title
+ * (`role`). A live record could in principle carry the job title "Managing Partner" without
+ * `rbacRole` ever having been set - e.g. entered before the system-login field existed, imported,
+ * or hand-edited in Supabase directly - and relying on `rbacRole` alone would leave exactly that
+ * record unprotected. Either signal being true is enough to lock it down.
+ */
+export function isManagingPartner(e: Pick<Employee, "rbacRole" | "role">): boolean {
+  return e.rbacRole === PROTECTED_ROLE || e.role.trim().toLowerCase() === PROTECTED_LABEL.toLowerCase();
+}
 
 export function addEmployee(input: EmployeeInput) {
   assertManage();
-  if (input.rbacRole === PROTECTED_ROLE) {
-    throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label} is a protected role and can't be assigned to a new employee.`);
+  if (isManagingPartner(input)) {
+    throw new Error(`Blocked: ${PROTECTED_LABEL} is a protected role and can't be assigned to a new employee.`);
   }
   const data = clean(input);
   return serial(async () => {
@@ -491,16 +505,18 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
   return serial(async () => {
     const all = await latest(employees);
     const current = all.find((e) => e.id === id);
-    if (current?.rbacRole === PROTECTED_ROLE && data.rbacRole !== PROTECTED_ROLE) {
-      throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label}'s role can't be changed, demoted, or cleared.`);
+    const wasProtected = !!current && isManagingPartner(current);
+    const willBeProtected = isManagingPartner(data);
+    if (wasProtected && !willBeProtected) {
+      throw new Error(`Blocked: ${PROTECTED_LABEL}'s role can't be changed, demoted, or cleared.`);
     }
-    if (current?.rbacRole !== PROTECTED_ROLE && data.rbacRole === PROTECTED_ROLE) {
-      throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label} is a protected role and can't be assigned to another employee.`);
+    if (!wasProtected && willBeProtected) {
+      throw new Error(`Blocked: ${PROTECTED_LABEL} is a protected role and can't be assigned to another employee.`);
     }
     // Defense in depth: even if a disabled control were bypassed, a protected-head record can
     // never end up with a restricted panel set - the form already locks this, this just makes
     // sure the store agrees no matter what reaches it.
-    const safeData = current?.rbacRole === PROTECTED_ROLE ? { ...data, allowedPanels: undefined } : data;
+    const safeData = wasProtected ? { ...data, allowedPanels: undefined } : data;
     if (safeData.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
       throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
     }
@@ -517,23 +533,32 @@ export function deleteEmployee(id: string) {
     const all = await latest(employees);
     const target = all.find((e) => e.id === id);
     if (!target) throw new Error("Employee not found");
-    if (target.rbacRole === PROTECTED_ROLE) throw new Error(`Blocked: the ${ROLES[PROTECTED_ROLE].label} account can't be deleted.`);
+    if (isManagingPartner(target)) throw new Error(`Blocked: the ${PROTECTED_LABEL} account can't be deleted.`);
     await employees.remove(id);
     logActivity("EMPLOYEE", target.name, `Deleted employee ${target.name} (${target.role})`);
   });
 }
 
-/** Permanently remove several employee records in one write, e.g. from a bulk selection. */
+/**
+ * Permanently remove several employee records in one write, e.g. from a bulk selection. The
+ * Managing Partner's id is filtered out before the delete runs no matter how it got into `ids` -
+ * including via a "select all" that doesn't itself know which rows are protected - so a bulk
+ * delete still removes every other eligible employee instead of refusing the whole batch.
+ */
 export function deleteEmployees(ids: string[]) {
   assertCan("hr.delete");
   return serial(async () => {
     const all = await latest(employees);
     const targets = all.filter((e) => ids.includes(e.id));
-    if (targets.some((e) => e.rbacRole === PROTECTED_ROLE)) {
-      throw new Error(`Blocked: the ${ROLES[PROTECTED_ROLE].label} account can't be deleted.`);
+    const protectedTargets = targets.filter(isManagingPartner);
+    const eligible = targets.filter((e) => !isManagingPartner(e));
+    if (eligible.length) {
+      await employees.removeMany(eligible.map((e) => e.id));
+      logActivity("EMPLOYEE", `${eligible.length} employees`, `Deleted ${eligible.length} employees: ${eligible.map((e) => e.name).join(", ")}`);
     }
-    await employees.removeMany(ids);
-    logActivity("EMPLOYEE", `${targets.length} employees`, `Deleted ${targets.length} employees: ${targets.map((e) => e.name).join(", ")}`);
+    if (protectedTargets.length) {
+      throw new Error(`Blocked: the ${PROTECTED_LABEL} account can't be deleted.${eligible.length ? ` The other ${eligible.length} selected employee${eligible.length === 1 ? "" : "s"} ${eligible.length === 1 ? "was" : "were"} removed.` : ""}`);
+    }
   });
 }
 
