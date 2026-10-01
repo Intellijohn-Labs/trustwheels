@@ -36,23 +36,22 @@ function byNewest(a: Vehicle, b: Vehicle) {
 
 /**
  * Supabase `vehicles` table, when configured, holds one row per vehicle with the full
- * serialized record in a `data` jsonb column (id text primary key, data jsonb). If Supabase
- * isn't configured, the table doesn't exist yet, or it has no rows, this returns null and
- * the caller falls back to the existing local demo data so the list is never empty in preview.
+ * serialized record in a `data` jsonb column (id text primary key, data jsonb). If Supabase isn't
+ * configured or the table is unreachable, this returns null and the caller falls back to the
+ * local demo data so a fresh clone of the repo isn't empty before Supabase is ever wired up.
+ *
+ * Deliberately does NOT auto-seed Supabase when the table comes back empty: this project is past
+ * the "brand new project, nothing in it yet" bootstrap stage - real stock has gone through this
+ * table, and an empty result now legitimately means "no vehicles right now" (e.g. right after an
+ * intentional clear-out), not "needs demo data." Auto-seeding here would silently reintroduce a
+ * fake fleet the moment anyone next loaded the app.
  */
 async function fetchFromSupabase(): Promise<Vehicle[] | null> {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase.from("vehicles").select("data");
     if (error) return null;
-    if (!data || data.length === 0) {
-      // Empty table (first run against a fresh project): seed it with the demo fleet
-      // so the database is populated and stays the live source from here on.
-      const seeds = seedVehicles();
-      const { error: insertError } = await supabase.from("vehicles").insert(seeds.map((v) => ({ id: v.id, data: v })));
-      if (insertError) return null;
-      return seeds;
-    }
+    if (!data) return null;
     return data.map((row: { data: Vehicle }) => row.data);
   } catch {
     return null;

@@ -17,9 +17,13 @@ import { beginSync, endSync, enqueueRetry } from "./sync-queue";
  *
  * Passing `supabaseTable` opts a collection into also syncing with a Supabase table shaped
  * (id text primary key, data jsonb) - same shape as stock-store.ts's `vehicles` table. Reads
- * prefer Supabase when it's configured and the table has rows (seeding it once if empty);
- * every write mirrors to the local IndexedDB copy either way, so the collection still works
- * offline or before Supabase is set up. Collections that don't pass it are untouched.
+ * prefer Supabase when it's configured, falling back to the local IndexedDB copy only when
+ * Supabase is unreachable or not configured at all; every write mirrors to that local copy
+ * either way, so the collection still works offline. Collections that don't pass it are
+ * untouched. An empty Supabase table is never auto-seeded with demo data - once a project is
+ * live, "empty" legitimately means "nothing here right now" (e.g. after an intentional clear-out
+ * or every record having been deleted), not "needs the demo fleet/roster back." Only the local,
+ * single-browser IndexedDB fallback still seeds, and only when Supabase can't be reached at all.
  */
 
 interface Stored<T> {
@@ -52,19 +56,7 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
         warnSyncFailed("read", error.message);
         return null;
       }
-      if (!data || data.length === 0) {
-        const seeds = seed();
-        // A collection with no demo seed (e.g. an audit log that's meant to start empty and grow
-        // from zero) has nothing to insert - skip the round trip entirely instead of sending an
-        // empty insert and treating a no-op response as "seeded".
-        if (seeds.length === 0) return seeds;
-        const { error: insertError } = await supabase.from(table).insert(seeds.map((item) => ({ id: item.id, data: item })));
-        if (insertError) {
-          warnSyncFailed("seed", insertError.message);
-          return null;
-        }
-        return seeds;
-      }
+      if (!data) return null;
       return data.map((row: { data: T }) => row.data);
     } catch {
       return null;
