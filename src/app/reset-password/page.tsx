@@ -14,12 +14,15 @@ import { supabase } from "@/lib/supabase";
 type Phase = "verifying" | "ready" | "invalid-link" | "submitting" | "done";
 
 /**
- * Step 2 of the reset flow. The link Supabase emails puts a short-lived recovery session's tokens
- * in the URL fragment - the Supabase client (detectSessionInUrl, on by default) picks those up and
- * turns them into a real session automatically, firing a PASSWORD_RECOVERY auth event. This page
- * just waits for that (or for a session to already be present, since detection can land before
- * this component even mounts) before showing the new-password form; it never reads the tokens
- * itself.
+ * Step 2 of the reset flow. The link Supabase emails carries either a `#access_token=...` hash
+ * fragment or a `?code=...` PKCE code, depending on the project's Auth settings - the Supabase
+ * client (flowType: "pkce" + detectSessionInUrl, see lib/supabase.ts) recognises and exchanges
+ * either one automatically, once, as part of its own normal page-load initialisation, firing a
+ * PASSWORD_RECOVERY auth event. This page never reads the tokens/code itself and never calls
+ * exchangeCodeForSession directly - doing that from a component effect would risk firing it twice
+ * under React Strict Mode's double-invoke, and a PKCE code is single-use. It just waits for the
+ * client's own exchange to finish (or for a session to already be present, since detection can
+ * land before this component even mounts) before showing the new-password form.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -40,9 +43,13 @@ export default function ResetPasswordPage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) settle(true);
     });
-    // detectSessionInUrl resolves almost instantly, but give it a moment before concluding the
-    // link is bad rather than flashing an error on a slow connection.
-    const timeout = setTimeout(() => settle(false), 4000);
+    // The reset link can land here one of two ways: tokens in the URL hash (#access_token=...,
+    // resolved locally, near-instant) or a PKCE `?code=` that needs an actual network round trip
+    // to exchange - both are handled automatically by the Supabase client on load, this just has
+    // to wait long enough for whichever one it is. A plain visit with neither in the URL has
+    // nothing to resolve, so there's no reason to make that case sit through the same wait.
+    const hasRecoveryMaterial = /type=recovery/.test(window.location.hash) || /[?&]code=/.test(window.location.search);
+    const timeout = setTimeout(() => settle(false), hasRecoveryMaterial ? 10_000 : 1_500);
     return () => {
       active = false;
       sub.subscription.unsubscribe();
