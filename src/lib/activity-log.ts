@@ -2,7 +2,7 @@
 
 import type { Role } from "./rbac";
 import { defineCollection, newId } from "./collections";
-import { getActor } from "./session";
+import { assertCan, getActor } from "./session";
 
 /*
  * Audit trail for the Managing Partner's Activity Log (`/audit-logs`). Same { id, data } table
@@ -53,4 +53,16 @@ export function logActivity(actionType: ActivityActionType, targetEntity: string
   } catch (error) {
     console.error("Failed to insert activity log:", error);
   }
+}
+
+/** Permanently remove one activity log entry. Managing Partner only. */
+export function deleteActivityLog(id: string) {
+  assertCan("audit.delete");
+  return activityLogs.remove(id);
+}
+
+/** Permanently remove several activity log entries in one write, e.g. from a bulk selection. */
+export function deleteActivityLogs(ids: string[]) {
+  assertCan("audit.delete");
+  return activityLogs.removeMany(ids);
 }

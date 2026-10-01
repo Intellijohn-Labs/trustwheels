@@ -56,6 +56,7 @@ export const PERMISSIONS = [
   "attendance.view",
   "staff.manage",
   "audit.view",
+  "audit.delete",
   "hr.view",
   "hr.manage",
   "hr.delete",

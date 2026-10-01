@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { History, Search } from "lucide-react";
-import { activityLogs, ACTION_TYPES, type ActivityActionType, type ActivityLog } from "@/lib/activity-log";
+import { History, Search, Trash2 } from "lucide-react";
+import { activityLogs, deleteActivityLog, deleteActivityLogs, ACTION_TYPES, type ActivityActionType, type ActivityLog } from "@/lib/activity-log";
 import { ROLE_ORDER, ROLES } from "@/lib/rbac";
+import { useRole } from "@/lib/role-context";
 import { formatDateTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/csv";
 import { DataTable, type Column } from "../data-table";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "../selection";
 import { Button, Panel, Pill, cn, inputClass } from "../ui";
+import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 import { Dialog } from "./dialog";
 
 const ACTION_LABEL: Record<ActivityActionType, string> = {
@@ -56,12 +59,15 @@ function timeAgo(iso: string) {
  */
 export function AuditLogPanel() {
   const { items, ready } = activityLogs.useItems();
+  const { can } = useRole();
+  const canDelete = can("audit.delete");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [role, setRole] = useState<string>("all");
   const [actionType, setActionType] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<ActivityLog | null>(null);
+  const [confirming, setConfirming] = useState<ActivityLog[] | null>(null);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,7 +80,24 @@ export function AuditLogPanel() {
       .sort((a, b) => b.at.localeCompare(a.at));
   }, [items, from, to, role, actionType, query]);
 
+  const selection = useSelection(rows, (l) => l.id);
+
+  async function doDelete(targets: ActivityLog[]) {
+    const ids = targets.map((l) => l.id);
+    if (ids.length === 1) await deleteActivityLog(ids[0]);
+    else await deleteActivityLogs(ids);
+    selection.clear();
+  }
+
   const columns: Column<ActivityLog>[] = [
+    ...(canDelete
+      ? [
+          {
+            header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all activity log entries" />,
+            cell: (l: ActivityLog) => <RowCheckbox checked={selection.isSelected(l.id)} onChange={() => selection.toggle(l.id)} label={`Select log entry for ${l.targetEntity}`} />,
+          } satisfies Column<ActivityLog>,
+        ]
+      : []),
     {
       header: "Timestamp",
       cell: (l) => (
@@ -100,9 +123,16 @@ export function AuditLogPanel() {
       header: "",
       align: "right",
       cell: (l) => (
-        <Button size="sm" variant="ghost" onClick={() => setDetail(l)}>
-          View
-        </Button>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Button size="sm" variant="ghost" onClick={() => setDetail(l)}>
+            View
+          </Button>
+          {canDelete && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirming([l])} aria-label="Delete this activity log entry">
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -177,7 +207,22 @@ export function AuditLogPanel() {
           </Button>
         )}
       </div>
+      {canDelete && selection.count > 0 && (
+        <div className="px-4 pt-3">
+          <SelectionToolbar count={selection.count} noun="log entry" nounPlural="log entries" onClear={selection.clear} onDelete={() => setConfirming(rows.filter((l) => selection.isSelected(l.id)))} />
+        </div>
+      )}
       <DataTable rows={ready ? rows : []} rowKey={(l) => l.id} empty={ready ? "No matching activity." : "Loading…"} columns={columns} />
+      {confirming && (
+        <ConfirmDeleteDialog
+          count={confirming.length}
+          items={confirming.map((l) => `${l.targetEntity} · ${ACTION_LABEL[l.actionType]} · ${formatDateTime(l.at)}`)}
+          noun="log entry"
+          nounPlural="log entries"
+          onConfirm={() => doDelete(confirming)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
       {detail && (
         <Dialog title="Activity detail" onClose={() => setDetail(null)}>
           <dl className="space-y-3 text-sm">
