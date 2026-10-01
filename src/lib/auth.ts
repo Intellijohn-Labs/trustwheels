@@ -70,10 +70,3 @@ export async function signOutAuth() {
   clearSession();
   if (supabase) await supabase.auth.signOut();
 }
-
-/** Whether a real Supabase Auth session currently exists. Always true when Supabase isn't configured - with no backend to authenticate against, the app falls back to running without the gate rather than locking everyone out. */
-export async function hasActiveSession(): Promise<boolean> {
-  if (!supabase) return true;
-  const { data } = await supabase.auth.getSession();
-  return !!data.session;
-}

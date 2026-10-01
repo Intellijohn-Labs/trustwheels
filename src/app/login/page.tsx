@@ -7,7 +7,7 @@ import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, M
 import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
-import { signInWithPassword, hasActiveSession } from "@/lib/auth";
+import { signInWithPassword } from "@/lib/auth";
 import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -41,11 +41,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [gate, setGate] = useState<Gate>({ phase: "form" });
 
+  // Redirecting an already-signed-in visitor away from this form (and routing a password-recovery
+  // link to /reset-password instead, regardless of which page Supabase's redirect actually landed
+  // it on) is handled centrally in AppShell's session guard - one decision-maker, so this page and
+  // that one can't race each other toward different destinations.
   useEffect(() => {
     router.prefetch("/dashboard");
-    // Already have a real session (e.g. came back to /login by mistake, or a bookmark) - no need
-    // to sign in again.
-    hasActiveSession().then((authed) => authed && router.replace("/dashboard"));
   }, [router]);
 
   const leaving = gate.phase === "confirmed" || gate.phase === "already-marked" || gate.phase === "ineligible";

@@ -62,8 +62,11 @@ const SETTINGS_PATHS = ["/settings", "/team", "/branches"];
 // Full-screen pages that bring their own layout - and that never require a session to reach.
 // /reset-password is reachable with only a short-lived recovery session (or none yet, while the
 // link's tokens are still being parsed from the URL), which the guard below must not mistake for
-// "not logged in, redirect away" or "fully authed, let them anywhere".
-const BARE = ["/login", "/signup", "/forgot-password", "/reset-password"];
+// "not logged in, redirect away" or "fully authed, let them anywhere". `/` decides its own
+// destination (see app/page.tsx) and must stay bare too - otherwise its redirect to
+// /reset-password would race this file's own "not signed in -> /login" rule, which runs a beat
+// later (parent effects fire after child effects) and would win, undoing it.
+const BARE = ["/", "/login", "/signup", "/forgot-password", "/reset-password"];
 
 const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
 
@@ -219,23 +222,44 @@ function ScopeChip() {
 // testing every role without a real sign-in for each one, compiled out of production entirely.
 const DEV_NO_AUTH_GATE = process.env.NODE_ENV === "development";
 
+// Pages that show a sign-in/sign-up form - redirected away from once a normal (non-recovery)
+// session exists, so an already-signed-in person doesn't sit on the login form.
+const AUTH_FORM_PAGES = ["/login", "/signup"];
+
 /**
- * Real session gate: every route other than /login and /signup requires an active Supabase Auth
- * session, checked client-side (this app has no server-rendered/middleware auth layer) on mount
- * and kept live via onAuthStateChange, so a session that ends elsewhere (sign-out in another tab,
- * expiry) redirects here too, not just a stale page that happens to still show the old role.
- * Falls back to "no gate" when Supabase isn't configured at all - there's no backend to check a
- * session against, so blocking here would just lock the app out with no way back in.
+ * Real session gate, and the single place every auth-driven redirect in the app is decided - so
+ * two components never race each other toward different destinations. Three rules, in priority
+ * order:
+ *
+ * 1. A password-recovery session always wins: Supabase's reset-link redirect can land the hash
+ *    carrying the recovery tokens on whichever page the project's Auth "Site URL" happens to be
+ *    configured to (often just `/`, which itself redirects to `/login`) rather than on
+ *    /reset-password directly - detectSessionInUrl still parses it and fires PASSWORD_RECOVERY
+ *    wherever it lands, since the Supabase client is the same singleton on every page. Catching
+ *    that event here, globally, means it doesn't matter which page actually received the tokens.
+ * 2. A normal session on the login/signup forms skips straight to the dashboard.
+ * 3. No session anywhere else goes to /login.
+ *
+ * Checked client-side (this app has no server-rendered/middleware auth layer) on mount and kept
+ * live via onAuthStateChange, so a session that changes elsewhere (sign-out in another tab,
+ * expiry, a recovery link opened in this same tab) is reflected here too, not just on whatever
+ * page happened to be open when it changed. Falls back to "no gate" when Supabase isn't
+ * configured at all - there's no backend to check a session against, so blocking here would just
+ * lock the app out with no way back in.
  */
 function useSessionGuard(pathname: string) {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(DEV_NO_AUTH_GATE || !supabase ? true : null);
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     if (DEV_NO_AUTH_GATE || !supabase) return;
     let active = true;
     supabase.auth.getSession().then(({ data }) => active && setAuthed(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setAuthed(!!session));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+      setAuthed(!!session);
+    });
     return () => {
       active = false;
       sub.subscription.unsubscribe();
@@ -243,10 +267,18 @@ function useSessionGuard(pathname: string) {
   }, []);
 
   useEffect(() => {
+    if (recovery) {
+      if (pathname !== "/reset-password") router.replace("/reset-password");
+      return;
+    }
+    if (authed === true && AUTH_FORM_PAGES.includes(pathname)) {
+      router.replace("/dashboard");
+      return;
+    }
     if (authed === false && !BARE.includes(pathname)) router.replace("/login");
-  }, [authed, pathname, router]);
+  }, [authed, recovery, pathname, router]);
 
-  return authed;
+  return { authed, recovery };
 }
 
 function FullScreenLoader() {
@@ -261,7 +293,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { role, canOpenRoute } = useRole();
   const [drawer, setDrawer] = useState(false);
-  const authed = useSessionGuard(pathname);
+  const { authed, recovery } = useSessionGuard(pathname);
 
   useEffect(() => {
     if (!drawer) return;
@@ -270,7 +302,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [drawer]);
 
-  if (BARE.includes(pathname)) return <>{children}</>;
+  if (BARE.includes(pathname)) {
+    // About to be bounced to /reset-password or /dashboard - don't flash this page's own form
+    // first.
+    if (recovery && pathname !== "/reset-password") return <FullScreenLoader />;
+    if (authed === true && AUTH_FORM_PAGES.includes(pathname)) return <FullScreenLoader />;
+    return <>{children}</>;
+  }
 
   // Still checking, or known signed-out and about to be redirected - never flash protected
   // content in either case.

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, cn, inputClass } from "@/components/ui";
-import { signUpWithPassword, hasActiveSession } from "@/lib/auth";
+import { signUpWithPassword } from "@/lib/auth";
 
 type Phase = "form" | "submitting" | "error" | "confirm-email" | "signed-in";
 
@@ -26,9 +26,8 @@ export default function SignupPage() {
   const [phase, setPhase] = useState<Phase>("form");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    hasActiveSession().then((authed) => authed && router.replace("/dashboard"));
-  }, [router]);
+  // Redirecting an already-signed-in visitor away from this form is handled centrally in
+  // AppShell's session guard, so this page doesn't race it toward a different destination.
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
