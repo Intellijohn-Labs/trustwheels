@@ -1,15 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
-import { ROLES, ROLE_ORDER, type Role } from "@/lib/rbac";
-import { useRole } from "@/lib/role-context";
+import { signInWithPassword, hasActiveSession } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
-import { isRoleLoginAllowed } from "@/lib/hr";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./login.module.css";
@@ -24,12 +24,13 @@ import styles from "./login.module.css";
  */
 type Gate =
   | { phase: "form" }
+  | { phase: "authenticating" }
+  | { phase: "auth-error"; message: string }
   | { phase: "locating" }
   | { phase: "denied"; message: string }
   | { phase: "confirmed"; record: GpsCheckin }
   | { phase: "already-marked" }
-  | { phase: "ineligible"; reason: IneligibleReason }
-  | { phase: "access-denied" };
+  | { phase: "ineligible"; reason: IneligibleReason };
 
 const rise = (i: number) => ({ "--i": i }) as CSSProperties;
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
@@ -39,27 +40,29 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [gate, setGate] = useState<Gate>({ phase: "form" });
-  const [resetNote, setResetNote] = useState(false);
+  const [resetState, setResetState] = useState<{ sent: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     router.prefetch("/dashboard");
+    // Already have a real session (e.g. came back to /login by mistake, or a bookmark) - no need
+    // to sign in again.
+    hasActiveSession().then((authed) => authed && router.replace("/dashboard"));
   }, [router]);
 
-  const { role: currentRole, setRole, nameOf } = useRole();
-  const [picked, setPicked] = useState<Role>();
-  const signInAs = picked ?? currentRole;
   const leaving = gate.phase === "confirmed" || gate.phase === "already-marked" || gate.phase === "ineligible";
+  const busy = gate.phase === "authenticating" || gate.phase === "locating";
 
   async function attemptSignIn() {
-    if (gate.phase === "locating") return;
-    setGate({ phase: "locating" });
-    if (!(await isRoleLoginAllowed(signInAs))) {
-      setGate({ phase: "access-denied" });
+    if (busy || leaving) return;
+    setGate({ phase: "authenticating" });
+    try {
+      await signInWithPassword(email, password);
+    } catch (err) {
+      setGate({ phase: "auth-error", message: err instanceof Error ? err.message : "Sign-in failed" });
       return;
     }
-    setRole(signInAs);
+    setGate({ phase: "locating" });
     const result = await requestGpsCheckIn();
     if (result.status === "error") setGate({ phase: "denied", message: result.message });
     else if (result.status === "already-done") setGate({ phase: "already-marked" });
@@ -74,6 +77,21 @@ export default function LoginPage() {
 
   function continueToDashboard() {
     router.push("/dashboard");
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setResetState({ sent: false, error: "Enter your email above first, then tap this again." });
+      return;
+    }
+    try {
+      if (!supabase) throw new Error("Password reset isn't available - this deployment isn't connected to Supabase yet.");
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/login` });
+      if (error) throw new Error(error.message);
+      setResetState({ sent: true });
+    } catch (err) {
+      setResetState({ sent: false, error: err instanceof Error ? err.message : "Couldn't send the reset email" });
+    }
   }
 
   return (
@@ -105,28 +123,6 @@ export default function LoginPage() {
           </div>
 
           <div style={rise(2)} className={cn(styles.rise, "mt-7")}>
-            <label htmlFor="role" className="text-sm font-medium">
-              Sign in as <span className="font-normal text-muted">(demo)</span>
-            </label>
-            <select
-              id="role"
-              value={signInAs}
-              onChange={(e) => {
-                const r = e.target.value as Role;
-                setPicked(r);
-                if (!email) setEmail(`${nameOf(r).split(" ")[0].toLowerCase()}@trustwheels.in`);
-              }}
-              className={cn(inputClass(), "mt-1.5")}
-            >
-              {ROLE_ORDER.map((r) => (
-                <option key={r} value={r}>
-                  {ROLES[r].label} · {nameOf(r)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={rise(2)} className={cn(styles.rise, "mt-4")}>
             <label htmlFor="email" className="text-sm font-medium">
               Email
             </label>
@@ -149,7 +145,7 @@ export default function LoginPage() {
               <label htmlFor="password" className="text-sm font-medium">
                 Password
               </label>
-              <button type="button" onClick={() => setResetNote(true)} className="text-sm font-medium text-brand hover:underline">
+              <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-brand hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -173,15 +169,16 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
-            {resetNote && <p className="mt-2 text-xs text-muted">Password reset will email you a link once the backend is connected.</p>}
+            {resetState?.sent && <p className="mt-2 text-xs text-ok">Check your email for a password reset link.</p>}
+            {resetState?.error && <p className="mt-2 text-xs text-danger">{resetState.error}</p>}
           </div>
 
-          <div style={rise(4)} className={cn(styles.rise, "mt-4")}>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-muted select-none">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-4 accent-[var(--brand)]" />
-              Keep me signed in on this device
-            </label>
-          </div>
+          {gate.phase === "auth-error" && (
+            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p>{gate.message}</p>
+            </div>
+          )}
 
           {gate.phase === "denied" && (
             <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
@@ -190,24 +187,22 @@ export default function LoginPage() {
             </div>
           )}
 
-          {gate.phase === "access-denied" && (
-            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <p>Access Denied: You are not an authorized employee. Only registered staff members can log in.</p>
-            </div>
-          )}
-
           <div style={rise(5)} className={cn(styles.rise, "mt-6")}>
             <button
               type="submit"
-              disabled={gate.phase === "locating" || leaving}
+              disabled={busy || leaving}
               className={cn(
                 "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all duration-300 disabled:cursor-not-allowed",
-                leaving ? "bg-ok" : gate.phase === "denied" || gate.phase === "access-denied" ? "bg-danger hover:brightness-110" : "bg-brand hover:brightness-110",
-                gate.phase === "locating" && "opacity-90",
+                leaving ? "bg-ok" : gate.phase === "denied" || gate.phase === "auth-error" ? "bg-danger hover:brightness-110" : "bg-brand hover:brightness-110",
+                busy && "opacity-90",
               )}
             >
-              {(gate.phase === "form" || gate.phase === "access-denied") && "Sign in"}
+              {(gate.phase === "form" || gate.phase === "auth-error") && "Sign in"}
+              {gate.phase === "authenticating" && (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Signing in…
+                </>
+              )}
               {gate.phase === "locating" && (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Getting your location…
@@ -226,12 +221,10 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <p style={rise(6)} className={cn(styles.rise, "mt-6 text-center text-xs text-faint")}>
-            Demo: any email and password will work.{" "}
-            <button type="button" onClick={attemptSignIn} disabled={gate.phase === "locating" || leaving} className="underline hover:text-muted disabled:cursor-not-allowed">
-              Skip to dashboard
-            </button>
+          <p style={rise(6)} className={cn(styles.rise, "mt-4 text-center text-sm text-muted")}>
+            New here? <Link href="/signup" className="font-medium text-brand hover:underline">Set up your account</Link>
           </p>
+
         </form>
       </div>
 

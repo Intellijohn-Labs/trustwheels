@@ -490,6 +490,12 @@ export function addEmployee(input: EmployeeInput) {
     if (data.status === "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
       throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
     }
+    // Sign-in resolves a role by matching the Auth account's email back to exactly one active
+    // employee (see lib/auth.ts) - two active employees sharing an email would make that
+    // ambiguous, so it's refused here rather than left as a silent "whichever matches first".
+    if (data.status !== "exited" && all.some((e) => e.status !== "exited" && e.email.trim().toLowerCase() === data.email.trim().toLowerCase())) {
+      throw new Error("Blocked: another active employee already uses this email - each employee needs a unique email to sign in.");
+    }
     const next = all.reduce((max, e) => Math.max(max, Number(e.id.replace(/\D/g, "")) || 0), 0) + 1;
     const employee: Employee = { ...data, id: `e-${String(next).padStart(2, "0")}` };
     await employees.replaceAll([employee, ...all]);
@@ -519,6 +525,12 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
     const safeData = wasProtected ? { ...data, allowedPanels: undefined } : data;
     if (safeData.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
       throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
+    }
+    if (
+      safeData.status !== "exited" &&
+      all.some((e) => e.id !== id && e.status !== "exited" && e.email.trim().toLowerCase() === safeData.email.trim().toLowerCase())
+    ) {
+      throw new Error("Blocked: another active employee already uses this email - each employee needs a unique email to sign in.");
     }
     const updated = await modify(employees, id, (e) => ({ ...e, ...safeData, id }));
     logActivity("EMPLOYEE", updated.name, `Edited employee ${updated.name} (${updated.role})`);
@@ -768,19 +780,6 @@ export function payrollCsv(month: string, rows: PayrollRow[], branchName: (id: s
       .join(","),
   );
   return [header.map(esc).join(","), ...lines].join("\n");
-}
-
-/**
- * Whether `role` may sign in right now, i.e. an active employee is actually registered to hold
- * it. Managing Partner always passes - deactivating or deleting every Managing Partner record
- * must never be able to lock the whole system out. Every other role needs a matching, active
- * `rbacRole` holder in the employee master, so removing someone from Employees & Access takes
- * their login away immediately, not just their in-app permissions.
- */
-export async function isRoleLoginAllowed(role: Role): Promise<boolean> {
-  if (role === "managing_partner") return true;
-  const all = await latest(employees);
-  return all.some((e) => e.rbacRole === role && e.status === "active");
 }
 
 /**

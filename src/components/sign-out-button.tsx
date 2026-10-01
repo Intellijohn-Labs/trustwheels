@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
-import { clearSession } from "@/lib/session";
+import { signOutAuth } from "@/lib/auth";
 import { LogoutDriveAway } from "./logout-drive-away";
 
 /** Matches the drive-away animation's own duration (globals.css) plus a beat so the redirect never cuts it off mid-motion. */
@@ -24,7 +24,7 @@ export function SignOutButton({ onNavigate, className, children }: { onNavigate?
     onNavigate?.();
     setLoggingOut(true);
     setTimeout(() => {
-      clearSession();
+      signOutAuth();
       router.push("/login");
     }, LOGOUT_MS);
   }

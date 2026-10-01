@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowLeftRight,
@@ -37,6 +37,7 @@ import {
   Wrench,
   Check,
   Circle,
+  Loader2,
   Menu,
   MapPin,
   X,
@@ -47,6 +48,7 @@ import { NAV_GROUPS, ROUTES, findRoute } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
 import { drain, useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
+import { supabase } from "@/lib/supabase";
 import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
@@ -57,8 +59,8 @@ import { cn } from "./ui";
 // Pages reached from the gear button.
 const SETTINGS_PATHS = ["/settings", "/team", "/branches"];
 
-// Full-screen pages that bring their own layout.
-const BARE = ["/login"];
+// Full-screen pages that bring their own layout - and that never require a session to reach.
+const BARE = ["/login", "/signup"];
 
 const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
 
@@ -210,10 +212,53 @@ function ScopeChip() {
   );
 }
 
+// Same dev/production split as the role switcher (role-switcher.tsx): a local `pnpm dev` keeps
+// testing every role without a real sign-in for each one, compiled out of production entirely.
+const DEV_NO_AUTH_GATE = process.env.NODE_ENV === "development";
+
+/**
+ * Real session gate: every route other than /login and /signup requires an active Supabase Auth
+ * session, checked client-side (this app has no server-rendered/middleware auth layer) on mount
+ * and kept live via onAuthStateChange, so a session that ends elsewhere (sign-out in another tab,
+ * expiry) redirects here too, not just a stale page that happens to still show the old role.
+ * Falls back to "no gate" when Supabase isn't configured at all - there's no backend to check a
+ * session against, so blocking here would just lock the app out with no way back in.
+ */
+function useSessionGuard(pathname: string) {
+  const router = useRouter();
+  const [authed, setAuthed] = useState<boolean | null>(DEV_NO_AUTH_GATE || !supabase ? true : null);
+
+  useEffect(() => {
+    if (DEV_NO_AUTH_GATE || !supabase) return;
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => active && setAuthed(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setAuthed(!!session));
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authed === false && !BARE.includes(pathname)) router.replace("/login");
+  }, [authed, pathname, router]);
+
+  return authed;
+}
+
+function FullScreenLoader() {
+  return (
+    <div className="grid min-h-dvh place-items-center bg-page">
+      <Loader2 className="size-6 animate-spin text-muted" />
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { role, canOpenRoute } = useRole();
   const [drawer, setDrawer] = useState(false);
+  const authed = useSessionGuard(pathname);
 
   useEffect(() => {
     if (!drawer) return;
@@ -223,6 +268,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [drawer]);
 
   if (BARE.includes(pathname)) return <>{children}</>;
+
+  // Still checking, or known signed-out and about to be redirected - never flash protected
+  // content in either case.
+  if (authed !== true) return <FullScreenLoader />;
 
   const route = findRoute(pathname);
   const allowed = !route || canOpenRoute(route);
