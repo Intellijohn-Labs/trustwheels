@@ -39,7 +39,11 @@ export default function ForgotPasswordPage() {
         throw new Error("This email isn't registered to an active employee with a system login role. Contact your Managing Partner.");
       }
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        // Through the server-side code exchange (app/auth/callback/route.ts), not straight to
+        // /reset-password - the exchange needs to run somewhere the stored code_verifier cookie
+        // is readable, which a plain client-side exchange can't guarantee if the link is opened
+        // in a different browser than the one that requested the reset.
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
       });
       if (resetError) throw new Error(resetError.message);
       setPhase("sent");

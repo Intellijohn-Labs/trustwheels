@@ -14,15 +14,18 @@ import { supabase } from "@/lib/supabase";
 type Phase = "verifying" | "ready" | "invalid-link" | "submitting" | "done";
 
 /**
- * Step 2 of the reset flow. The link Supabase emails carries either a `#access_token=...` hash
- * fragment or a `?code=...` PKCE code, depending on the project's Auth settings - the Supabase
- * client (flowType: "pkce" + detectSessionInUrl, see lib/supabase.ts) recognises and exchanges
- * either one automatically, once, as part of its own normal page-load initialisation, firing a
- * PASSWORD_RECOVERY auth event. This page never reads the tokens/code itself and never calls
- * exchangeCodeForSession directly - doing that from a component effect would risk firing it twice
- * under React Strict Mode's double-invoke, and a PKCE code is single-use. It just waits for the
- * client's own exchange to finish (or for a session to already be present, since detection can
- * land before this component even mounts) before showing the new-password form.
+ * Step 2 of the reset flow. The normal path: the email link points at /auth/callback, a server
+ * Route Handler that already exchanged the PKCE code for a session (reading the code_verifier
+ * cookie set when the reset was requested) before redirecting here - so by the time this page
+ * loads, getSession() below should already find a session immediately, cookie-backed, no waiting
+ * required. That exchange happens server-side specifically so it still works when the link is
+ * opened in a different browser than the one that requested the reset, which a client-only
+ * exchange can't guarantee (the code_verifier it needs only exists in the requesting browser).
+ *
+ * Fallback path, kept for resilience: an older link shaped like `#access_token=...&type=recovery`
+ * is handled by the browser Supabase client's own detectSessionInUrl, which fires a
+ * PASSWORD_RECOVERY event once it's done - this page listens for that too, rather than assuming
+ * the server-side path is the only way a session could arrive here.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();

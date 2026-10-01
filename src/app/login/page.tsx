@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
@@ -35,11 +35,24 @@ const rise = (i: number) => ({ "--i": i }) as CSSProperties;
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [gate, setGate] = useState<Gate>({ phase: "form" });
+  const [gate, setGate] = useState<Gate>(() =>
+    searchParams.get("error") === "auth_callback_failed"
+      ? { phase: "auth-error", message: "That link couldn't be verified - it may have expired or already been used. Request a new one." }
+      : { phase: "form" },
+  );
 
   // Redirecting an already-signed-in visitor away from this form (and routing a password-recovery
   // link to /reset-password instead, regardless of which page Supabase's redirect actually landed
