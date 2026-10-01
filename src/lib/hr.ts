@@ -2,8 +2,9 @@
 
 import { defineCollection, newId } from "./collections";
 import { HOLIDAYS } from "./masters";
-import { can, type PanelModule, type Role } from "./rbac";
+import { can, ROLES, type PanelModule, type Role } from "./rbac";
 import { assertCan, currentRole, getActor } from "./session";
+import { logActivity } from "./activity-log";
 import type { Vehicle } from "./types";
 import { istDate } from "./working-days";
 
@@ -456,8 +457,19 @@ export function activeEmployeeCount(all: Employee[]) {
   return all.filter((e) => e.status === "active").length;
 }
 
+/**
+ * Managing Partner is the protected head role: exactly one account holds it, and it can't be
+ * handed to, or taken from, anyone via this form. Reassigning it would mean either locking the
+ * current holder out of their own master-admin account or quietly minting a second one - both
+ * are mistakes this app should refuse outright rather than rely on everyone remembering not to.
+ */
+const PROTECTED_ROLE: Role = "managing_partner";
+
 export function addEmployee(input: EmployeeInput) {
   assertManage();
+  if (input.rbacRole === PROTECTED_ROLE) {
+    throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label} is a protected role and can't be assigned to a new employee.`);
+  }
   const data = clean(input);
   return serial(async () => {
     const all = await latest(employees);
@@ -467,6 +479,7 @@ export function addEmployee(input: EmployeeInput) {
     const next = all.reduce((max, e) => Math.max(max, Number(e.id.replace(/\D/g, "")) || 0), 0) + 1;
     const employee: Employee = { ...data, id: `e-${String(next).padStart(2, "0")}` };
     await employees.replaceAll([employee, ...all]);
+    logActivity("EMPLOYEE", employee.name, `Added employee ${employee.name} (${employee.role})${employee.rbacRole ? ` · signs in as ${ROLES[employee.rbacRole].label}` : ""}`);
     return employee;
   });
 }
@@ -478,10 +491,22 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
   return serial(async () => {
     const all = await latest(employees);
     const current = all.find((e) => e.id === id);
-    if (data.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
+    if (current?.rbacRole === PROTECTED_ROLE && data.rbacRole !== PROTECTED_ROLE) {
+      throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label}'s role can't be changed, demoted, or cleared.`);
+    }
+    if (current?.rbacRole !== PROTECTED_ROLE && data.rbacRole === PROTECTED_ROLE) {
+      throw new Error(`Blocked: ${ROLES[PROTECTED_ROLE].label} is a protected role and can't be assigned to another employee.`);
+    }
+    // Defense in depth: even if a disabled control were bypassed, a protected-head record can
+    // never end up with a restricted panel set - the form already locks this, this just makes
+    // sure the store agrees no matter what reaches it.
+    const safeData = current?.rbacRole === PROTECTED_ROLE ? { ...data, allowedPanels: undefined } : data;
+    if (safeData.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
       throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
     }
-    return modify(employees, id, (e) => ({ ...e, ...data, id }));
+    const updated = await modify(employees, id, (e) => ({ ...e, ...safeData, id }));
+    logActivity("EMPLOYEE", updated.name, `Edited employee ${updated.name} (${updated.role})`);
+    return updated;
   });
 }
 
@@ -490,8 +515,11 @@ export function deleteEmployee(id: string) {
   assertCan("hr.delete");
   return serial(async () => {
     const all = await latest(employees);
-    if (!all.some((e) => e.id === id)) throw new Error("Employee not found");
+    const target = all.find((e) => e.id === id);
+    if (!target) throw new Error("Employee not found");
+    if (target.rbacRole === PROTECTED_ROLE) throw new Error(`Blocked: the ${ROLES[PROTECTED_ROLE].label} account can't be deleted.`);
     await employees.remove(id);
+    logActivity("EMPLOYEE", target.name, `Deleted employee ${target.name} (${target.role})`);
   });
 }
 
@@ -499,7 +527,13 @@ export function deleteEmployee(id: string) {
 export function deleteEmployees(ids: string[]) {
   assertCan("hr.delete");
   return serial(async () => {
+    const all = await latest(employees);
+    const targets = all.filter((e) => ids.includes(e.id));
+    if (targets.some((e) => e.rbacRole === PROTECTED_ROLE)) {
+      throw new Error(`Blocked: the ${ROLES[PROTECTED_ROLE].label} account can't be deleted.`);
+    }
     await employees.removeMany(ids);
+    logActivity("EMPLOYEE", `${targets.length} employees`, `Deleted ${targets.length} employees: ${targets.map((e) => e.name).join(", ")}`);
   });
 }
 

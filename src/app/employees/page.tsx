@@ -120,7 +120,12 @@ export default function EmployeeAccessPage() {
                 ? [
                     {
                       header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all shown employees" />,
-                      cell: (e: Employee) => <RowCheckbox checked={selection.isSelected(e.id)} onChange={() => selection.toggle(e.id)} label={`Select ${label(e)}`} />,
+                      cell: (e: Employee) =>
+                        e.rbacRole === "managing_partner" ? (
+                          <span className="grid place-items-center p-2.5" title="Managing Partner can't be bulk-deleted" />
+                        ) : (
+                          <RowCheckbox checked={selection.isSelected(e.id)} onChange={() => selection.toggle(e.id)} label={`Select ${label(e)}`} />
+                        ),
                     },
                   ]
                 : []),
@@ -147,7 +152,14 @@ export default function EmployeeAccessPage() {
                           <Button size="sm" variant="ghost" onClick={() => setEditing(e)} aria-label={`Edit ${e.name}`}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ ids: [e.id], labels: [label(e)] })} aria-label={`Delete ${e.name}`}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={e.rbacRole === "managing_partner"}
+                            title={e.rbacRole === "managing_partner" ? "Managing Partner cannot be deleted" : undefined}
+                            onClick={() => setConfirmDelete({ ids: [e.id], labels: [label(e)] })}
+                            aria-label={`Delete ${e.name}`}
+                          >
                             <Trash2 className="size-3.5" />
                           </Button>
                         </div>

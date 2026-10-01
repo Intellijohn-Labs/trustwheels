@@ -108,6 +108,11 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
   const set = <K extends keyof EmployeeInput>(k: K, v: EmployeeInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const managers = employees.filter((e) => e.status !== "exited" && e.id !== employee?.id).sort((a, b) => a.name.localeCompare(b.name));
   const roleHolder = form.rbacRole ? employees.find((e) => e.rbacRole === form.rbacRole && e.status !== "exited" && e.id !== employee?.id) : undefined;
+  // Managing Partner is the protected head role: it can't be handed to anyone else, so the option
+  // is hidden from every other employee's dropdown, and once an employee holds it the whole
+  // control locks so it can't be changed, demoted, or cleared from here.
+  const isProtectedHead = employee?.rbacRole === "managing_partner";
+  const roleOptions = ROLE_ORDER.filter((r) => r !== "managing_partner" || isProtectedHead);
 
   async function save() {
     setSubmitted(true);
@@ -175,19 +180,26 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
         <Field
           label="System login role"
           htmlFor="emp-rbac-role"
-          hint={roleHolder ? `${roleHolder.name} currently holds this role too - saving will not remove it from them` : "Leave blank if this person doesn't sign in to the app"}
+          hint={
+            isProtectedHead
+              ? "Managing Partner is the protected head role - it can't be changed, demoted, or cleared here."
+              : roleHolder
+                ? `${roleHolder.name} currently holds this role too - saving will not remove it from them`
+                : "Leave blank if this person doesn't sign in to the app"
+          }
         >
           <select
             id="emp-rbac-role"
             value={form.rbacRole ?? ""}
+            disabled={isProtectedHead}
             onChange={(e) => {
               const rbacRole = (e.target.value || undefined) as Role | undefined;
               setForm((f) => ({ ...f, rbacRole, allowedPanels: roleDefaultPanels(rbacRole) }));
             }}
-            className={inputClass()}
+            className={cn(inputClass(), isProtectedHead && "cursor-not-allowed opacity-60")}
           >
             <option value="">No system login</option>
-            {ROLE_ORDER.map((r) => (
+            {roleOptions.map((r) => (
               <option key={r} value={r}>
                 {ROLES[r].label}
               </option>
@@ -196,8 +208,14 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
         </Field>
         <div className="sm:col-span-2">
           <p className="mb-1.5 text-sm font-medium">Panel access</p>
-          <p className="mb-2 text-xs text-muted">Starts from the role&apos;s defaults above - toggle any panel on or off for this person specifically.</p>
-          <ModuleAccessToggles selected={form.allowedPanels ?? []} onChange={(allowedPanels) => set("allowedPanels", allowedPanels)} disabled={!form.rbacRole} />
+          {isProtectedHead ? (
+            <p className="text-xs text-muted">Managing Partner always has full access to every panel - this can&apos;t be restricted.</p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-muted">Starts from the role&apos;s defaults above - toggle any panel on or off for this person specifically.</p>
+              <ModuleAccessToggles selected={form.allowedPanels ?? []} onChange={(allowedPanels) => set("allowedPanels", allowedPanels)} disabled={!form.rbacRole} />
+            </>
+          )}
         </div>
         <Field label="Mobile" htmlFor="emp-phone" required error={show("phone")}>
           <PhoneInput id="emp-phone" value={form.phone} onChange={(v) => set("phone", v)} invalid={!!show("phone")} />
