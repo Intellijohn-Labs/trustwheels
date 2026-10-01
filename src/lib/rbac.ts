@@ -85,7 +85,7 @@ export const ROLES: Record<Role, RoleDef> = {
   partner: {
     label: "Partner",
     description: "Branch admin / investor for the assigned branches.",
-    permissions: ["stock.view", "sales.view", "funds.view", "reports.view"],
+    permissions: ["stock.view", "stock.create", "sales.view", "funds.view", "reports.view"],
     scope: ["b1", "b2"],
   },
   branch_manager: {
@@ -97,13 +97,13 @@ export const ROLES: Record<Role, RoleDef> = {
   branch_accountant: {
     label: "Branch Accountant",
     description: "Purchase values, seller payments, amounts due from Angamaly.",
-    permissions: ["stock.view", "payments.view", "purchase.enter"],
+    permissions: ["stock.view", "stock.create", "payments.view", "purchase.enter"],
     scope: ["b1"],
   },
   hub_admin: {
     label: "Administration (Angamaly)",
     description: "Receives vehicles, checks identity against dispatch, books into stock.",
-    permissions: ["stock.view", "stock.verify", "transit.view", "hub.receive"],
+    permissions: ["stock.view", "stock.create", "stock.verify", "transit.view", "hub.receive"],
     scope: "all",
   },
   supervisor: {
@@ -117,6 +117,7 @@ export const ROLES: Record<Role, RoleDef> = {
     description: "Quality gate, final delivery release, SLA and Code Red monitoring.",
     permissions: [
       "stock.view",
+      "stock.create",
       "stock.verify",
       "transit.view",
       "recon.view",
@@ -133,7 +134,7 @@ export const ROLES: Record<Role, RoleDef> = {
   sales_executive: {
     label: "Sales Executive",
     description: "Enquiries, Day 2/3/4 follow-ups, bookings and booking documents.",
-    permissions: ["stock.view", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
+    permissions: ["stock.view", "stock.create", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
     scope: "all",
   },
   telecaller: {
@@ -145,7 +146,7 @@ export const ROLES: Record<Role, RoleDef> = {
   central_accountant: {
     label: "Central Accountant",
     description: "Seller payouts, RTO fees, and the customer-facing sales accounts ledger.",
-    permissions: ["stock.view", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
+    permissions: ["stock.view", "stock.create", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
     scope: "all",
   },
   hr: {
