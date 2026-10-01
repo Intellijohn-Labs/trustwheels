@@ -6,11 +6,10 @@ import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { SLA } from "@/lib/masters";
-import { supervisors, useRoleNames } from "@/lib/user-names";
+import { supervisors } from "@/lib/user-names";
 import { formatPaise } from "@/lib/format";
 import { inRecon, reconCostPaise, reconFlag, reconHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
-import { DataTable } from "../data-table";
 import { DeleteVehicleButton } from "../delete-vehicle-button";
 import { BulkDeleteBar } from "../bulk-delete-bar";
 import { RowCheckbox, SelectAllCheckbox, useSelection } from "../selection";
@@ -203,41 +202,5 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
       {openId && <JobCardDialog vehicleId={openId} onClose={() => setOpenId(undefined)} />}
     </Panel>
     </div>
-  );
-}
-
-/** RED count by supervisor name. */
-export function RedCountPanel() {
-  useRoleNames(); // re-render when a supervisor is renamed
-  const { vehicles } = useScopedVehicles();
-  const now = useNow(60_000);
-  const rows = redCounts(vehicles, now);
-
-  return (
-    <Panel flush title="RED count by supervisor" description={`RED ${SLA.reconAmberHours}h and RED ${SLA.reconRedHours}h are counted from stock entry.`}>
-      <DataTable
-        rows={rows}
-        rowKey={(r) => r.name}
-        rowTone={(r) => (r.red72 ? "danger" : r.red48 ? "warn" : undefined)}
-        columns={[
-          { header: "Supervisor", cell: (r) => <span className="font-medium">{r.name}</span> },
-          { header: "In queue", align: "right", cell: (r) => r.inQueue },
-          { header: `RED ${SLA.reconAmberHours}h`, align: "right", cell: (r) => r.red48 },
-          { header: `RED ${SLA.reconRedHours}h`, align: "right", cell: (r) => r.red72 },
-          {
-            header: "RED count",
-            align: "right",
-            cell: (r) =>
-              r.red ? (
-                <Pill tone={r.red72 ? "danger" : "warn"} icon={<AlertTriangle className="size-3" />}>
-                  {r.red} RED
-                </Pill>
-              ) : (
-                <span className="text-muted">0</span>
-              ),
-          },
-        ]}
-      />
-    </Panel>
   );
 }

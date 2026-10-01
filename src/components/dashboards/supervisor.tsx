@@ -7,7 +7,7 @@ import { useNow } from "@/lib/use-now";
 import { SLA } from "@/lib/masters";
 import { awaitingGate, inRecon, reconFlag } from "@/lib/workflow";
 import { KpiCard, KpiGrid, PageHeader } from "@/components/ui";
-import { ReconQueuePanel, RedCountPanel, redCounts } from "@/components/panels/recon-panel";
+import { ReconQueuePanel, redCounts } from "@/components/panels/recon-panel";
 
 export default function SupervisorDashboard() {
   const { user, roleDef } = useRole();
@@ -51,7 +51,6 @@ export default function SupervisorDashboard() {
         />
       </KpiGrid>
       <ReconQueuePanel compact />
-      <RedCountPanel />
     </div>
   );
 }

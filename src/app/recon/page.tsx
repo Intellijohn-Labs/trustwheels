@@ -5,7 +5,7 @@ import { Wrench } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { SLA } from "@/lib/masters";
 import { PageHeader, Segmented } from "@/components/ui";
-import { ReconQueuePanel, RedCountPanel } from "@/components/panels/recon-panel";
+import { ReconQueuePanel } from "@/components/panels/recon-panel";
 import { TechnicianReportPanel } from "@/components/panels/technician-report";
 
 type View = "queue" | "report";
@@ -39,14 +39,7 @@ export default function ReconPage() {
           </div>
         }
       />
-      {view === "queue" ? (
-        <>
-          <ReconQueuePanel />
-          <RedCountPanel />
-        </>
-      ) : (
-        <TechnicianReportPanel />
-      )}
+      {view === "queue" ? <ReconQueuePanel /> : <TechnicianReportPanel />}
     </div>
   );
 }
