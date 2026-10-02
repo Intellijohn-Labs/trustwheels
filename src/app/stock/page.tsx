@@ -34,15 +34,20 @@ const STAGE_GROUPS = [
  * - a booked/sold vehicle - it belongs strictly to the "Sold" panel from here on,
  * - anything actively in reconditioning (stage 8, not yet signed off and reverted) - those stay
  *   visible only on the dedicated /recon page until completeRecon() returns them to general stock,
- * - an unverified vehicle (a new intake starts unverified - it stays on the Verification page
- *   until setVerified() there promotes it), and
+ *   and
  * - any vehicle that already has a sale-readiness decision, Ready for Sale or Rejected Stock -
  *   once a decision is made it disappears from All Stocks immediately and lives solely under its
  *   own dedicated panel (Ready for Sale, which also feeds Book & Sell's "Available" tab, or
  *   Rejected Stock) until Send to Reconditioning or a changed decision moves it on.
+ *
+ * Deliberately does NOT require `verified`: a fresh intake starts unverified and, until this was
+ * fixed, was invisible here entirely - reachable only from the Verification page (stock.verify
+ * roles only) or the vehicle's own URL - while the dashboard's "Stock on hand" KPI (just `!v.sale`)
+ * counted it anyway, so the two screens disagreed about something as basic as "how many vehicles do
+ * we have." An unverified row still shows here, just styled "pending" (VehicleRow/verifyState).
  */
 function isActiveStock(v: Vehicle) {
-  return !v.sale && !!v.verified && !inRecon(v) && !v.saleReadiness;
+  return !v.sale && !inRecon(v) && !v.saleReadiness;
 }
 
 /**
