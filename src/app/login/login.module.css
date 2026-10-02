@@ -1,14 +1,15 @@
 /* Login scene: layered parallax strips, a rider on a bike, and the form's entrance. */
 
 .scene {
-  --sky-top: #1e40af;
-  --sky-mid: #60a5fa;
-  --sky-low: #fdba74;
-  --sun: #fff1c7;
-  --sun-glow: rgba(255, 214, 140, 0.55);
-  --hill-far: #a5c8f5;
-  --hill-near: #4f82d8;
-  --palm: #1e3a8a;
+  /* Kerala backwaters-at-golden-hour: a warm amber-to-teal sky over tea-garden green hills and a coconut grove. */
+  --sky-top: #0a4f68;
+  --sky-mid: #1a8fa8;
+  --sky-low: #ffb74d;
+  --sun: #fff4d6;
+  --sun-glow: rgba(255, 200, 110, 0.6);
+  --hill-far: #8fd3a0;
+  --hill-near: #2e7d4f;
+  --palm: #1b4d32;
   --road: #1c2430;
   --kerb: #f2f4f7;
   --cloud: rgba(255, 255, 255, 0.85);
@@ -20,17 +21,17 @@
   background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
 }
 
-/* Night scene: follows the system unless the theme button chose light or dark. */
+/* Night scene: the same coconut grove after dark - follows the system unless the theme button chose light or dark. */
 @media (prefers-color-scheme: dark) {
   :global(:root:not([data-theme="light"])) .scene {
-    --sky-top: #050b1a;
-    --sky-mid: #102a57;
-    --sky-low: #3a4f86;
-    --sun: #eef2ff;
-    --sun-glow: rgba(190, 205, 255, 0.35);
-    --hill-far: #1f3563;
-    --hill-near: #172a4f;
-    --palm: #0b1830;
+    --sky-top: #050f14;
+    --sky-mid: #0c2b38;
+    --sky-low: #2a3b2e;
+    --sun: #e8ecd8;
+    --sun-glow: rgba(200, 220, 180, 0.3);
+    --hill-far: #16342a;
+    --hill-near: #0f2920;
+    --palm: #081a12;
     --road: #0c1118;
     --kerb: #6b7890;
     --cloud: rgba(200, 212, 240, 0.25);
@@ -38,14 +39,14 @@
 }
 
 :global(:root[data-theme="dark"]) .scene {
-  --sky-top: #050b1a;
-  --sky-mid: #102a57;
-  --sky-low: #3a4f86;
-  --sun: #eef2ff;
-  --sun-glow: rgba(190, 205, 255, 0.35);
-  --hill-far: #1f3563;
-  --hill-near: #172a4f;
-  --palm: #0b1830;
+  --sky-top: #050f14;
+  --sky-mid: #0c2b38;
+  --sky-low: #2a3b2e;
+  --sun: #e8ecd8;
+  --sun-glow: rgba(200, 220, 180, 0.3);
+  --hill-far: #16342a;
+  --hill-near: #0f2920;
+  --palm: #081a12;
   --road: #0c1118;
   --kerb: #6b7890;
   --cloud: rgba(200, 212, 240, 0.25);

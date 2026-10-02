@@ -330,7 +330,7 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   to { transform: rotate(360deg); }
 }
 
-/* Logo on a frosted white card (login sky, sign-in transition). */
+/* Logo on a frosted white card (login sky) - static, no float/shine/spin. */
 .logo-card {
   position: relative;
   display: inline-flex;
@@ -341,28 +341,6 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   padding: 0.6rem 1rem;
   box-shadow: 0 18px 40px -18px rgb(15 23 42 / 0.55), 0 2px 6px rgb(15 23 42 / 0.12);
   backdrop-filter: blur(10px);
-  animation: tw-float 5s ease-in-out 1.4s infinite alternate;
-}
-.logo-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.8) 50%, transparent 65%);
-  transform: translateX(-120%);
-  animation: tw-card-shine 5s ease-in-out 1.6s infinite;
-  pointer-events: none;
-}
-/* After the intro, the tyre keeps turning like the bike's wheels. */
-.logo-rolling .tw-tread {
-  animation: tw-roll-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both, tw-spin-once 2.8s linear 1.1s infinite;
-}
-
-@keyframes tw-float {
-  to { transform: translateY(-5px); }
-}
-@keyframes tw-card-shine {
-  0%, 70% { transform: translateX(-120%); }
-  100% { transform: translateX(120%); }
 }
 
 /* Sign-in transition: a colour wipe grows from the Sign in button, then the welcome appears. */

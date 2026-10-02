@@ -101,7 +101,7 @@ function LoginForm() {
         <div className="pointer-events-none absolute inset-x-0 top-0 p-5 text-white sm:p-8">
           <div style={rise(0)} className={styles.rise}>
             <div className="logo-light logo-card">
-              <Logo motion="intro" className="logo-rolling h-12 w-auto sm:h-16" />
+              <Logo motion="none" className="h-8 w-auto sm:h-10" />
             </div>
           </div>
           <p style={rise(1)} className={cn(styles.rise, "mt-6 hidden max-w-sm text-3xl leading-tight font-semibold tracking-tight lg:block")}>
