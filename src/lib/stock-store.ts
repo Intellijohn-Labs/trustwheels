@@ -58,12 +58,31 @@ async function fetchFromSupabase(): Promise<Vehicle[] | null> {
   }
 }
 
+/**
+ * Mirrors a successful Supabase read into the local IndexedDB copy, replacing it wholesale (same
+ * "refresh beats partial merge" reasoning as the live-sync channel below). Without this, the local
+ * copy only ever moves forward via this device's own mutations - so a device that only ever reads
+ * (or whose last mutation was long ago) can carry an arbitrarily stale, even empty, local copy
+ * forever. That copy only surfaces when a later fetch fails (e.g. a flaky mobile connection), but
+ * when it does, it renders with full confidence as if it were current - a stock count of 0 that's
+ * really just "this fetch failed" is indistinguishable from a genuinely empty inventory. Keeping
+ * the local copy fresh on every successful read closes most of that window. Fire-and-forget: this
+ * is purely the offline fallback catching up, never the source `cache`/UI update.
+ */
+function mirrorToLocal(rows: Vehicle[]) {
+  tx("vehicles", "readwrite", (s) => {
+    s.clear();
+    rows.forEach((v) => s.put(v));
+  }).catch(() => {});
+}
+
 function load() {
   loading ??= (async () => {
     const remote = await fetchFromSupabase();
     if (remote) {
       cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
       emit();
+      mirrorToLocal(remote);
       return;
     }
     // No demo seed is ever written here - this is purely the local IndexedDB copy, read as-is.
@@ -86,6 +105,7 @@ async function revalidate() {
   if (remote) {
     cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
     emit();
+    mirrorToLocal(remote);
   }
 }
 
