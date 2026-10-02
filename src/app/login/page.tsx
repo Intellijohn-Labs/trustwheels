@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, MapPin } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Lock, Mail, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { BikeSpinner } from "@/components/bike-spinner";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
 import { signInWithPassword, signOutAuth } from "@/lib/auth";
@@ -218,12 +219,12 @@ function LoginForm() {
               {(gate.phase === "form" || gate.phase === "auth-error") && "Sign in"}
               {gate.phase === "authenticating" && (
                 <>
-                  <Loader2 className="size-4 animate-spin" /> Signing in…
+                  <BikeSpinner className="h-4 w-6 shrink-0" /> Signing in…
                 </>
               )}
               {gate.phase === "locating" && (
                 <>
-                  <Loader2 className="size-4 animate-spin" /> Getting your location…
+                  <BikeSpinner className="h-4 w-6 shrink-0" /> Getting your location…
                 </>
               )}
               {gate.phase === "denied" && (
@@ -249,6 +250,7 @@ function LoginForm() {
       {gate.phase === "confirmed" && (
         <Dialog
           title="Attendance Marked Successfully!"
+          animation="pop"
           onClose={continueToDashboard}
           footer={
             <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>
@@ -283,6 +285,7 @@ function LoginForm() {
       {gate.phase === "already-marked" && (
         <Dialog
           title="Already checked in today"
+          animation="pop"
           onClose={continueToDashboard}
           footer={
             <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>
@@ -302,6 +305,7 @@ function LoginForm() {
       {gate.phase === "ineligible" && (
         <Dialog
           title="Logged in successfully"
+          animation="pop"
           onClose={continueToDashboard}
           footer={
             <Button size="lg" variant="success" className="w-full" onClick={continueToDashboard}>

@@ -504,6 +504,16 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   .anim-dialog { animation-name: tw-pop; animation-duration: 0.22s; }
 }
 
+/* Opt-in dialog entrance (Dialog's `animation="pop"`): scale+fade, same on every screen size -
+   no bottom-sheet slide. Used by the login screen's attendance result popups. */
+.anim-dialog-spring { animation: tw-pop-spring 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes tw-pop-spring {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
 /* Critical counters pulse gently so they catch the eye. */
 .pulse-danger { animation: tw-ping 2s ease-out infinite; }
 .wiggle { animation: tw-wiggle 1.2s ease-in-out 0.6s 2 both; transform-origin: 50% 20%; }

@@ -20,6 +20,7 @@ export function Dialog({
   wide,
   children,
   footer,
+  animation = "sheet",
 }: {
   title: string;
   subtitle?: ReactNode;
@@ -28,6 +29,8 @@ export function Dialog({
   wide?: boolean;
   children: ReactNode;
   footer?: ReactNode;
+  /** "sheet" (default): bottom sheet on phones, pops in on larger screens - every existing dialog. "pop": scale+fade on every screen size, no bottom-sheet slide. */
+  animation?: "sheet" | "pop";
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -53,7 +56,8 @@ export function Dialog({
         }}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-[92dvh] w-full flex-col anim-dialog overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl",
+          "flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:rounded-3xl",
+          animation === "pop" ? "anim-dialog-spring" : "anim-dialog",
           wide ? "max-w-2xl" : "max-w-md",
         )}
       >

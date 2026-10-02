@@ -5,16 +5,22 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
 import { signOutAuth } from "@/lib/auth";
+import { beginLogoutFlow, endLogoutFlow } from "@/lib/login-flow";
 import { LogoutDriveAway } from "./logout-drive-away";
 
-/** Matches the drive-away animation's own duration (globals.css) plus a beat so the redirect never cuts it off mid-motion. */
+/** Matches the drive-away animation's own duration (globals.css) plus a beat so the navigation never cuts it off mid-motion. */
 const LOGOUT_MS = 1500;
 
 /**
- * Replaces the sidebar's old plain "Sign out" link: shows the drive-away overlay first, and only
- * clears the session and redirects to /login once it's actually played out - a fixed timer, not
+ * Replaces the sidebar's old plain "Sign out" link. Local state is cleared and the Supabase
+ * session starts revoking immediately on click, not gated behind the animation; the drive-away
+ * overlay then plays for its own fixed beat before actually navigating to /login - a timer, not
  * tied to the animation's real (possibly reduced-motion-shortened) duration, so the sign-out
- * always takes a consistent, deliberate beat regardless of motion settings.
+ * always takes a consistent, deliberate beat regardless of motion settings. beginLogoutFlow()/
+ * endLogoutFlow() tell AppShell's session guard to keep this page mounted for that beat even
+ * though the session is already gone underneath - otherwise AppShell reacts to the session change
+ * the instant it lands and yanks this page (and the portal overlay it owns) to a loading screen
+ * mid-animation.
  */
 export function SignOutButton({ onNavigate, className, children }: { onNavigate?: () => void; className?: string; children?: ReactNode }) {
   const router = useRouter();
@@ -22,9 +28,11 @@ export function SignOutButton({ onNavigate, className, children }: { onNavigate?
 
   function handleSignOut() {
     onNavigate?.();
+    beginLogoutFlow();
     setLoggingOut(true);
+    void signOutAuth();
     setTimeout(() => {
-      signOutAuth();
+      endLogoutFlow();
       router.push("/login");
     }, LOGOUT_MS);
   }

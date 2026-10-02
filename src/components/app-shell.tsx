@@ -49,7 +49,7 @@ import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
 import { drain, useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
 import { supabase } from "@/lib/supabase";
-import { isLoginFlowInProgress } from "@/lib/login-flow";
+import { isLoginFlowInProgress, isLogoutFlowInProgress } from "@/lib/login-flow";
 import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
@@ -279,7 +279,7 @@ function useSessionGuard(pathname: string) {
       router.replace("/dashboard");
       return;
     }
-    if (authed === false && !BARE.includes(pathname)) router.replace("/login");
+    if (authed === false && !BARE.includes(pathname) && !isLogoutFlowInProgress()) router.replace("/login");
   }, [authed, recovery, pathname, router]);
 
   return { authed, recovery };
@@ -315,8 +315,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // Still checking, or known signed-out and about to be redirected - never flash protected
-  // content in either case.
-  if (authed !== true) return <FullScreenLoader />;
+  // content in either case. Exception: mid-logout, the session is already gone but the sign-out
+  // button's own drive-away animation (rendered as part of this same page, via a portal) still
+  // needs this page to stay mounted until its fixed beat finishes and it navigates itself.
+  if (authed !== true && !isLogoutFlowInProgress()) return <FullScreenLoader />;
 
   const route = findRoute(pathname);
   const allowed = !route || canOpenRoute(route);
