@@ -7,19 +7,28 @@ import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, M
 import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
-import { signInWithPassword } from "@/lib/auth";
+import { signInWithPassword, signOutAuth, type ResolvedAccount } from "@/lib/auth";
 import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
+import { attendanceExempt } from "@/lib/hr";
+import { beginLoginFlow, endLoginFlow } from "@/lib/login-flow";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./login.module.css";
 
 /**
- * Sign-in itself is never blocked by location, day or time - only whether a punch-in is actually
- * attempted is. Inside the Mon-Sat 9am-6pm attendance window, the location prompt is requested
- * before the dashboard opens ("denied" blocks entry with a retry, since attendance genuinely can't
- * be marked without it there); outside that window sign-in proceeds straight through and a short
- * notice explains why nothing was punched in. A successful check-in shows its details in a
- * confirmation dialog before the person is actually routed in.
+ * Credentials alone aren't enough to reach the dashboard for anyone who's expected to punch in.
+ * Inside the Mon-Sat 9am-6pm attendance window, the location prompt is requested right after a
+ * successful sign-in, and for anyone not exempt from attendance (see attendanceExempt() in
+ * lib/hr.ts - Managing Partner and Partner don't punch in), a denied/unavailable/timed-out
+ * location is a hard stop: the just-created session is revoked with signOutAuth() and they're
+ * left on this form with a retry, not waved through. Outside that window sign-in proceeds
+ * straight through and a short notice explains why nothing was punched in; a successful check-in
+ * shows its details in a confirmation dialog before the person is actually routed in.
+ *
+ * Signing in creates the real Supabase session immediately, before this flow finishes - beginLoginFlow()/
+ * endLoginFlow() (lib/login-flow.ts) tell AppShell's own session guard to hold off on its usual
+ * "already signed in, go to /dashboard" redirect until this page says it's actually done, so that
+ * redirect can't race ahead of a GPS check that's still pending (or about to fail).
  */
 type Gate =
   | { phase: "form" }
@@ -67,17 +76,36 @@ function LoginForm() {
 
   async function attemptSignIn() {
     if (busy || leaving) return;
+    beginLoginFlow();
     setGate({ phase: "authenticating" });
+    let resolved: ResolvedAccount;
     try {
-      await signInWithPassword(email, password);
+      resolved = await signInWithPassword(email, password);
     } catch (err) {
+      endLoginFlow();
       setGate({ phase: "auth-error", message: err instanceof Error ? err.message : "Sign-in failed" });
       return;
     }
     setGate({ phase: "locating" });
     const result = await requestGpsCheckIn();
-    if (result.status === "error") setGate({ phase: "denied", message: result.message });
-    else if (result.status === "already-done") setGate({ phase: "already-marked" });
+    if (result.status === "error") {
+      // Exempt roles (Managing Partner, Partner) don't punch in at all - a location failure is
+      // irrelevant to them, not a reason to keep them out.
+      if (attendanceExempt(resolved.employee)) {
+        continueToDashboard();
+        return;
+      }
+      // Everyone else: the session this sign-in just created doesn't survive a failed check-in -
+      // revoke it so there's nothing left for AppShell to honour if they navigate away from here.
+      await signOutAuth();
+      endLoginFlow();
+      setGate({
+        phase: "denied",
+        message: "Location access is required to mark attendance and sign in. Please enable GPS/location permissions in your browser and try again.",
+      });
+      return;
+    }
+    if (result.status === "already-done") setGate({ phase: "already-marked" });
     else if (result.status === "ineligible") setGate({ phase: "ineligible", reason: result.reason });
     else setGate({ phase: "confirmed", record: result.record });
   }
@@ -88,6 +116,7 @@ function LoginForm() {
   }
 
   function continueToDashboard() {
+    endLoginFlow();
     router.push("/dashboard");
   }
 
@@ -177,9 +206,9 @@ function LoginForm() {
           )}
 
           {gate.phase === "denied" && (
-            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm text-danger")}>
+            <div style={rise(5)} className={cn(styles.rise, "mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-3 text-sm font-medium text-danger")}>
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <p>Location access is required. Please turn on device GPS and allow browser location permission to continue.</p>
+              <p>{gate.message}</p>
             </div>
           )}
 

@@ -49,6 +49,7 @@ import { useRole } from "@/lib/role-context";
 import { useNavBadges } from "@/lib/nav-badges";
 import { drain, useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
 import { supabase } from "@/lib/supabase";
+import { isLoginFlowInProgress } from "@/lib/login-flow";
 import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
@@ -272,6 +273,9 @@ function useSessionGuard(pathname: string) {
       return;
     }
     if (authed === true && AUTH_FORM_PAGES.includes(pathname)) {
+      // /login runs its own mandatory GPS check-in after a successful sign-in and decides for
+      // itself when (or whether) to move on - a session existing yet doesn't mean that's done.
+      if (pathname === "/login" && isLoginFlowInProgress()) return;
       router.replace("/dashboard");
       return;
     }
@@ -306,7 +310,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     // About to be bounced to /reset-password or /dashboard - don't flash this page's own form
     // first.
     if (recovery && pathname !== "/reset-password") return <FullScreenLoader />;
-    if (authed === true && AUTH_FORM_PAGES.includes(pathname)) return <FullScreenLoader />;
+    if (authed === true && AUTH_FORM_PAGES.includes(pathname) && !(pathname === "/login" && isLoginFlowInProgress())) return <FullScreenLoader />;
     return <>{children}</>;
   }
 
