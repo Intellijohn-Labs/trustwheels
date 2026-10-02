@@ -7,23 +7,22 @@ import { AlertTriangle, Check, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, M
 import { Logo } from "@/components/logo";
 import { Button, Pill, cn, inputClass } from "@/components/ui";
 import { Dialog } from "@/components/panels/dialog";
-import { signInWithPassword, signOutAuth, type ResolvedAccount } from "@/lib/auth";
+import { signInWithPassword, signOutAuth } from "@/lib/auth";
 import { requestGpsCheckIn, type GpsCheckin, type IneligibleReason } from "@/lib/attendance-gps";
-import { attendanceExempt } from "@/lib/hr";
 import { beginLoginFlow, endLoginFlow } from "@/lib/login-flow";
 import { LoginScene } from "./login-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./login.module.css";
 
 /**
- * Credentials alone aren't enough to reach the dashboard for anyone who's expected to punch in.
- * Inside the Mon-Sat 9am-6pm attendance window, the location prompt is requested right after a
- * successful sign-in, and for anyone not exempt from attendance (see attendanceExempt() in
- * lib/hr.ts - Managing Partner and Partner don't punch in), a denied/unavailable/timed-out
- * location is a hard stop: the just-created session is revoked with signOutAuth() and they're
- * left on this form with a retry, not waved through. Outside that window sign-in proceeds
- * straight through and a short notice explains why nothing was punched in; a successful check-in
- * shows its details in a confirmation dialog before the person is actually routed in.
+ * Credentials alone aren't enough to reach the dashboard for anyone signing in during the
+ * attendance window - no role is exempt, including Managing Partner and Partner. Inside Mon-Sat
+ * 9am-6pm IST, the location prompt is requested right after a successful sign-in, and a
+ * denied/unavailable/timed-out location is a hard stop for everyone: the just-created session is
+ * revoked with signOutAuth() and they're left on this form with a retry, not waved through.
+ * Outside that window sign-in proceeds straight through and a short notice explains why nothing
+ * was punched in; a successful check-in shows its details in a confirmation dialog before the
+ * person is actually routed in.
  *
  * Signing in creates the real Supabase session immediately, before this flow finishes - beginLoginFlow()/
  * endLoginFlow() (lib/login-flow.ts) tell AppShell's own session guard to hold off on its usual
@@ -78,9 +77,8 @@ function LoginForm() {
     if (busy || leaving) return;
     beginLoginFlow();
     setGate({ phase: "authenticating" });
-    let resolved: ResolvedAccount;
     try {
-      resolved = await signInWithPassword(email, password);
+      await signInWithPassword(email, password);
     } catch (err) {
       endLoginFlow();
       setGate({ phase: "auth-error", message: err instanceof Error ? err.message : "Sign-in failed" });
@@ -89,14 +87,9 @@ function LoginForm() {
     setGate({ phase: "locating" });
     const result = await requestGpsCheckIn();
     if (result.status === "error") {
-      // Exempt roles (Managing Partner, Partner) don't punch in at all - a location failure is
-      // irrelevant to them, not a reason to keep them out.
-      if (attendanceExempt(resolved.employee)) {
-        continueToDashboard();
-        return;
-      }
-      // Everyone else: the session this sign-in just created doesn't survive a failed check-in -
-      // revoke it so there's nothing left for AppShell to honour if they navigate away from here.
+      // No exemptions: the session this sign-in just created doesn't survive a failed check-in,
+      // for any role - revoke it so there's nothing left for AppShell to honour if they navigate
+      // away from here.
       await signOutAuth();
       endLoginFlow();
       setGate({
