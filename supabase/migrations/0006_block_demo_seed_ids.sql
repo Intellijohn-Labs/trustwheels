@@ -21,12 +21,12 @@
 -- accompanies this migration handles that) - an ALTER TABLE ... ADD CONSTRAINT fails outright if
 -- any existing row already violates it.
 
-alter table public.vehicles drop constraint if exists vehicles_no_seed_ids;
+alter table public.vehicles drop constraint if exists vehicles_block_seed_ids;
 alter table public.vehicles
-  add constraint vehicles_no_seed_ids
+  add constraint vehicles_block_seed_ids
   check (id !~ '^seed-');
 
-alter table public.leads drop constraint if exists leads_no_demo_ids;
+alter table public.leads drop constraint if exists leads_block_seed_ids;
 alter table public.leads
-  add constraint leads_no_demo_ids
-  check (id !~ '^lead-[0-9]{1,2}$');
+  add constraint leads_block_seed_ids
+  check (id !~ '^lead-[0-9]{1,2}$' and id not like 'seed-%');
