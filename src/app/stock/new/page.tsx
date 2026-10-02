@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { createVehicle, updateDocuments, useVehicles } from "@/lib/stock-store";
+import { isSold } from "@/lib/finance";
 import { BRANCHES, COLOURS, DOCUMENT_TYPES, MAKES, PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
 import { useToast } from "@/components/toast";
@@ -137,8 +138,11 @@ export default function NewVehiclePage() {
   const regLive = couldBeReg(reg) ? undefined : "That doesn't match an Indian registration. Example: KL 07 AB 1234";
   const regOk = isValidReg(reg);
 
-  // Duplicate check runs across all history, including sold and delivered vehicles.
-  const duplicates = regOk ? vehicles.filter((v) => v.registrationNo === reg) : [];
+  // Duplicate check only looks at vehicles still active in the inventory - a deleted/purged
+  // record is already gone from `vehicles` entirely, and a sold vehicle has left the current
+  // stock for good, so re-entering that registration later is a genuine repurchase, not a
+  // duplicate intake.
+  const duplicates = regOk ? vehicles.filter((v) => v.registrationNo === reg && !isSold(v)) : [];
 
   const photoCount = PHOTO_SLOTS.filter((p) => form.photos[p.slot]).length;
   const errorCount = Object.keys(errors).length;

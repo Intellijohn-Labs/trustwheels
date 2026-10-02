@@ -264,6 +264,19 @@ export function deleteLeads(ids: string[]) {
   return leads.removeMany(ids);
 }
 
+/**
+ * Called by stock-store's deleteVehicle(s) after a vehicle is gone, so no enquiry keeps pointing
+ * at a vehicle that no longer exists. Clears the dangling reference only - the enquiry itself
+ * (customer, follow-up history) is a separate record and stays untouched. Internal: the caller's
+ * own `stock.delete` check already authorizes the cascade, so this doesn't re-check `leads.manage`.
+ */
+export async function clearVehicleReferences(vehicleIds: string[]) {
+  if (!vehicleIds.length) return;
+  const ids = new Set(vehicleIds);
+  const affected = (await leads.all()).filter((l) => l.vehicleId && ids.has(l.vehicleId));
+  await Promise.all(affected.map((l) => leads.update(l.id, (lead) => ({ ...lead, vehicleId: undefined }))));
+}
+
 // ---- hooks -----------------------------------------------------------------------
 
 /** Leads within the signed-in role's branch scope. */

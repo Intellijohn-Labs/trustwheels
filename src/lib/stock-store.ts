@@ -14,6 +14,7 @@ import { newId } from "./collections";
 import { missingDocuments, verifyDocument } from "./documents";
 import { documentLabel, inferMakeFromModel } from "./masters";
 import { logActivity } from "./activity-log";
+import { clearVehicleReferences } from "./leads";
 
 /*
  * Browser-only stand-in for the vehicle API. Every mutation checks the caller's permission
@@ -212,7 +213,13 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
   return vehicle;
 }
 
-/** Permanently remove one vehicle record. Managing Partner only; every other role never sees the option. */
+/**
+ * Permanently remove one vehicle record. Managing Partner only; every other role never sees the
+ * option. Everything else about the vehicle (purchase, dispatch, recon, gate, sale, delivery,
+ * documents, photos) lives inline on the record itself, so it's gone with it - the only external
+ * reference is a lead's optional `vehicleId`, cleared via clearVehicleReferences() so no enquiry
+ * is left pointing at a vehicle that no longer exists.
+ */
 export async function deleteVehicle(id: string) {
   assertCan("stock.delete");
   await load();
@@ -226,6 +233,7 @@ export async function deleteVehicle(id: string) {
   await tx("vehicles", "readwrite", (s) => s.delete(id));
   cache = cache!.filter((x) => x.id !== id);
   emit();
+  await clearVehicleReferences([id]);
   logActivity("DELETE", displayReg(v.registrationNo), `Deleted vehicle ${v.make} ${v.model} · ${displayReg(v.registrationNo)}`);
 }
 
@@ -244,6 +252,7 @@ export async function deleteVehicles(ids: string[]) {
   const removed = new Set(targets.map((v) => v.id));
   cache = cache!.filter((v) => !removed.has(v.id));
   emit();
+  await clearVehicleReferences([...removed]);
   logActivity("DELETE", `${targets.length} vehicles`, `Deleted ${targets.length} vehicles: ${targets.map((v) => displayReg(v.registrationNo)).join(", ")}`);
 }
 
@@ -729,9 +738,17 @@ export function recordHandover(id: string) {
 
 // ---- document vault ---------------------------------------------------------------
 
-/** Add or replace a document. Any document missing `uploadedBy` is stamped with the current actor. */
+/**
+ * Add or replace a document. Any document missing `uploadedBy` is stamped with the current actor.
+ * Gated on `stock.create`, not `stock.verify` - attaching whatever the seller handed over at
+ * intake (RC book, insurance, etc.) is a normal part of adding a vehicle, open to every role that
+ * can add stock, and distinct from actually verifying a document (verifyDocumentRecord, still
+ * `stock.verify`-only). The vehicle detail page's own document vault additionally hides its
+ * upload/replace controls behind `stock.verify` client-side (DocumentVault's `manage` flag), so
+ * this change only unblocks the intake form, which has no such gate.
+ */
 export function updateDocuments(id: string, documents: Document[]) {
-  assertCan("stock.verify");
+  assertCan("stock.create");
   const actor = getActor().name;
   return update(id, (v) => {
     assertScope(v.branchId);
