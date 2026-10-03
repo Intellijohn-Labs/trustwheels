@@ -5,6 +5,7 @@ import { ExternalLink, MapPin } from "lucide-react";
 import { employees } from "@/lib/hr";
 import { geoCheckins, type GpsCheckin } from "@/lib/attendance-gps";
 import { DEMO_USERS } from "@/lib/rbac";
+import { useRole } from "@/lib/role-context";
 import { isWorkingDay, istDate } from "@/lib/working-days";
 import { formatIsoDate } from "@/lib/format";
 import { Dialog } from "./dialog";
@@ -23,6 +24,7 @@ type ActiveCell = { name: string; date: string; checkin: GpsCheckin };
  * rather than absences, and future days are left blank rather than marked absent.
  */
 export function AttendanceSheetPanel() {
+  const { role } = useRole();
   const { items: allEmployees, ready: employeesReady } = employees.useItems();
   const { items: checkins, ready: checkinsReady } = geoCheckins.useItems();
   const ready = employeesReady && checkinsReady;
@@ -53,6 +55,16 @@ export function AttendanceSheetPanel() {
     }
     return map;
   }, [checkins, month]);
+
+  // Checked against the literal role, not a permission (which a per-employee panel override could
+  // grant to someone else) - this view must stay exclusive to the actual Managing Partner.
+  if (role !== "managing_partner") {
+    return (
+      <Panel flush title="Attendance sheet">
+        <p className="px-4 py-6 text-center text-sm text-muted">This view is available only to the Managing Partner.</p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel

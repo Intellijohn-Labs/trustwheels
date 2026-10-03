@@ -1,7 +1,7 @@
 "use client";
 
 import { defineCollection, newId } from "./collections";
-import { getActor } from "./session";
+import { currentRole, getActor } from "./session";
 import { istDate } from "./working-days";
 
 /*
@@ -29,6 +29,29 @@ export interface GpsCheckin {
 }
 
 export const geoCheckins = defineCollection<GpsCheckin>("gps-attendance", () => [], 1, { supabaseTable: "gps_attendance" });
+
+/**
+ * Checked against the literal signed-in role, not the permission system - `attendance.view` can
+ * be granted to another role via an employee's per-employee panel override (Employees & Access ->
+ * Panel access), but deleting GPS attendance history must never be reachable by anyone other than
+ * the actual Managing Partner, override or not.
+ */
+function assertManagingPartner() {
+  if (currentRole() !== "managing_partner") throw new Error("Not allowed: only the Managing Partner can delete attendance records.");
+}
+
+/** Permanently remove one GPS check-in record. Managing Partner only. */
+export function deleteGpsCheckin(id: string) {
+  assertManagingPartner();
+  return geoCheckins.remove(id);
+}
+
+/** Permanently remove several GPS check-in records in one write, e.g. a bulk selection. */
+export function deleteGpsCheckins(ids: string[]) {
+  if (!ids.length) return Promise.resolve();
+  assertManagingPartner();
+  return geoCheckins.removeMany(ids);
+}
 
 /** Shift is considered started by 9:30am IST; a check-in after that is flagged "late". */
 const LATE_AFTER_MINUTES = 9 * 60 + 30;

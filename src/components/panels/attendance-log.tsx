@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ExternalLink, MapPin, TriangleAlert } from "lucide-react";
-import { geoCheckins, reverseGeocode, type GpsCheckin } from "@/lib/attendance-gps";
+import { CheckCircle2, ExternalLink, MapPin, Trash2, TriangleAlert } from "lucide-react";
+import { deleteGpsCheckin, deleteGpsCheckins, geoCheckins, reverseGeocode, type GpsCheckin } from "@/lib/attendance-gps";
+import { useRole } from "@/lib/role-context";
 import { istDate } from "@/lib/working-days";
 import { formatIsoDate } from "@/lib/format";
 import { DataTable, type Column } from "../data-table";
+import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "../selection";
 import { Button, Panel, Pill, cn, inputClass } from "../ui";
+import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 
 const formatTime = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 const DAY = 86_400_000;
@@ -22,6 +25,7 @@ type QuickFilter = "today" | "yesterday" | "custom";
  * today with no controls.
  */
 export function AttendanceLogPanel({ showFilters = false }: { showFilters?: boolean }) {
+  const { role } = useRole();
   const { items, ready } = geoCheckins.useItems();
   const now = new Date();
   const today = istDate(now);
@@ -31,6 +35,20 @@ export function AttendanceLogPanel({ showFilters = false }: { showFilters?: bool
   const date = !showFilters ? today : quick === "today" ? today : quick === "yesterday" ? yesterday : customDate;
 
   const rows = useMemo(() => items.filter((c) => c.date === date).sort((a, b) => b.checkInTime.localeCompare(a.checkInTime)), [items, date]);
+  // Checked against the literal role, not a permission (which a per-employee panel override could
+  // grant to someone else) - this view, and deleting from it, must stay exclusive to the actual
+  // Managing Partner. Delete is only offered on the dedicated page (showFilters), not the compact
+  // dashboard embed.
+  const canDelete = showFilters && role === "managing_partner";
+  const selection = useSelection(rows, (c) => c.id);
+  const [confirming, setConfirming] = useState<GpsCheckin[] | null>(null);
+
+  async function doDelete(targets: GpsCheckin[]) {
+    const ids = targets.map((c) => c.id);
+    if (ids.length === 1) await deleteGpsCheckin(ids[0]);
+    else await deleteGpsCheckins(ids);
+    selection.clear();
+  }
 
   // Rows saved before the place-name lookup existed (or where it failed at check-in time) show
   // "Unknown location" - resolve those in the background, one at a time, and save the result so
@@ -54,7 +72,26 @@ export function AttendanceLogPanel({ showFilters = false }: { showFilters?: bool
     };
   }, [rows]);
 
+  // This view (and everything in it) is Managing Partner only - checked against the literal role
+  // above `canDelete`, not just the route-level `attendance.view` permission, since a per-employee
+  // panel override could otherwise grant it to someone else.
+  if (role !== "managing_partner") {
+    return (
+      <Panel flush title="Attendance log">
+        <p className="px-4 py-6 text-center text-sm text-muted">This view is available only to the Managing Partner.</p>
+      </Panel>
+    );
+  }
+
   const columns: Column<GpsCheckin>[] = [
+    ...(canDelete
+      ? [
+          {
+            header: <SelectAllCheckbox checked={selection.allVisibleSelected} indeterminate={selection.count > 0} onChange={selection.toggleAll} label="Select all check-ins" />,
+            cell: (c: GpsCheckin) => <RowCheckbox checked={selection.isSelected(c.id)} onChange={() => selection.toggle(c.id)} label={`Select ${c.userName}'s check-in`} />,
+          } satisfies Column<GpsCheckin>,
+        ]
+      : []),
     ...(showFilters ? [{ header: "Date", cell: (c: GpsCheckin) => <span className="whitespace-nowrap text-muted">{formatIsoDate(c.date)}</span> } satisfies Column<GpsCheckin>] : []),
     { header: "Staff", cell: (c) => <span className="font-medium whitespace-nowrap">{c.userName}</span> },
     {
@@ -91,6 +128,19 @@ export function AttendanceLogPanel({ showFilters = false }: { showFilters?: bool
         </div>
       ),
     },
+    ...(canDelete
+      ? [
+          {
+            header: "",
+            align: "right",
+            cell: (c: GpsCheckin) => (
+              <Button size="sm" variant="ghost" onClick={() => setConfirming([c])} aria-label={`Delete ${c.userName}'s check-in on ${formatIsoDate(c.date)}`}>
+                <Trash2 className="size-3.5" />
+              </Button>
+            ),
+          } satisfies Column<GpsCheckin>,
+        ]
+      : []),
   ];
 
   return (
@@ -122,7 +172,22 @@ export function AttendanceLogPanel({ showFilters = false }: { showFilters?: bool
         ) : undefined
       }
     >
+      {canDelete && selection.count > 0 && (
+        <div className="px-4 pt-3">
+          <SelectionToolbar count={selection.count} noun="check-in" nounPlural="check-ins" onClear={selection.clear} onDelete={() => setConfirming(rows.filter((c) => selection.isSelected(c.id)))} />
+        </div>
+      )}
       <DataTable rows={ready ? rows : []} rowKey={(c) => c.id} empty={ready ? "No check-ins on this date." : "Loading…"} columns={columns} />
+      {confirming && (
+        <ConfirmDeleteDialog
+          count={confirming.length}
+          items={confirming.map((c) => `${c.userName} · ${formatIsoDate(c.date)} · ${formatTime(c.checkInTime)}`)}
+          noun="check-in"
+          nounPlural="check-ins"
+          onConfirm={() => doDelete(confirming)}
+          onClose={() => setConfirming(null)}
+        />
+      )}
     </Panel>
   );
 }
