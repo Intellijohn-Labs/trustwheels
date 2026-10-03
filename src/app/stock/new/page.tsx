@@ -78,9 +78,16 @@ const EMPTY: FormState = {
 };
 
 const THIS_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 26 }, (_, i) => String(THIS_YEAR - i));
+const EARLIEST_YEAR = 1960;
+const YEARS = Array.from({ length: THIS_YEAR - EARLIEST_YEAR + 1 }, (_, i) => String(THIS_YEAR - i));
 const digits = (s: string, max = 12) => s.replace(/\D/g, "").slice(0, max);
 const alnum = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/** Case-insensitive model lookup so free-text "honda"/"Honda" both surface the same suggestions. */
+function modelsFor(make: string): string[] {
+  const key = Object.keys(MAKES).find((k) => k.toLowerCase() === make.trim().toLowerCase());
+  return key ? MAKES[key] : [];
+}
 
 function validate(f: FormState): Errors {
   const e: Errors = {};
@@ -281,33 +288,38 @@ export default function NewVehiclePage() {
         )}
 
         <Field label="Make" htmlFor="make" required error={show("make")}>
-          <select
+          <input
             id="make"
+            list="make-options"
             value={form.make}
-            onChange={(e) => setForm((f) => ({ ...f, make: e.target.value, model: "" }))}
+            onChange={(e) => set("make", e.target.value)}
             onBlur={touch("make")}
+            placeholder="e.g. Honda, Hero, TVS"
+            autoComplete="off"
             className={inputClass(!!show("make"))}
-          >
-            <option value="">Select make</option>
+          />
+          <datalist id="make-options">
             {Object.keys(MAKES).map((m) => (
-              <option key={m}>{m}</option>
+              <option key={m} value={m} />
             ))}
-          </select>
+          </datalist>
         </Field>
         <Field label="Model" htmlFor="model" required error={show("model")}>
-          <select
+          <input
             id="model"
+            list="model-options"
             value={form.model}
-            disabled={!form.make}
             onChange={(e) => set("model", e.target.value)}
             onBlur={touch("model")}
+            placeholder="e.g. Activa 6G, Splendor Plus"
+            autoComplete="off"
             className={inputClass(!!show("model"))}
-          >
-            <option value="">{form.make ? "Select model" : "Choose make first"}</option>
-            {(MAKES[form.make] ?? []).map((m) => (
-              <option key={m}>{m}</option>
+          />
+          <datalist id="model-options">
+            {modelsFor(form.make).map((m) => (
+              <option key={m} value={m} />
             ))}
-          </select>
+          </datalist>
         </Field>
         <Field label="Variant" htmlFor="variant">
           <input id="variant" value={form.variant} onChange={(e) => set("variant", e.target.value)} placeholder="e.g. DLX, Disc" className={inputClass()} />
