@@ -245,8 +245,16 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
         <Field label="WhatsApp" htmlFor="emp-wa" error={show("whatsapp")} hint="Leave blank if same as mobile">
           <PhoneInput id="emp-wa" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} invalid={!!show("whatsapp")} />
         </Field>
-        <Field label="Email" htmlFor="emp-email" error={show("email")}>
-          <input id="emp-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} autoComplete="off" className={inputClass(!!show("email"))} />
+        <Field label="Email" htmlFor="emp-email" required error={show("email")}>
+          <input
+            id="emp-email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+            autoComplete="off"
+            className={inputClass(!!show("email"))}
+          />
         </Field>
         <Field label="Joining date" htmlFor="emp-joined" required error={show("joinedAt")} hint={form.joinedAt ? formatIsoDate(form.joinedAt) : undefined}>
           <input id="emp-joined" type="date" value={form.joinedAt} max={today} onChange={(e) => set("joinedAt", e.target.value)} className={inputClass(!!show("joinedAt"))} />

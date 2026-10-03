@@ -269,7 +269,8 @@ export function employeeErrors(e: Partial<EmployeeInput>) {
   if (!e.branchId) errors.branchId = "Required";
   if (!MOBILE.test(e.phone ?? "")) errors.phone = e.phone ? "Enter a 10-digit mobile number" : "Required";
   if (e.whatsapp && !MOBILE.test(e.whatsapp)) errors.whatsapp = "Enter a 10-digit mobile number";
-  if (e.email && !EMAIL.test(e.email)) errors.email = "Enter a valid email";
+  if (!e.email?.trim()) errors.email = "Required";
+  else if (!EMAIL.test(e.email)) errors.email = "Enter a valid email";
   if (!YMD.test(e.joinedAt ?? "")) errors.joinedAt = "Required";
   return errors;
 }
