@@ -15,6 +15,7 @@ const blank = (today: string): EmployeeInput => ({
   name: "",
   role: "",
   branchId: "",
+  branchIds: [],
   phone: "",
   whatsapp: "",
   email: "",
@@ -64,6 +65,36 @@ export function ModuleAccessChips({ role, allowedPanels }: { role?: Role; allowe
 }
 
 /**
+ * Multi-branch picker for the Add/Edit form: toggle pills, same interaction as the module access
+ * toggles below. The first selected branch becomes `branchId`, kept in sync by the caller as the
+ * employee's primary/home branch - the one attendance, rosters and payroll already key off.
+ */
+function BranchMultiSelect({ selected, onChange, invalid }: { selected: string[]; onChange: (next: string[]) => void; invalid?: boolean }) {
+  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((b) => b !== id) : [...selected, id]);
+  return (
+    <div className={cn("flex flex-wrap gap-1.5 rounded-xl p-0.5", invalid && "ring-1 ring-danger")}>
+      {BRANCHES.map((b) => {
+        const on = selected.includes(b.id);
+        return (
+          <button
+            key={b.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(b.id)}
+            className={cn(
+              "btn-tap inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition",
+              on ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
+            )}
+          >
+            {on && <Check className="size-3" />} {b.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Interactive per-employee panel toggles for the Add/Edit form. Starts from the selected system
  * role's defaults and lets the admin flip any panel on or off from there - the result is saved as
  * this employee's explicit `allowedPanels` override, taking effect the moment they sign in.
@@ -99,14 +130,16 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
   const today = useToday();
   const { employees } = useEmployees();
   const [form, setForm] = useState<EmployeeInput>(() =>
-    employee ? { ...employee, allowedPanels: employee.allowedPanels ?? roleDefaultPanels(employee.rbacRole) } : blank(today),
+    employee
+      ? { ...employee, branchIds: employee.branchIds ?? (employee.branchId ? [employee.branchId] : []), allowedPanels: employee.allowedPanels ?? roleDefaultPanels(employee.rbacRole) }
+      : blank(today),
   );
   const [submitted, setSubmitted] = useState(false);
   const { submit, failure, busy } = useInlineAction();
   const errors = employeeErrors(form);
   const show = (k: keyof EmployeeInput) => (submitted ? errors[k] : undefined);
   const set = <K extends keyof EmployeeInput>(k: K, v: EmployeeInput[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const managers = employees.filter((e) => e.status !== "exited" && e.id !== employee?.id).sort((a, b) => a.name.localeCompare(b.name));
+  const setBranches = (branchIds: string[]) => setForm((f) => ({ ...f, branchIds, branchId: branchIds[0] ?? "" }));
   const roleHolder = form.rbacRole ? employees.find((e) => e.rbacRole === form.rbacRole && e.status !== "exited" && e.id !== employee?.id) : undefined;
   // Managing Partner is the protected head role: it can't be handed to anyone else, so the option
   // is hidden from every other employee's dropdown, and once an employee holds it the whole
@@ -157,25 +190,14 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
             ))}
           </datalist>
         </Field>
-        <Field label="Branch" htmlFor="emp-branch" required error={show("branchId")}>
-          <select id="emp-branch" value={form.branchId} onChange={(e) => set("branchId", e.target.value)} className={inputClass(!!show("branchId"))}>
-            <option value="">Select branch</option>
-            {BRANCHES.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Reports to" htmlFor="emp-manager">
-          <select id="emp-manager" value={form.reportingTo} onChange={(e) => set("reportingTo", e.target.value)} className={inputClass()}>
-            <option value="">No one (top of the org)</option>
-            {managers.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} · {m.role}
-              </option>
-            ))}
-          </select>
+        <Field
+          label="Branches"
+          required
+          error={show("branchId")}
+          hint={(form.branchIds?.length ?? 0) > 1 ? `Primary branch: ${branchName(form.branchId)}` : undefined}
+          wide
+        >
+          <BranchMultiSelect selected={form.branchIds ?? []} onChange={setBranches} invalid={!!show("branchId")} />
         </Field>
         <Field
           label="System login role"

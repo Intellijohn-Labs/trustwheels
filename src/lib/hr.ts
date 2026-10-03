@@ -31,7 +31,13 @@ export interface Employee {
   rbacRole?: Role;
   /** Per-employee override of which panels rbacRole's permissions actually grant. Unset = use the role's own defaults untouched. */
   allowedPanels?: PanelModule[];
+  /** Home branch - attendance, rosters and payroll all key off this single id; keep setting it. */
   branchId: string;
+  /** Every branch this employee is assigned to, for the Add/Edit form's multi-select. `branchId`
+   * (above) is always kept equal to the first entry, so existing single-branch logic elsewhere
+   * never has to change. Optional/absent on records saved before this field existed - treat as
+   * just `[branchId]`. */
+  branchIds?: string[];
   phone: string;
   whatsapp: string;
   email: string;
