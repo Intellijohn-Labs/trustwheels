@@ -94,6 +94,7 @@ function validate(f: FormState): Errors {
     const v = f[k];
     if (v === undefined || v === "") e[k] = msg;
   };
+  need("branchId", "Choose a branch");
   if (!f.registrationNo) e.registrationNo = "Required";
   else if (!isValidReg(f.registrationNo)) e.registrationNo = "Not a valid registration number";
   need("make");
@@ -125,8 +126,9 @@ export default function NewVehiclePage() {
   const toast = useToast();
   const myBranches = BRANCHES.filter((b) => inScope(b.id));
   const [form, setForm] = useState<FormState>(EMPTY);
-  // Default to the user's own branch; never a branch outside the role's scope.
-  const branchId = myBranches.some((b) => b.id === form.branchId) ? form.branchId : inScope(user.base) ? user.base : (myBranches[0]?.id ?? "");
+  // No default branch - the user must pick one explicitly; this only ever falls back to "" if
+  // the stored value isn't (or isn't yet) one of the role's in-scope branches.
+  const branchId = myBranches.some((b) => b.id === form.branchId) ? form.branchId : "";
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -227,7 +229,8 @@ export default function NewVehiclePage() {
 
       <Section title="Intake">
         <Field label="Branch" htmlFor="branch" required error={show("branchId")} wide>
-          <select id="branch" value={branchId} onChange={(e) => set("branchId", e.target.value)} className={inputClass(!!show("branchId"))}>
+          <select id="branch" value={branchId} onChange={(e) => set("branchId", e.target.value)} onBlur={touch("branchId")} className={inputClass(!!show("branchId"))}>
+            <option value="">Select branch</option>
             {myBranches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
