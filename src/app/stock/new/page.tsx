@@ -11,7 +11,7 @@ import { useRole } from "@/lib/role-context";
 import { useToast } from "@/components/toast";
 import { couldBeReg, displayReg, formatIsoDate, groupIndian, isValidReg, normaliseReg } from "@/lib/format";
 import { newId } from "@/lib/collections";
-import type { AccidentHistory, Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot, Source } from "@/lib/types";
+import type { AccidentHistory, Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
@@ -21,7 +21,6 @@ import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-up
 const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829");
 
 interface FormState {
-  source?: Source;
   branchId: string;
   registrationNo: string;
   make: string;
@@ -95,7 +94,6 @@ function validate(f: FormState): Errors {
     const v = f[k];
     if (v === undefined || v === "") e[k] = msg;
   };
-  need("source", "Choose how this vehicle came in");
   if (!f.registrationNo) e.registrationNo = "Required";
   else if (!isValidReg(f.registrationNo)) e.registrationNo = "Not a valid registration number";
   need("make");
@@ -167,7 +165,9 @@ export default function NewVehiclePage() {
     let vehicle;
     try {
       vehicle = await createVehicle({
-        source: form.source!,
+        // The Source field was removed from this form, but createVehicle's `source` is still
+        // required - default every intake through here to "direct" so saving keeps working.
+        source: "direct",
         branchId,
         enteredBy: user.name,
         registrationNo: form.registrationNo,
@@ -226,17 +226,6 @@ export default function NewVehiclePage() {
       </div>
 
       <Section title="Intake">
-        <Field label="Source" required error={show("source")} wide>
-          <Segmented
-            name="Source"
-            value={form.source}
-            onChange={(v) => set("source", v)}
-            options={[
-              { value: "exchange", label: "Branch exchange" },
-              { value: "direct", label: "Direct purchase" },
-            ]}
-          />
-        </Field>
         <Field label="Branch" htmlFor="branch" required error={show("branchId")} wide>
           <select id="branch" value={branchId} onChange={(e) => set("branchId", e.target.value)} className={inputClass(!!show("branchId"))}>
             {myBranches.map((b) => (
