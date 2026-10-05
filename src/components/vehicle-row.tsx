@@ -73,7 +73,7 @@ export function VehicleRow({
                 {v.make} {v.model}
               </p>
               <p className="shrink-0 font-semibold tabular-nums">
-                {formatPaise(v.sale?.salePricePaise ?? v.agreedValuePaise)}
+                {formatPaise(v.sale?.salePricePaise ?? v.proposedPricePaise ?? v.agreedValuePaise)}
               </p>
             </div>
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
