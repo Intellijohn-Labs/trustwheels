@@ -3,27 +3,39 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2, TriangleAlert, Wrench } from "lucide-react";
 import { Dialog, useInlineAction } from "./dialog";
+import { RupeeInput } from "./job-card-dialog";
 import { Button, Field, textareaClass } from "../ui";
-import { displayReg } from "@/lib/format";
-import { sendToReconditioning, setSaleReadiness } from "@/lib/stock-store";
+import { displayReg, formatPaise } from "@/lib/format";
+import { sendToReconditioning, setAskingPrice, setSaleReadiness } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
 import type { Vehicle } from "@/lib/types";
 
-/** Confirm before flagging a vehicle "Ready for Sale" - it becomes selectable for booking/sale immediately, so this asks first rather than firing on a single click. */
+/**
+ * Confirm the selling price before flagging a vehicle "Ready for Sale" - it becomes selectable for
+ * booking/sale immediately, so this asks first rather than firing on a single click, and doubles as
+ * one last chance to correct the asking price (or set one for the first time, for a vehicle that
+ * skipped reconditioning's job card entirely).
+ */
 export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const alreadyReady = vehicle.saleReadiness?.status === "ready_for_sale";
+  const [price, setPrice] = useState(vehicle.proposedPricePaise ? String(vehicle.proposedPricePaise / 100) : "");
   const { submit, failure, busy } = useInlineAction();
+  const priceError = !price || Number(price) <= 0 ? "Enter a valid selling price" : undefined;
 
   async function confirm() {
+    const paise = Number(price) * 100;
     // Only animate the row away on a fresh "ready" decision - re-confirming an already-ready
     // vehicle doesn't move it out of the current view, so there's nothing to collapse.
-    const action = () => setSaleReadiness(vehicle.id, "ready_for_sale");
+    const action = async () => {
+      if (paise !== vehicle.proposedPricePaise) await setAskingPrice(vehicle.id, paise);
+      await setSaleReadiness(vehicle.id, "ready_for_sale");
+    };
     if (await submit(() => (alreadyReady ? action() : collapseThenRun([vehicle.id], action)), "Marked as Ready for Sale")) onClose();
   }
 
   return (
     <Dialog
-      title="Mark as Ready for Sale?"
+      title="Confirm selling price"
       subtitle={`${vehicle.make} ${vehicle.model} · ${displayReg(vehicle.registrationNo)}`}
       onClose={onClose}
       onSubmit={confirm}
@@ -32,15 +44,24 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
           <Button size="lg" className="flex-1" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" size="lg" variant="success" className="flex-[2]" disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Mark Ready
+          <Button type="submit" size="lg" variant="success" className="flex-[2]" disabled={busy || !!priceError}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Confirm & Mark Ready for Sale
           </Button>
         </>
       }
     >
-      <p className="text-sm text-muted">
-        Are you sure you want to mark <span className="font-mono font-medium text-ink">{displayReg(vehicle.registrationNo)}</span> as ready for sale? This
-        will make it available for booking and selling.
+      <Field
+        label="Selling price"
+        htmlFor="ready-price"
+        required
+        error={priceError}
+        hint={vehicle.proposedPricePaise ? `Previously set to ${formatPaise(vehicle.proposedPricePaise)}` : "No asking price was set during reconditioning - enter one now"}
+      >
+        <RupeeInput id="ready-price" value={price} onChange={setPrice} placeholder="1,25,000" />
+      </Field>
+      <p className="mt-4 text-sm text-muted">
+        Is this selling price confirmed for listing <span className="font-mono font-medium text-ink">{displayReg(vehicle.registrationNo)}</span>? Once
+        confirmed, it becomes available for booking and selling immediately.
       </p>
       {failure && (
         <p role="alert" className="mt-3 text-sm font-medium text-danger">

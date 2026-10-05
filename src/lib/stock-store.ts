@@ -297,6 +297,24 @@ export function unverifyVehicle(id: string) {
 }
 
 /**
+ * Updates the asking price shown when confirming a vehicle "Ready for Sale" - the same
+ * `proposedPricePaise` field the job card sets during reconditioning (setProposedPrice), but
+ * reachable here too since that decision is often made well after reconditioning is signed off,
+ * or for a vehicle that never went through reconditioning's job card at all. Gated the same way as
+ * setSaleReadiness (`stock.verify`), not `recon.manage` - this is a sale-readiness concern, not a
+ * reconditioning one.
+ */
+export function setAskingPrice(id: string, paise: number) {
+  assertCan("stock.verify");
+  if (!Number.isFinite(paise) || paise <= 0) fail("Enter a valid selling price");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    if (v.sale) fail("Blocked: this vehicle is already sold or booked - its price can't be changed here");
+    return { ...v, proposedPricePaise: paise };
+  });
+}
+
+/**
  * Manual sales-readiness tag: a quick override independent of `stage`, so a branch can flag
  * a bike as ready to sell (or reject it) without going through the recon/quality-gate
  * pipeline that separately governs when a vehicle can actually reach "On display".
