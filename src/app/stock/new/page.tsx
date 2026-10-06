@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
-import { createVehicle, updateDocuments, useVehicles } from "@/lib/stock-store";
+import { createVehicle, useVehicles } from "@/lib/stock-store";
 import { isSold } from "@/lib/finance";
 import { BRANCHES, COLOURS, DOCUMENT_TYPES, MAKES, PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
@@ -166,6 +166,24 @@ export default function NewVehiclePage() {
     setSaving(true);
     let vehicle;
     try {
+      // Built up front and passed straight into createVehicle, in the same write as everything
+      // else - these files are already uploaded to the bucket (DocumentUploadSlot uploads on
+      // selection), so there's no reason to save the vehicle first and attach them in a second,
+      // separate update() right after. Two writes to a brand-new row can arrive at Supabase out of
+      // order; if the plain create (no documents) landed after the one attaching them, it would
+      // silently wipe the documents back out - exactly the "documents show as missing on other
+      // devices" bug this was causing, since only the uploader's own tab ever saw the correct,
+      // merged local state.
+      const documents: Document[] = (Object.entries(form.documents) as [DocumentType, DocumentDraft][]).map(([type, d]) => ({
+        id: newId("doc"),
+        type,
+        status: "received",
+        fileUrl: d.fileUrl,
+        fileName: d.fileName,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: user.name,
+        expiresAt: d.expiresAt,
+      }));
       vehicle = await createVehicle({
         // The Source field was removed from this form, but createVehicle's `source` is still
         // required - default every intake through here to "direct" so saving keeps working.
@@ -195,20 +213,8 @@ export default function NewVehiclePage() {
         agreedValuePaise: Number(form.agreedValue) * 100,
         seller: { name: form.sellerName.trim(), phone: form.sellerPhone },
         photos: form.photos,
+        documents,
       });
-      const attached = Object.entries(form.documents) as [DocumentType, DocumentDraft][];
-      if (attached.length) {
-        const documents: Document[] = attached.map(([type, d]) => ({
-          id: newId("doc"),
-          type,
-          status: "received",
-          fileUrl: d.fileUrl,
-          fileName: d.fileName,
-          uploadedAt: new Date().toISOString(),
-          expiresAt: d.expiresAt,
-        }));
-        await updateDocuments(vehicle.id, documents);
-      }
     } catch (err) {
       toast("error", err instanceof Error ? err.message : "Could not save");
       setSaving(false);

@@ -178,4 +178,13 @@ export interface Sale {
   receivedAmountPaise?: number;
 }
 
-export type NewVehicle = Omit<Vehicle, "id" | "provisionalId" | "createdAt" | "stage" | "stageHistory" | "stockId" | "verified" | "sale" | "documents">;
+/**
+ * `documents` is optional here (and defaults to `[]` in createVehicle) rather than omitted
+ * entirely - intake attaches documents already uploaded to the bucket (so already have a real,
+ * final `fileUrl`) in the same create call, instead of a second update() right after. Two writes
+ * to a brand-new row race on arrival order; if the plain create (with no documents) happened to
+ * land at Supabase after the one attaching them, it would silently wipe them out again.
+ */
+export type NewVehicle = Omit<Vehicle, "id" | "provisionalId" | "createdAt" | "stage" | "stageHistory" | "stockId" | "verified" | "sale" | "documents"> & {
+  documents?: Document[];
+};

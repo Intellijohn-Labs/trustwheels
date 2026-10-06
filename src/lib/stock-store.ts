@@ -223,7 +223,9 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
     createdAt: now.toISOString(),
     stage: 1,
     stageHistory: [{ stage: 1, at: now.toISOString() }],
-    documents: [],
+    // Baked into this same create/upsert rather than a follow-up updateDocuments() call - see
+    // NewVehicle's `documents` comment for why a second write here is unsafe.
+    documents: input.documents ?? [],
   };
   await tx("vehicles", "readwrite", (s) => s.put(vehicle));
   cache = [vehicle, ...cache!];
