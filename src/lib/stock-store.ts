@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import type { Customer, Document, FinanceStatus, JobItem, NewVehicle, PaymentMode, SaleReadinessStatus, Vehicle } from "./types";
+import type { Customer, Document, FinanceStatus, JobItem, NewVehicle, PaymentMode, PhotoSlot, SaleReadinessStatus, Vehicle } from "./types";
 import type { TransferStep } from "./masters";
 import { roleName } from "./user-names";
 import { tx } from "./db";
@@ -313,6 +313,19 @@ export function setAskingPrice(id: string, paise: number) {
     assertScope(v.branchId);
     if (v.sale) fail("Blocked: this vehicle is already sold or booked - its price can't be changed here");
     return { ...v, proposedPricePaise: paise };
+  });
+}
+
+/**
+ * Replaces the intake gallery photos (front/rear/left/right/odometer/chassis) - same `stock.verify`
+ * gate as the rest of the Final Verification flow this backs. Distinct from the job card's own
+ * recon progress photos (addReconPhoto/removeReconPhoto), which are a separate array.
+ */
+export function updateVehiclePhotos(id: string, photos: Partial<Record<PhotoSlot, string>>) {
+  assertCan("stock.verify");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    return { ...v, photos };
   });
 }
 

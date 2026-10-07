@@ -4,30 +4,58 @@ import { useState } from "react";
 import { CheckCircle2, Loader2, TriangleAlert, Wrench } from "lucide-react";
 import { Dialog, useInlineAction } from "./dialog";
 import { RupeeInput } from "./job-card-dialog";
-import { Button, Field, textareaClass } from "../ui";
+import { PhotoSlotInput } from "../photo-slot";
+import { DocumentVault } from "../vehicle/document-vault";
+import { Button, Field, Pill, textareaClass } from "../ui";
 import { displayReg, formatPaise } from "@/lib/format";
-import { sendToReconditioning, setAskingPrice, setSaleReadiness } from "@/lib/stock-store";
+import { allRequiredDocsVerified, missingDocuments } from "@/lib/documents";
+import { PHOTO_SLOTS } from "@/lib/masters";
+import { sendToReconditioning, setAskingPrice, setSaleReadiness, updateVehiclePhotos } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
-import type { Vehicle } from "@/lib/types";
+import type { PhotoSlot, Vehicle } from "@/lib/types";
+
+/** One stat in the Final Verification summary row. */
+function SummaryStat({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" }) {
+  return (
+    <div className="rounded-xl border border-line bg-sunken/50 p-3">
+      <p className="text-xs text-muted">{label}</p>
+      <p className={tone === "ok" ? "mt-0.5 font-semibold text-ok" : tone === "warn" ? "mt-0.5 font-semibold text-warn" : "mt-0.5 font-semibold"}>{value}</p>
+    </div>
+  );
+}
 
 /**
- * Confirm the selling price before flagging a vehicle "Ready for Sale" - it becomes selectable for
- * booking/sale immediately, so this asks first rather than firing on a single click, and doubles as
- * one last chance to correct the asking price (or set one for the first time, for a vehicle that
- * skipped reconditioning's job card entirely).
+ * Final Verification: the last checkpoint before a vehicle is flagged "Ready for Sale" and becomes
+ * selectable for booking/sale immediately, so this asks first rather than firing on a single click.
+ * Opens on a clean summary (asking price, photo count, document status) with three independent
+ * toggles - price, photos, documents - each hiding its own edit controls until switched on, so a
+ * reviewer who just wants to confirm everything looks right isn't shown three edit forms by default.
+ * Price and photo edits are staged locally and only saved on Confirm; document edits go through the
+ * embedded vault, which (like everywhere else it's used) saves each change immediately.
  */
 export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const alreadyReady = vehicle.saleReadiness?.status === "ready_for_sale";
-  const [price, setPrice] = useState(vehicle.proposedPricePaise ? String(vehicle.proposedPricePaise / 100) : "");
   const { submit, failure, busy } = useInlineAction();
-  const priceError = !price || Number(price) <= 0 ? "Enter a valid selling price" : undefined;
+
+  const [editPrice, setEditPrice] = useState(false);
+  const [price, setPrice] = useState(vehicle.proposedPricePaise ? String(vehicle.proposedPricePaise / 100) : "");
+  const priceError = editPrice && (!price || Number(price) <= 0) ? "Enter a valid selling price" : undefined;
+
+  const [editPhotos, setEditPhotos] = useState(false);
+  const [photos, setPhotos] = useState<Partial<Record<PhotoSlot, string>>>(vehicle.photos);
+  const photoCount = PHOTO_SLOTS.filter((p) => vehicle.photos[p.slot]).length;
+
+  const [editDocuments, setEditDocuments] = useState(false);
+  const missing = missingDocuments(vehicle);
+  const docsComplete = allRequiredDocsVerified(vehicle);
 
   async function confirm() {
     const paise = Number(price) * 100;
     // Only animate the row away on a fresh "ready" decision - re-confirming an already-ready
     // vehicle doesn't move it out of the current view, so there's nothing to collapse.
     const action = async () => {
-      if (paise !== vehicle.proposedPricePaise) await setAskingPrice(vehicle.id, paise);
+      if (editPrice && paise !== vehicle.proposedPricePaise) await setAskingPrice(vehicle.id, paise);
+      if (editPhotos && JSON.stringify(photos) !== JSON.stringify(vehicle.photos)) await updateVehiclePhotos(vehicle.id, photos);
       await setSaleReadiness(vehicle.id, "ready_for_sale");
     };
     if (await submit(() => (alreadyReady ? action() : collapseThenRun([vehicle.id], action)), "Marked as Ready for Sale")) onClose();
@@ -35,7 +63,8 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
 
   return (
     <Dialog
-      title="Confirm selling price"
+      wide
+      title="Final Verification"
       subtitle={`${vehicle.make} ${vehicle.model} · ${displayReg(vehicle.registrationNo)}`}
       onClose={onClose}
       onSubmit={confirm}
@@ -50,19 +79,67 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
         </>
       }
     >
-      <Field
-        label="Selling price"
-        htmlFor="ready-price"
-        required
-        error={priceError}
-        hint={vehicle.proposedPricePaise ? `Previously set to ${formatPaise(vehicle.proposedPricePaise)}` : "No asking price was set during reconditioning - enter one now"}
-      >
-        <RupeeInput id="ready-price" value={price} onChange={setPrice} placeholder="1,25,000" />
-      </Field>
-      <p className="mt-4 text-sm text-muted">
-        Is this selling price confirmed for listing <span className="font-mono font-medium text-ink">{displayReg(vehicle.registrationNo)}</span>? Once
-        confirmed, it becomes available for booking and selling immediately.
-      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryStat label="Current asking price" value={vehicle.proposedPricePaise ? formatPaise(vehicle.proposedPricePaise) : "Not set"} />
+        <SummaryStat label="Photos" value={`${photoCount} of ${PHOTO_SLOTS.length}`} tone={photoCount === PHOTO_SLOTS.length ? "ok" : "warn"} />
+        <SummaryStat
+          label="Documents"
+          value={docsComplete ? "All verified" : `${missing.length} outstanding`}
+          tone={docsComplete ? "ok" : "warn"}
+        />
+      </div>
+
+      <div className="mt-4 space-y-4 divide-y divide-line">
+        <div>
+          <label className="flex cursor-pointer items-center gap-2 py-3 text-sm font-medium">
+            <input type="checkbox" checked={editPrice} onChange={(e) => setEditPrice(e.target.checked)} className="size-4 cursor-pointer accent-[var(--brand)]" />
+            Change final selling price?
+          </label>
+          {editPrice && (
+            <div className="pb-3">
+              <Field
+                label="Selling price"
+                htmlFor="fv-price"
+                required
+                error={priceError}
+                hint={vehicle.proposedPricePaise ? `Previously set to ${formatPaise(vehicle.proposedPricePaise)}` : "No asking price was set during reconditioning - enter one now"}
+              >
+                <RupeeInput id="fv-price" value={price} onChange={setPrice} placeholder="1,25,000" disabled={busy} />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="flex cursor-pointer items-center gap-2 py-3 text-sm font-medium">
+            <input type="checkbox" checked={editPhotos} onChange={(e) => setEditPhotos(e.target.checked)} className="size-4 cursor-pointer accent-[var(--brand)]" />
+            Update or add photos?
+          </label>
+          {editPhotos && (
+            <div className="grid grid-cols-2 gap-3 pb-3 sm:grid-cols-3">
+              {PHOTO_SLOTS.map((p) => (
+                <PhotoSlotInput key={p.slot} label={p.label} hint={p.hint} value={photos[p.slot]} onChange={(url) => setPhotos((ph) => ({ ...ph, [p.slot]: url }))} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="flex cursor-pointer items-center gap-2 py-3 text-sm font-medium">
+            <input type="checkbox" checked={editDocuments} onChange={(e) => setEditDocuments(e.target.checked)} className="size-4 cursor-pointer accent-[var(--brand)]" />
+            Update or add documents?
+          </label>
+          {editDocuments && (
+            <div className="pb-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs text-muted">
+                <Pill tone="neutral">Saves immediately</Pill> Document changes below apply right away, separately from Confirm.
+              </p>
+              <DocumentVault vehicle={vehicle} />
+            </div>
+          )}
+        </div>
+      </div>
+
       {failure && (
         <p role="alert" className="mt-3 text-sm font-medium text-danger">
           {failure}

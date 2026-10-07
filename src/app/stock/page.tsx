@@ -93,12 +93,12 @@ type GroupId = (typeof STAGE_GROUPS)[number]["id"];
 
 /**
  * Quick-action pair for the manual sales-readiness tag; each row owns its own dialog state.
- * "Ready for Sale" always stays visible (it's the recovery action once a vehicle is rejected), but
- * "Not Ready for Sale" hides once a vehicle is already rejected - re-rejecting an already-rejected
- * vehicle is a no-op, so the row's next-step actions (Ready for Sale, Send to Reconditioning,
- * Delete) stay uncluttered instead of offering a button with nothing new to do. Both open a
- * confirm dialog rather than firing immediately, since either one changes whether the vehicle can
- * be booked or sold.
+ * "Final Verification" (sets saleReadiness to "ready_for_sale") always stays visible - it's the
+ * recovery action once a vehicle is rejected - but "Not Ready for Sale" hides once a vehicle is
+ * already rejected - re-rejecting an already-rejected vehicle is a no-op, so the row's next-step
+ * actions (Final Verification, Send to Reconditioning, Delete) stay uncluttered instead of offering
+ * a button with nothing new to do. Both open a confirm dialog rather than firing immediately, since
+ * either one changes whether the vehicle can be booked or sold.
  */
 function SaleReadinessActions({ vehicle: v }: { vehicle: Vehicle }) {
   const [confirming, setConfirming] = useState(false);
@@ -115,7 +115,7 @@ function SaleReadinessActions({ vehicle: v }: { vehicle: Vehicle }) {
         title={isReady ? "Already marked ready for sale" : undefined}
         className={isReady ? "ring-2 ring-ok ring-offset-1 ring-offset-surface" : undefined}
       >
-        <CheckCircle2 className="size-3.5" /> {isReady ? "Ready for Sale ✓" : "Ready for Sale"}
+        <CheckCircle2 className="size-3.5" /> {isReady ? "Final Verification ✓" : "Final Verification"}
       </Button>
       {!isRejected && (
         <Button size="sm" variant="warn" onClick={() => setRejecting(true)}>
