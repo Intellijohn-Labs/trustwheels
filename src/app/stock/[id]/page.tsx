@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { celebrate } from "@/lib/celebrate";
-import { ArrowLeft, Bike, Check, CheckCircle2, Trash2, X } from "lucide-react";
-import { deleteVehicle, useVehicle } from "@/lib/stock-store";
+import { ArrowLeft, Bike, Check, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
+import { deleteVehicle, setAskingPrice, useVehicle } from "@/lib/stock-store";
 import { LIFECYCLE_STAGES, PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise } from "@/lib/format";
 import type { Vehicle } from "@/lib/types";
@@ -15,6 +15,8 @@ import { VerifyTimer } from "@/components/verify-timer";
 import { SaleBadge } from "@/components/vehicle-row";
 import { SaleActions } from "@/components/sale-actions";
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
+import { RupeeInput } from "@/components/panels/job-card-dialog";
+import { useAction } from "@/components/toast";
 import { useNow } from "@/lib/use-now";
 import { useRole } from "@/lib/role-context";
 import { ShieldX } from "lucide-react";
@@ -277,7 +279,7 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
             ? "Skipped - returned to stock evaluation"
             : "—",
     ],
-    ["Landed cost", `${formatPaise(landedCostPaise(v))}${v.proposedPricePaise ? ` · asking ${formatPaise(v.proposedPricePaise)}` : ""}`],
+    ["Landed cost", <AskingPriceCell key="landed-cost" vehicle={v} />],
     [
       "Ownership transfer",
       v.sale?.status === "sold" ? (
@@ -308,6 +310,53 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * The asking/selling price, editable in place by anyone with `stock.verify` - the same permission
+ * that already gates the "Ready for Sale" decision and its price-confirmation dialog - regardless
+ * of the vehicle's current saleReadiness status, so Admin can correct it before or after the
+ * vehicle has been marked Ready for Sale. Read-only for every other role, and (same as that
+ * dialog) refused once the vehicle is actually sold - setAskingPrice() enforces that too.
+ */
+function AskingPriceCell({ vehicle: v }: { vehicle: Vehicle }) {
+  const { can } = useRole();
+  const canEdit = can("stock.verify") && !v.sale;
+  const [editing, setEditing] = useState(false);
+  const [price, setPrice] = useState(v.proposedPricePaise ? String(v.proposedPricePaise / 100) : "");
+  const { run, busy } = useAction();
+
+  async function save() {
+    if (await run(() => setAskingPrice(v.id, Number(price) * 100), "Asking price updated")) setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+        <RupeeInput id="asking-price-edit" value={price} onChange={setPrice} disabled={busy} />
+        <Button size="sm" variant="primary" disabled={busy || !price || Number(price) <= 0} onClick={save}>
+          Save
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center justify-end gap-2">
+      <span>
+        {formatPaise(landedCostPaise(v))}
+        {v.proposedPricePaise != null && ` · asking ${formatPaise(v.proposedPricePaise)}`}
+      </span>
+      {canEdit && (
+        <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+          <Pencil className="size-3" /> {v.proposedPricePaise != null ? "Edit" : "Set price"}
+        </button>
+      )}
+    </span>
   );
 }
 
