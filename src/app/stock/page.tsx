@@ -45,9 +45,15 @@ const STAGE_GROUPS = [
  * roles only) or the vehicle's own URL - while the dashboard's "Stock on hand" KPI (just `!v.sale`)
  * counted it anyway, so the two screens disagreed about something as basic as "how many vehicles do
  * we have." An unverified row still shows here, just styled "pending" (VehicleRow/verifyState).
+ *
+ * Also excludes a non-Angamaly vehicle that hasn't been received at the hub yet (no `receipt`) -
+ * it's still at its branch or in transit, and belongs on /transit's "Ready to dispatch"/"In
+ * transit" views until Angamaly books it in. A vehicle entered directly at Angamaly (`branchId ===
+ * "ang"`) was never going anywhere, so it's unaffected and shows here as before.
  */
 function isActiveStock(v: Vehicle) {
-  return !v.sale && !inRecon(v) && !v.saleReadiness;
+  const atHub = v.branchId === "ang" || !!v.receipt;
+  return !v.sale && !inRecon(v) && !v.saleReadiness && atHub;
 }
 
 /**
