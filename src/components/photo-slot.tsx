@@ -1,10 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Loader2, RotateCcw } from "lucide-react";
+import { Camera, Images, Loader2 } from "lucide-react";
 import { uploadVehiclePhoto } from "@/lib/vehicle-media";
 import { cn } from "./ui";
 
+/**
+ * Two separate hidden inputs, not one: `capture="environment"` opens the device's back camera
+ * directly, with no gallery fallback on the same input (that's the whole point of `capture` - a
+ * single input can't offer both behaviours), so a standalone capture-less input covers "choose an
+ * existing photo" instead. On a desktop browser neither input has a camera to open, so both just
+ * fall back to the normal file picker.
+ */
 export function PhotoSlotInput({
   label,
   hint,
@@ -18,7 +25,8 @@ export function PhotoSlotInput({
   invalid?: boolean;
   onChange: (dataUrl: string) => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -34,39 +42,81 @@ export function PhotoSlotInput({
       setError("Couldn't read that image");
     } finally {
       setBusy(false);
-      if (input.current) input.current.value = "";
+      if (cameraInput.current) cameraInput.current.value = "";
+      if (galleryInput.current) galleryInput.current.value = "";
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => input.current?.click()}
+    <div
       className={cn(
         "group relative flex aspect-[4/3] flex-col items-center justify-center overflow-hidden rounded-xl border-2 text-center transition",
-        value ? "border-transparent" : "border-dashed bg-sunken hover:border-brand",
+        value ? "border-transparent" : "border-dashed bg-sunken",
         !value && (invalid ? "border-danger" : "border-line-strong"),
       )}
     >
-      {/* No `capture` attribute: that forces the OS camera open directly on mobile, skipping
-          the "Take Photo / Photo Library" picker and blocking gallery selection entirely. */}
-      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
+      <input ref={galleryInput} type="file" accept="image/*" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
+
       {value ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
           <img src={value} alt={label} className="absolute inset-0 size-full object-cover" />
-          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-2.5 pt-6 pb-2 text-xs font-medium text-white">
-            {label}
-            <RotateCcw className="size-3.5 opacity-80" />
+          <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2.5 pt-6 pb-2 text-xs font-medium text-white">
+            <span className="truncate">{label}</span>
+            <span className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => cameraInput.current?.click()}
+                aria-label={`Retake ${label} with camera`}
+                className="btn-tap grid size-6 shrink-0 place-items-center rounded-md bg-black/35 hover:bg-black/55"
+              >
+                <Camera className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInput.current?.click()}
+                aria-label={`Replace ${label} from gallery`}
+                className="btn-tap grid size-6 shrink-0 place-items-center rounded-md bg-black/35 hover:bg-black/55"
+              >
+                <Images className="size-3.5" />
+              </button>
+            </span>
           </span>
+          {busy && (
+            <div className="absolute inset-0 grid place-items-center bg-black/40">
+              <Loader2 className="size-6 animate-spin text-white" />
+            </div>
+          )}
         </>
       ) : (
         <>
-          {busy ? <Loader2 className="size-6 animate-spin text-brand" /> : <Camera className="size-6 text-muted" />}
+          {busy ? (
+            <Loader2 className="size-6 animate-spin text-brand" />
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => cameraInput.current?.click()}
+                aria-label={`Take a photo for ${label}`}
+                className="btn-tap inline-flex items-center gap-1 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-xs font-medium hover:bg-sunken"
+              >
+                <Camera className="size-3.5" /> Camera
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInput.current?.click()}
+                aria-label={`Choose a file for ${label}`}
+                className="btn-tap inline-flex items-center gap-1 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-xs font-medium hover:bg-sunken"
+              >
+                <Images className="size-3.5" /> Gallery
+              </button>
+            </div>
+          )}
           <span className="mt-1.5 text-sm font-medium text-ink">{label}</span>
           <span className="px-2 text-[11px] leading-tight text-muted">{error ?? hint}</span>
         </>
       )}
-    </button>
+    </div>
   );
 }
