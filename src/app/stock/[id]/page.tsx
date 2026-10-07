@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { celebrate } from "@/lib/celebrate";
-import { ArrowLeft, Bike, Check, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bike, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { deleteVehicle, setAskingPrice, useVehicle } from "@/lib/stock-store";
-import { LIFECYCLE_STAGES, PHOTO_SLOTS, branchName } from "@/lib/masters";
+import { PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise } from "@/lib/format";
 import type { Vehicle } from "@/lib/types";
 import { Button, StageBadge, cn } from "@/components/ui";
@@ -135,63 +135,57 @@ function VehicleDetail() {
       <SaleCard vehicle={v} />
       <WorkflowCard vehicle={v} now={now} />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          <Gallery vehicle={v} />
+      <div className="space-y-4">
+        <Gallery vehicle={v} />
 
-          <DocumentVault vehicle={v} />
+        <DocumentVault vehicle={v} />
 
-          <Card title="Vehicle">
-            <Specs
-              rows={[
-                ["Year", v.year],
-                ["Fuel", v.fuel === "electric" ? "Electric" : "Petrol"],
-                [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
-                ["Odometer", `${formatNumber(v.odometerKm)} km`],
-                ["Colour", v.colour],
-                ["Owners", v.owners >= 4 ? "4+" : v.owners],
-                ["Chassis no.", <Mono key="c">{v.chassisNo}</Mono>],
-                ["Engine no.", <Mono key="e">{v.engineNo}</Mono>],
-              ]}
-            />
-          </Card>
+        <Card title="Vehicle">
+          <Specs
+            rows={[
+              ["Year", v.year],
+              ["Fuel", v.fuel === "electric" ? "Electric" : "Petrol"],
+              [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
+              ["Odometer", `${formatNumber(v.odometerKm)} km`],
+              ["Colour", v.colour],
+              ["Owners", v.owners >= 4 ? "4+" : v.owners],
+              ["Chassis no.", <Mono key="c">{v.chassisNo}</Mono>],
+              ["Engine no.", <Mono key="e">{v.engineNo}</Mono>],
+            ]}
+          />
+        </Card>
 
-          <Card title="Insurance & finance">
-            <Specs
-              rows={[
-                ["Insurance till", v.insuranceValidTill ? formatIsoDate(v.insuranceValidTill) : "—"],
-                ["Policy no.", v.insurancePolicyNo || "—"],
-                ["Finance", v.financeStatus === "financed" ? `Under finance · ${v.financier}` : "Free"],
-                ...(v.financeStatus === "financed" ? [["NOC", v.nocStatus === "received" ? "Received" : "Pending"] as [string, string]] : []),
-              ]}
-            />
-          </Card>
+        <Card title="Insurance & finance">
+          <Specs
+            rows={[
+              ["Insurance till", v.insuranceValidTill ? formatIsoDate(v.insuranceValidTill) : "—"],
+              ["Policy no.", v.insurancePolicyNo || "—"],
+              ["Finance", v.financeStatus === "financed" ? `Under finance · ${v.financier}` : "Free"],
+              ...(v.financeStatus === "financed" ? [["NOC", v.nocStatus === "received" ? "Received" : "Pending"] as [string, string]] : []),
+            ]}
+          />
+        </Card>
 
-          <Card title="Condition">
-            <Specs
-              rows={[
-                ["Accident history", { none: "None", minor: "Minor", major: "Major" }[v.accidentHistory]],
-                ["Notes", v.conditionNotes || "—"],
-                ["Known defects", v.knownDefects || "—"],
-              ]}
-            />
-          </Card>
+        <Card title="Condition">
+          <Specs
+            rows={[
+              ["Accident history", { none: "None", minor: "Minor", major: "Major" }[v.accidentHistory]],
+              ["Notes", v.conditionNotes || "—"],
+              ["Known defects", v.knownDefects || "—"],
+            ]}
+          />
+        </Card>
 
-          <Card title="Intake & seller">
-            <Specs
-              rows={[
-                ["Source", v.source === "exchange" ? "Branch exchange" : "Direct purchase"],
-                ["Branch", branchName(v.branchId)],
-                ["Seller", v.seller.name],
-                ["Mobile", `+91 ${v.seller.phone.slice(0, 5)} ${v.seller.phone.slice(5)}`],
-                ["Entered by", `${v.enteredBy} · ${formatDateTime(v.createdAt)}`],
-              ]}
-            />
-          </Card>
-        </div>
-
-        <Card title="Lifecycle">
-          <Timeline vehicle={v} />
+        <Card title="Intake & seller">
+          <Specs
+            rows={[
+              ["Source", v.source === "exchange" ? "Branch exchange" : "Direct purchase"],
+              ["Branch", branchName(v.branchId)],
+              ["Seller", v.seller.name],
+              ["Mobile", `+91 ${v.seller.phone.slice(0, 5)} ${v.seller.phone.slice(5)}`],
+              ["Entered by", `${v.enteredBy} · ${formatDateTime(v.createdAt)}`],
+            ]}
+          />
         </Card>
       </div>
 
@@ -463,37 +457,5 @@ function Gallery({ vehicle }: { vehicle: Vehicle }) {
         ))}
       </div>
     </div>
-  );
-}
-
-function Timeline({ vehicle }: { vehicle: Vehicle }) {
-  const at = new Map(vehicle.stageHistory.map((e) => [e.stage, e.at]));
-  return (
-    <ol className="relative">
-      {LIFECYCLE_STAGES.map((label, i) => {
-        const stage = i + 1;
-        const done = stage <= vehicle.stage;
-        const current = stage === vehicle.stage;
-        const last = stage === LIFECYCLE_STAGES.length;
-        return (
-          <li key={label} className="relative flex gap-3 pb-4 last:pb-0">
-            {!last && <span className={cn("absolute top-6 left-[11px] h-[calc(100%-16px)] w-0.5", stage < vehicle.stage ? "bg-brand" : "bg-line")} />}
-            <span
-              className={cn(
-                "relative z-10 grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
-                done ? "bg-brand text-white" : "border-2 border-line-strong bg-surface text-faint",
-                current && "ring-4 ring-brand/20",
-              )}
-            >
-              {done && !current ? <Check className="size-3.5" strokeWidth={3} /> : stage}
-            </span>
-            <div className="min-w-0 pt-0.5">
-              <p className={cn("text-sm", done ? "font-medium text-ink" : "text-muted")}>{label}</p>
-              {at.get(stage) && <p className="text-xs text-muted">{formatDateTime(at.get(stage)!)}</p>}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
