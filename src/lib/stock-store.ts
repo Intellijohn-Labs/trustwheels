@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import type { Customer, Document, JobItem, NewVehicle, PaymentMode, SaleReadinessStatus, Vehicle } from "./types";
+import type { Customer, Document, FinanceStatus, JobItem, NewVehicle, PaymentMode, SaleReadinessStatus, Vehicle } from "./types";
 import type { TransferStep } from "./masters";
 import { roleName } from "./user-names";
 import { tx } from "./db";
@@ -313,6 +313,20 @@ export function setAskingPrice(id: string, paise: number) {
     assertScope(v.branchId);
     if (v.sale) fail("Blocked: this vehicle is already sold or booked - its price can't be changed here");
     return { ...v, proposedPricePaise: paise };
+  });
+}
+
+/**
+ * Corrects whether a vehicle is under finance after intake - this is what Finance NOC's
+ * conditional required-ness (lib/documents.ts's isDocumentRequiredFor) actually reads, so flipping
+ * it immediately changes the vault's outstanding-documents count and the "On display" gate.
+ * Clearing back to "free" leaves any Finance NOC already uploaded in place rather than deleting it.
+ */
+export function setFinanceStatus(id: string, financeStatus: FinanceStatus, financier?: string) {
+  assertCan("stock.verify");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    return { ...v, financeStatus, financier: financeStatus === "financed" ? (financier?.trim() || v.financier) : undefined };
   });
 }
 

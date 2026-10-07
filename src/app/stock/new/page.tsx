@@ -16,9 +16,12 @@ import { Field, Section, Segmented, inputClass, textareaClass } from "@/componen
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
-// RC book, insurance, finance NOC, seller KYC and purchase receipt can be attached right at intake.
+// RC book, insurance, seller KYC and purchase receipt can be attached right at intake.
 // Forms 28/29/30 come later, during the ownership-transfer step (see the vehicle's Documents & vault panel).
-const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829");
+// Finance NOC is rendered separately below, gated on the "under finance" toggle - it doesn't apply
+// at all to a vehicle bought free and clear.
+const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829" && d.type !== "finance_noc");
+const FINANCE_NOC = DOCUMENT_TYPES.find((d) => d.type === "finance_noc")!;
 
 interface FormState {
   branchId: string;
@@ -453,6 +456,31 @@ export default function NewVehiclePage() {
               onChange={(value) => setForm((f) => ({ ...f, documents: { ...f.documents, [d.type]: value } }))}
             />
           ))}
+        </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <Field label="Vehicle under finance / hypothecation?" wide>
+            <Segmented
+              name="Under finance"
+              value={form.financeStatus}
+              onChange={(v) => set("financeStatus", v)}
+              options={[
+                { value: "free", label: "No" },
+                { value: "financed", label: "Yes" },
+              ]}
+            />
+          </Field>
+          {form.financeStatus === "financed" && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <DocumentUploadSlot
+                label={FINANCE_NOC.label}
+                required
+                hasExpiry={FINANCE_NOC.hasExpiry}
+                value={form.documents.finance_noc}
+                onChange={(value) => setForm((f) => ({ ...f, documents: { ...f.documents, finance_noc: value } }))}
+              />
+            </div>
+          )}
         </div>
       </section>
 

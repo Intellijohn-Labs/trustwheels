@@ -8,8 +8,8 @@ import { useRole } from "@/lib/role-context";
 import { DOCUMENT_TYPES, documentLabel } from "@/lib/masters";
 import { uploadVehicleDocument } from "@/lib/vehicle-media";
 import { formatDateTime } from "@/lib/format";
-import { allRequiredDocsVerified, getLatestDocument, isExpired, missingDocuments } from "@/lib/documents";
-import { deleteDocumentRecord, updateDocuments, verifyDocumentRecord } from "@/lib/stock-store";
+import { allRequiredDocsVerified, getLatestDocument, isDocumentRequiredFor, isExpired, missingDocuments } from "@/lib/documents";
+import { deleteDocumentRecord, setFinanceStatus, updateDocuments, verifyDocumentRecord } from "@/lib/stock-store";
 import { newId } from "@/lib/collections";
 import type { Document, DocumentStatus, DocumentType, Vehicle } from "@/lib/types";
 
@@ -34,6 +34,38 @@ const STATUS_LABEL: Record<DocumentStatus, string> = {
   expired: "Expired",
 };
 
+/**
+ * Lets a vehicle's finance status be corrected after intake, so Finance NOC's requirement (and
+ * the vault's outstanding count) can be turned on or off without re-entering the whole intake form.
+ * `stock.verify` only, same gate as everything else in this vault; read-only text for other roles.
+ */
+function FinanceStatusToggle({ vehicle: v, manage }: { vehicle: Vehicle; manage: boolean }) {
+  const { run, busy } = useAction();
+  const financed = v.financeStatus === "financed";
+
+  if (!manage) {
+    return <p className="mb-3 text-xs text-muted">{financed ? `Under finance · ${v.financier || "financier not on file"}` : "Not under finance"}</p>;
+  }
+
+  return (
+    <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-muted">
+      <input
+        type="checkbox"
+        checked={financed}
+        disabled={busy}
+        onChange={(e) =>
+          run(
+            () => setFinanceStatus(v.id, e.target.checked ? "financed" : "free", v.financier),
+            e.target.checked ? "Marked as under finance - Finance NOC is now required" : "Marked as finance-free - Finance NOC no longer required",
+          )
+        }
+        className="size-4 cursor-pointer accent-[var(--brand)]"
+      />
+      Vehicle under finance / hypothecation{financed && v.financier ? ` (${v.financier})` : ""}
+    </label>
+  );
+}
+
 export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
   const { can } = useRole();
   const manage = can("stock.verify");
@@ -53,7 +85,7 @@ export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
           </Pill>
         ) : (
           <Pill tone="warn" icon={<AlertTriangle className="size-3.5" />}>
-            {missing.length} of {DOCUMENT_TYPES.filter((d) => d.required).length} required outstanding
+            {missing.length} of {DOCUMENT_TYPES.filter((d) => isDocumentRequiredFor(d, v)).length} required outstanding
           </Pill>
         )}
       </div>
@@ -65,9 +97,11 @@ export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
         </p>
       )}
 
+      <FinanceStatusToggle vehicle={v} manage={manage} />
+
       <ul className="divide-y divide-line">
         {DOCUMENT_TYPES.map((dt) => (
-          <DocumentRow key={dt.type} vehicle={v} type={dt.type} required={dt.required} hasExpiry={dt.hasExpiry} manage={manage} canDelete={canDelete} today={today} />
+          <DocumentRow key={dt.type} vehicle={v} type={dt.type} required={isDocumentRequiredFor(dt, v)} hasExpiry={dt.hasExpiry} manage={manage} canDelete={canDelete} today={today} />
         ))}
       </ul>
 

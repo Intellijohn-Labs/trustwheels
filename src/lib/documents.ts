@@ -52,10 +52,21 @@ export function getLatestDocument(vehicle: Vehicle, type: DocumentType): Documen
   return docs.length > 0 ? docs[docs.length - 1] : undefined;
 }
 
+/**
+ * Whether a document type is actually required for this specific vehicle. Every type's
+ * required-ness is fixed (DOCUMENT_TYPES' own `required` flag) except Finance NOC, which only
+ * applies - and only then counts as outstanding until uploaded and verified - when the vehicle is
+ * actually under finance. A vehicle bought free and clear never needs one at all.
+ */
+export function isDocumentRequiredFor(dt: { type: DocumentType; required: boolean }, vehicle: Vehicle): boolean {
+  if (dt.type === "finance_noc") return vehicle.financeStatus === "financed";
+  return dt.required;
+}
+
 /** Check if all required documents are present and verified. Expired docs count as unverified. */
 export function allRequiredDocsVerified(vehicle: Vehicle): boolean {
   const today = new Date().toISOString().split("T")[0];
-  return DOCUMENT_TYPES.filter((dt) => dt.required).every((dt) => {
+  return DOCUMENT_TYPES.filter((dt) => isDocumentRequiredFor(dt, vehicle)).every((dt) => {
     const doc = getLatestDocument(vehicle, dt.type);
     return doc && doc.status === "verified" && !isExpired(doc, today);
   });
@@ -64,7 +75,7 @@ export function allRequiredDocsVerified(vehicle: Vehicle): boolean {
 /** Documents missing or pending verification. */
 export function missingDocuments(vehicle: Vehicle): DocumentType[] {
   const today = new Date().toISOString().split("T")[0];
-  return DOCUMENT_TYPES.filter((dt) => dt.required).flatMap((dt) => {
+  return DOCUMENT_TYPES.filter((dt) => isDocumentRequiredFor(dt, vehicle)).flatMap((dt) => {
     const doc = getLatestDocument(vehicle, dt.type);
     if (!doc || doc.status !== "verified" || isExpired(doc, today)) {
       return [dt.type];
