@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowUpDown, CheckCircle2, Plus, Search, SlidersHorizontal, TriangleAlert, Trash2, Wrench } from "lucide-react";
 import { useNow } from "@/lib/use-now";
-import { inRecon, inTransit } from "@/lib/workflow";
+import { currentBranchId, inRecon, inTransit } from "@/lib/workflow";
 import { VehicleRow } from "@/components/vehicle-row";
 import { deleteVehicle, deleteVehicles, useVehicles } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
@@ -179,7 +179,10 @@ export default function StockPage() {
       (v) =>
         panelTest(v) &&
         stageTest(v) &&
-        (branch === "all" || v.branchId === branch) &&
+        // Where it is right now, not its permanent origin - a branch-dispatched vehicle received
+        // at Angamaly filters under "Angamaly Hub", matching the branch name VehicleRow already
+        // displays for it (branchName(currentBranchId(v))), not the branch it started at.
+        (branch === "all" || currentBranchId(v) === branch) &&
         (!q ||
           (qReg && v.registrationNo.includes(qReg)) ||
           `${v.make} ${v.model} ${v.provisionalId} ${v.stockId ?? ""}`.toLowerCase().includes(q)),
