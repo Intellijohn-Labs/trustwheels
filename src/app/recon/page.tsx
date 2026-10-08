@@ -7,8 +7,9 @@ import { SLA } from "@/lib/masters";
 import { PageHeader, Segmented } from "@/components/ui";
 import { ReconQueuePanel } from "@/components/panels/recon-panel";
 import { TechnicianReportPanel } from "@/components/panels/technician-report";
+import { ReconHistoryPanel } from "@/components/panels/recon-history";
 
-type View = "queue" | "report";
+type View = "queue" | "report" | "history";
 
 export default function ReconPage() {
   const { can } = useRole();
@@ -26,7 +27,7 @@ export default function ReconPage() {
           </>
         }
         actions={
-          <div className="w-full max-w-xs">
+          <div className="w-full max-w-md">
             <Segmented
               name="Reconditioning view"
               value={view}
@@ -34,12 +35,13 @@ export default function ReconPage() {
               options={[
                 { value: "queue", label: "Queue" },
                 { value: "report", label: "Technician Report" },
+                { value: "history", label: "History" },
               ]}
             />
           </div>
         }
       />
-      {view === "queue" ? <ReconQueuePanel /> : <TechnicianReportPanel />}
+      {view === "queue" ? <ReconQueuePanel /> : view === "report" ? <TechnicianReportPanel /> : <ReconHistoryPanel />}
     </div>
   );
 }
