@@ -71,11 +71,13 @@ mc mirror supa/vehicle-media vps/vehicle-media
 
 ### Step 5: Environment variables
 
-Update `.env.local` (and wherever the app is deployed) with the new instance's values:
+Update `.env.local` (and wherever the app is deployed). Shown below are this project's current
+values - swap in the new self-hosted instance's own URL and `ANON_KEY` (from Step 2's `.env`) once
+it's running:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://backend.yourcompany.com
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from Step 2's .env>
+NEXT_PUBLIC_SUPABASE_URL=https://tkmicqvpyddyichpejer.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_XvYO7CzLyFd-8CZHiUctqQ_EgNUamPh
 ```
 
 ### Step 6: Verify & launch Next.js
