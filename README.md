@@ -45,8 +45,9 @@ Put a reverse proxy (Caddy/Nginx) with SSL in front of the Kong gateway (port `8
 ### Step 3: Database migration
 
 ```bash
-# Export from the current managed Supabase project
-pg_dump "postgresql://postgres:<PASSWORD>@<PROJECT_REF>.supabase.co:5432/postgres" \
+# Export from the current managed Supabase project (this project's ref is tkmicqvpyddyichpejer -
+# the database password isn't in any env file here; get it from Project Settings -> Database)
+pg_dump "postgresql://postgres:<PASSWORD>@tkmicqvpyddyichpejer.supabase.co:5432/postgres" \
   --no-owner --no-privileges --schema=public -Fc -f trustwheels.dump
 
 # Import into the new VPS Postgres
