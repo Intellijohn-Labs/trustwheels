@@ -260,7 +260,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/stock", label: "All stock", group: "Stock & hub", icon: "LayoutList", anyOf: ["stock.view"] },
   { path: "/stock/new", label: "Add stock", group: "Stock & hub", icon: "Plus", anyOf: ["stock.create"] },
   { path: "/stock/[id]", label: "Vehicle", group: "Stock & hub", icon: "Bike", anyOf: ["stock.view", "recon.view"], hidden: true, pattern: /^\/stock\/(?!new$)[^/]+$/ },
-  { path: "/overdue", label: "Verification", group: "Stock & hub", icon: "TriangleAlert", anyOf: ["stock.verify"] },
+  { path: "/overdue", label: "Document Verification", group: "Stock & hub", icon: "TriangleAlert", anyOf: ["stock.verify"] },
   { path: "/transit", label: "Transit", group: "Stock & hub", icon: "Truck", anyOf: ["transit.view"] },
   { path: "/receiving", label: "Receiving", group: "Stock & hub", icon: "PackageCheck", anyOf: ["hub.receive"] },
   { path: "/recon", label: "Reconditioning", group: "Stock & hub", icon: "Wrench", anyOf: ["recon.view"] },
