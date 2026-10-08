@@ -15,6 +15,7 @@ import { Button, cn, inputClass } from "@/components/ui";
 import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "@/components/selection";
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
 import { MarkReadyForSaleDialog, RejectStockDialog, SendToReconDialog } from "@/components/panels/sale-readiness-dialog";
+import { DocumentsButton, PhotosEditButton, PriceEditButton } from "@/components/vehicle/quick-actions";
 import type { Vehicle } from "@/lib/types";
 
 // "Sold" isn't a bucket here - it's excluded from every one of these panels below and gets its
@@ -336,6 +337,13 @@ export default function StockPage() {
                     <>
                       {canManage && !v.sale && <SaleReadinessActions vehicle={v} />}
                       {canManage && panel === "rejected" && <SendToReconButton vehicle={v} />}
+                      {panel === "ready" && (
+                        <>
+                          <PriceEditButton vehicle={v} />
+                          <PhotosEditButton vehicle={v} />
+                          <DocumentsButton vehicle={v} />
+                        </>
+                      )}
                       {canDelete && (
                         <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ ids: [v.id], labels: [label(v)] })} aria-label={`Delete ${label(v)}`}>
                           <Trash2 className="size-3.5" /> Delete
