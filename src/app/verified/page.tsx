@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, CheckCircle2, FileText, Loader2, Pencil } from "lucide-react";
+import { BadgeCheck, Camera, CheckCircle2, FileText, Loader2, Pencil } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { displayReg } from "@/lib/format";
-import { setAskingPrice } from "@/lib/stock-store";
+import { setAskingPrice, updateVehiclePhotos } from "@/lib/stock-store";
+import { PHOTO_SLOTS } from "@/lib/masters";
 import { Button, Field, Segmented } from "@/components/ui";
 import { useAction } from "@/components/toast";
 import { VehicleRow } from "@/components/vehicle-row";
@@ -17,7 +18,8 @@ import { RowCheckbox, SelectAllCheckbox, useSelection } from "@/components/selec
 import { Dialog } from "@/components/panels/dialog";
 import { RupeeInput } from "@/components/panels/job-card-dialog";
 import { DocumentVault } from "@/components/vehicle/document-vault";
-import type { Vehicle } from "@/lib/types";
+import { PhotoSlotInput } from "@/components/photo-slot";
+import type { PhotoSlot, Vehicle } from "@/lib/types";
 
 type Tab = "available" | "booked" | "sold";
 
@@ -104,6 +106,65 @@ function DocumentsButton({ vehicle: v }: { vehicle: Vehicle }) {
   );
 }
 
+/**
+ * The six intake gallery photo slots, editable in a modal right from the card - upload, replace
+ * (camera or gallery, via PhotoSlotInput) or remove a slot, staged locally and only saved via
+ * updateVehiclePhotos() on "Save photos". `stock.verify` only, same gate as Edit price/Documents.
+ */
+function PhotosEditButton({ vehicle: v }: { vehicle: Vehicle }) {
+  const { can } = useRole();
+  const [open, setOpen] = useState(false);
+  const [photos, setPhotos] = useState<Partial<Record<PhotoSlot, string>>>(v.photos);
+  const { run, busy } = useAction();
+
+  if (!can("stock.verify")) return null;
+
+  async function save() {
+    if (await run(() => updateVehiclePhotos(v.id, photos), "Photos updated")) setOpen(false);
+  }
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          setPhotos(v.photos);
+          setOpen(true);
+        }}
+        aria-label={`Edit photos for ${label(v)}`}
+      >
+        <Camera className="size-3.5" /> Edit photos
+      </Button>
+      {open && (
+        <Dialog
+          wide
+          title="Edit photos"
+          subtitle={label(v)}
+          onClose={() => setOpen(false)}
+          onSubmit={save}
+          footer={
+            <>
+              <Button size="lg" className="flex-1" onClick={() => setOpen(false)} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" size="lg" variant="primary" className="flex-[2]" disabled={busy}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Save photos
+              </Button>
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {PHOTO_SLOTS.map((p) => (
+              <PhotoSlotInput key={p.slot} label={p.label} hint={p.hint} value={photos[p.slot]} onChange={(url) => setPhotos((ph) => ({ ...ph, [p.slot]: url }))} />
+            ))}
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
 export default function VerifiedPage() {
   const { vehicles, ready } = useScopedVehicles();
   const { can } = useRole();
@@ -158,6 +219,7 @@ export default function VerifiedPage() {
                   <>
                     {tab !== "sold" && <SaleActions vehicle={v} />}
                     <PriceEditButton vehicle={v} />
+                    <PhotosEditButton vehicle={v} />
                     <DocumentsButton vehicle={v} />
                     <DeleteVehicleButton vehicle={v} />
                   </>
