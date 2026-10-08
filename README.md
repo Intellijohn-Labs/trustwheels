@@ -77,7 +77,7 @@ it's running:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://tkmicqvpyddyichpejer.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_XvYO7CzLyFd-8CZHiUctqQ_EgNUamPh
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here # DUMMY KEY: Replace with the actual anon key generated from the self-hosted Supabase instance in Step 2
 ```
 
 ### Step 6: Verify & launch Next.js
