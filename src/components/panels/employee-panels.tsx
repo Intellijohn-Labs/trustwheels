@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, Building2, CalendarDays, Mail, MessageCircle, Pencil, Phone, UserRound, X } from "lucide-react";
+import { Camera, Check, Building2, CalendarDays, Loader2, Mail, MessageCircle, Pencil, Phone, Upload, UserRound, X } from "lucide-react";
 import { BRANCHES, branchName } from "@/lib/masters";
 import { formatIsoDate } from "@/lib/format";
+import { uploadEmployeePhoto } from "@/lib/employee-media";
 import { PANEL_MODULES, ROLE_ORDER, ROLES, effectivePermissions, roleDefaultPanels, type PanelModule, type Role } from "@/lib/rbac";
 import { EMPLOYEE_STATUS_LABEL, addEmployee, employeeErrors, isManagingPartner, updateEmployee, type Employee, type EmployeeInput, type EmployeeStatus } from "@/lib/hr";
 import { Button, Field, cn, inputClass } from "../ui";
@@ -37,6 +38,55 @@ function PhoneInput({ id, value, onChange, invalid }: { id: string; value: strin
         onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 10))}
         className={cn(inputClass(invalid), "pl-12 tabular-nums")}
       />
+    </div>
+  );
+}
+
+/** Profile photo picker for the Add/Edit form: circular preview, Upload/Replace, and Remove once a photo is set. */
+function EmployeePhotoInput({ value, onChange }: { value?: string; onChange: (url: string | undefined) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handle(file?: File) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      onChange(await uploadEmployeePhoto(file));
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        aria-label={value ? "Replace profile photo" : "Upload profile photo"}
+        className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-dashed border-line-strong bg-sunken transition hover:border-brand disabled:cursor-not-allowed"
+        disabled={busy}
+      >
+        {busy ? (
+          <Loader2 className="size-5 animate-spin text-brand" />
+        ) : value ? (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar is a plain uploaded URL, not an optimizable local asset
+          <img src={value} alt="Profile photo preview" className="size-full object-cover" />
+        ) : (
+          <Camera className="size-5 text-muted" />
+        )}
+      </button>
+      <div className="flex gap-2">
+        <Button size="sm" type="button" onClick={() => input.current?.click()} disabled={busy}>
+          <Upload className="size-3.5" /> {value ? "Replace" : "Upload"} photo
+        </Button>
+        {value && (
+          <Button size="sm" type="button" variant="ghost" onClick={() => onChange(undefined)} disabled={busy}>
+            <X className="size-3.5" /> Remove
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -173,6 +223,9 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
       }
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Profile photo" wide>
+          <EmployeePhotoInput value={form.photoUrl} onChange={(url) => set("photoUrl", url)} />
+        </Field>
         <Field
           label="Full name"
           htmlFor="emp-name"

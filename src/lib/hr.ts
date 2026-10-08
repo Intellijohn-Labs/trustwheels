@@ -38,6 +38,9 @@ export interface Employee {
    * never has to change. Optional/absent on records saved before this field existed - treat as
    * just `[branchId]`. */
   branchIds?: string[];
+  /** Profile photo - a public (or data-URL fallback) URL from uploadEmployeePhoto(), same pattern
+   * as vehicle photos/documents. Optional; falls back to an initials avatar wherever shown. */
+  photoUrl?: string;
   phone: string;
   whatsapp: string;
   email: string;
