@@ -40,19 +40,19 @@ const STAGE_GROUPS = [
  *   own dedicated panel (Ready for Sale, which also feeds Book & Sell's "Available" tab, or
  *   Rejected Stock) until Send to Reconditioning or a changed decision moves it on.
  *
- * Deliberately does NOT require `verified`: a fresh intake starts unverified and, until this was
- * fixed, was invisible here entirely - reachable only from the Verification page (stock.verify
- * roles only) or the vehicle's own URL - while the dashboard's "Stock on hand" KPI (just `!v.sale`)
- * counted it anyway, so the two screens disagreed about something as basic as "how many vehicles do
- * we have." An unverified row still shows here, just styled "pending" (VehicleRow/verifyState).
- *
- * Also excludes a non-Angamaly vehicle that hasn't been received at the hub yet (no `receipt`) -
- * it's still at its branch or in transit, and belongs on /transit's "Ready to dispatch"/"In
- * transit" views until Angamaly books it in. A vehicle entered directly at Angamaly (`branchId ===
- * "ang"`) was never going anywhere, so it's unaffected and shows here as before.
+ * Also requires each branch's own equivalent of "arrived and ready for a decision":
+ * - a non-Angamaly vehicle needs `receipt` (received at the hub) - until then it's still at its
+ *   branch or in transit, and belongs on /transit's "Ready to dispatch"/"In transit" views. It does
+ *   NOT additionally need `verified` here - that part of its pipeline is unchanged.
+ * - a vehicle entered directly at Angamaly never goes through transit/receipt at all, so `verified`
+ *   is its equivalent gate instead: a fresh, unverified Angamaly intake stays on the Verification
+ *   page until cross-verified, only then surfacing here - it must never appear immediately on
+ *   creation. Once visible (either path), an unverified row still just shows styled "pending"
+ *   (VehicleRow/verifyState) rather than being hidden outright - this only changes when a vehicle
+ *   becomes eligible to show up at all, not how it's styled once it does.
  */
 function isActiveStock(v: Vehicle) {
-  const atHub = v.branchId === "ang" || !!v.receipt;
+  const atHub = v.branchId === "ang" ? !!v.verified : !!v.receipt;
   return !v.sale && !inRecon(v) && !v.saleReadiness && atHub;
 }
 
