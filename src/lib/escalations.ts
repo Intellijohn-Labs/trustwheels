@@ -37,6 +37,20 @@ export const ESCALATION_KIND_LABEL: Record<EscalationKind, string> = {
 const HOUR = 3_600_000;
 const name = (v: Vehicle) => `${v.make} ${v.model} · ${displayReg(v.registrationNo)}`;
 
+/**
+ * A verified vehicle that hasn't been dispatched within this many hours is Code Red too, same
+ * severity as a sold-but-undelivered vehicle - both mean something that should already be moving
+ * has stalled. Angamaly-native vehicles (`branchId === "ang"`) are exempt: they're already at the
+ * hub and are never dispatched at all, so `!v.dispatch` would otherwise flag every one of them
+ * forever. Kept local to this file rather than added to SLA (masters.ts), which this change is
+ * scoped not to touch.
+ */
+const DISPATCH_AFTER_VERIFY_HOURS = 48;
+
+function dispatchOverdue(v: Vehicle, now: number) {
+  return !!v.verified && !v.dispatch && v.branchId !== "ang" && (now - new Date(v.verified.at).getTime()) / HOUR > DISPATCH_AFTER_VERIFY_HOURS;
+}
+
 export function vehicleEscalations(vehicles: Vehicle[], now: number): Escalation[] {
   const out: Escalation[] = [];
   for (const v of vehicles) {
@@ -51,6 +65,20 @@ export function vehicleEscalations(vehicles: Vehicle[], now: number): Escalation
         href: "/deliveries",
         overdueMs: (days - SLA.codeRedDays) * 24 * HOUR,
         owner: "Angamaly manager · Sales",
+        branchId: v.branchId,
+      });
+    }
+    if (dispatchOverdue(v, now)) {
+      const h = (now - new Date(v.verified!.at).getTime()) / HOUR;
+      out.push({
+        id: `crd-${v.id}`,
+        kind: "code_red",
+        severity: "critical",
+        title: `Code Red · ${name(v)}`,
+        detail: `Verified ${formatDuration(h * HOUR)} ago at ${branchName(v.branchId)}, still not dispatched (limit ${DISPATCH_AFTER_VERIFY_HOURS}h)`,
+        href: "/transit",
+        overdueMs: (h - DISPATCH_AFTER_VERIFY_HOURS) * HOUR,
+        owner: "Branch manager",
         branchId: v.branchId,
       });
     }
