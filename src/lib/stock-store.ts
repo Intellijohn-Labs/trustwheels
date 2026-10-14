@@ -6,8 +6,8 @@ import type { TransferStep } from "./masters";
 import { roleName } from "./user-names";
 import { tx } from "./db";
 import { assertCan, assertScope, getActor } from "./session";
-import { supabase } from "./supabase";
-import { beginSync, endSync, enqueueRetry } from "./sync-queue";
+import { deleteRows, fetchTable, upsertRows } from "./api-sync";
+import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue";
 import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
 import { normaliseReg, displayReg, formatPaise } from "./format";
 import { newId } from "./collections";
@@ -35,39 +35,33 @@ function byNewest(a: Vehicle, b: Vehicle) {
 }
 
 /**
- * Supabase `vehicles` table, when configured, holds one row per vehicle with the full
- * serialized record in a `data` jsonb column (id text primary key, data jsonb). If Supabase isn't
- * configured or the table is unreachable, this returns null and the caller falls back to the
- * local demo data so a fresh clone of the repo isn't empty before Supabase is ever wired up.
+ * The self-hosted backend's `vehicles` table (via /api/sync -> lib/server-db.ts's PostgreSQL pool)
+ * holds one row per vehicle with the full serialized record in a `data` jsonb column (id text
+ * primary key, data jsonb). If the backend is unreachable, this returns null and the caller falls
+ * back to the local IndexedDB copy.
  *
- * Deliberately does NOT auto-seed Supabase when the table comes back empty: this project is past
- * the "brand new project, nothing in it yet" bootstrap stage - real stock has gone through this
- * table, and an empty result now legitimately means "no vehicles right now" (e.g. right after an
- * intentional clear-out), not "needs demo data." Auto-seeding here would silently reintroduce a
- * fake fleet the moment anyone next loaded the app.
+ * Deliberately does NOT auto-seed when the table comes back empty: this project is past the "brand
+ * new, nothing in it yet" bootstrap stage - real stock has gone through this table, and an empty
+ * result now legitimately means "no vehicles right now" (e.g. right after an intentional
+ * clear-out), not "needs demo data." Auto-seeding here would silently reintroduce a fake fleet the
+ * moment anyone next loaded the app.
  */
-async function fetchFromSupabase(): Promise<Vehicle[] | null> {
-  if (!supabase) return null;
-  try {
-    const { data, error } = await supabase.from("vehicles").select("data");
-    if (error) return null;
-    if (!data) return null;
-    return data.map((row: { data: Vehicle }) => row.data);
-  } catch {
-    return null;
-  }
+async function fetchFromApi(): Promise<Vehicle[] | null> {
+  const rows = await fetchTable<Vehicle>("vehicles");
+  reportSyncResult(rows !== null);
+  return rows;
 }
 
 /**
- * Mirrors a successful Supabase read into the local IndexedDB copy, replacing it wholesale (same
- * "refresh beats partial merge" reasoning as the live-sync channel below). Without this, the local
- * copy only ever moves forward via this device's own mutations - so a device that only ever reads
- * (or whose last mutation was long ago) can carry an arbitrarily stale, even empty, local copy
- * forever. That copy only surfaces when a later fetch fails (e.g. a flaky mobile connection), but
- * when it does, it renders with full confidence as if it were current - a stock count of 0 that's
- * really just "this fetch failed" is indistinguishable from a genuinely empty inventory. Keeping
- * the local copy fresh on every successful read closes most of that window. Fire-and-forget: this
- * is purely the offline fallback catching up, never the source `cache`/UI update.
+ * Mirrors a successful backend read into the local IndexedDB copy, replacing it wholesale (same
+ * "refresh beats partial merge" reasoning as the polling-based revalidation below). Without this,
+ * the local copy only ever moves forward via this device's own mutations - so a device that only
+ * ever reads (or whose last mutation was long ago) can carry an arbitrarily stale, even empty,
+ * local copy forever. That copy only surfaces when a later fetch fails (e.g. a flaky mobile
+ * connection), but when it does, it renders with full confidence as if it were current - a stock
+ * count of 0 that's really just "this fetch failed" is indistinguishable from a genuinely empty
+ * inventory. Keeping the local copy fresh on every successful read closes most of that window.
+ * Fire-and-forget: this is purely the offline fallback catching up, never the source `cache`/UI update.
  */
 function mirrorToLocal(rows: Vehicle[]) {
   tx("vehicles", "readwrite", (s) => {
@@ -78,7 +72,7 @@ function mirrorToLocal(rows: Vehicle[]) {
 
 function load() {
   loading ??= (async () => {
-    const remote = await fetchFromSupabase();
+    const remote = await fetchFromApi();
     if (remote) {
       cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
       emit();
@@ -95,13 +89,13 @@ function load() {
 }
 
 /**
- * Re-fetches from Supabase and replaces the cache, same as collections.ts's own revalidate() -
+ * Re-fetches from the backend and replaces the cache, same as collections.ts's own revalidate() -
  * load()'s promise is cached forever, so without this a long-lived tab only ever sees the fleet
  * as it was when the tab first opened, never picking up another device's changes. A no-op when
- * Supabase isn't configured (fetchFromSupabase() just returns null).
+ * /api/sync is unreachable (fetchFromApi() just returns null).
  */
 async function revalidate() {
-  const remote = await fetchFromSupabase();
+  const remote = await fetchFromApi();
   if (remote) {
     cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
     emit();
@@ -118,18 +112,10 @@ function wireRevalidation() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) revalidate();
   });
-  // Live cross-device sync: any insert/update/delete on the vehicles table from any client (or a
-  // direct DB edit) re-pulls the full list rather than trying to merge the single changed row in -
-  // this store already holds the whole fleet in memory, so a wholesale refresh is simpler and
-  // can't drift from a partial merge. A no-op until Supabase is actually configured for this
-  // deployment, and still harmless if the project's Realtime replication isn't enabled for this
-  // table - the channel just never fires.
-  if (supabase) {
-    supabase
-      .channel("vehicles-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "vehicles" }, () => revalidate())
-      .subscribe();
-  }
+  // Live cross-device sync: a plain REST endpoint has no push/realtime channel to subscribe to
+  // (unlike Supabase's old postgres_changes), so this polls instead, same cadence as
+  // collections.ts's own collections and the retry queue's background drain.
+  setInterval(revalidate, 20_000);
 }
 
 /** Manual "sync now" - also reachable from the navbar's refresh button via the shared `tw:refresh` event. */
@@ -158,22 +144,19 @@ export function useVehicle(id: string) {
 
 /**
  * Mirrors one vehicle's full record (photos, documents, pricing, branch, specs — everything)
- * into Supabase as a single jsonb payload, keeping the row a 1:1 copy of the local record.
- * Fired without blocking the caller so the optimistic local update never waits on the network.
+ * to the backend as a single jsonb payload via /api/sync, keeping the row a 1:1 copy of the local
+ * record. Fired without blocking the caller so the optimistic local update never waits on the network.
  */
-function syncToSupabase(vehicle: Vehicle) {
-  if (!supabase) return;
+function syncToApi(vehicle: Vehicle) {
   beginSync();
-  supabase
-    .from("vehicles")
-    .upsert({ id: vehicle.id, data: vehicle })
-    .then(({ error }) => {
-      endSync();
-      if (error) {
-        console.error("Supabase sync failed:", error.message);
-        enqueueRetry({ table: "vehicles", kind: "upsert", rows: [{ id: vehicle.id, data: vehicle }] });
-      }
-    });
+  upsertRows("vehicles", [{ id: vehicle.id, data: vehicle }]).then((ok) => {
+    endSync();
+    reportSyncResult(ok);
+    if (!ok) {
+      console.error("/api/sync upsert failed for vehicle", vehicle.id);
+      enqueueRetry({ table: "vehicles", kind: "upsert", rows: [{ id: vehicle.id, data: vehicle }] });
+    }
+  });
 }
 
 async function update(id: string, change: (v: Vehicle) => Vehicle) {
@@ -184,7 +167,7 @@ async function update(id: string, change: (v: Vehicle) => Vehicle) {
   await tx("vehicles", "readwrite", (s) => s.put(updated));
   cache = cache!.map((v) => (v.id === id ? updated : v));
   emit();
-  syncToSupabase(updated);
+  syncToApi(updated);
   return updated;
 }
 
@@ -230,7 +213,7 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
   await tx("vehicles", "readwrite", (s) => s.put(vehicle));
   cache = [vehicle, ...cache!];
   emit();
-  syncToSupabase(vehicle);
+  syncToApi(vehicle);
   logActivity("CREATE", displayReg(vehicle.registrationNo), `Added ${vehicle.make} ${vehicle.model} · ${displayReg(vehicle.registrationNo)} to stock`);
   return vehicle;
 }
@@ -248,10 +231,9 @@ export async function deleteVehicle(id: string) {
   const v = cache!.find((x) => x.id === id);
   if (!v) fail("Vehicle not found");
   assertScope(v.branchId);
-  if (supabase) {
-    const { error } = await supabase.from("vehicles").delete().eq("id", id);
-    if (error) fail(`Blocked: could not delete from the database — ${error.message}`);
-  }
+  const ok = await deleteRows("vehicles", [id]);
+  reportSyncResult(ok);
+  if (!ok) fail("Blocked: could not delete from the database");
   await tx("vehicles", "readwrite", (s) => s.delete(id));
   cache = cache!.filter((x) => x.id !== id);
   emit();
@@ -266,10 +248,9 @@ export async function deleteVehicles(ids: string[]) {
   await load();
   const targets = cache!.filter((v) => ids.includes(v.id));
   targets.forEach((v) => assertScope(v.branchId));
-  if (supabase) {
-    const { error } = await supabase.from("vehicles").delete().in("id", ids);
-    if (error) fail(`Blocked: could not delete from the database — ${error.message}`);
-  }
+  const ok = await deleteRows("vehicles", ids);
+  reportSyncResult(ok);
+  if (!ok) fail("Blocked: could not delete from the database");
   await tx("vehicles", "readwrite", (s) => targets.forEach((v) => s.delete(v.id)));
   const removed = new Set(targets.map((v) => v.id));
   cache = cache!.filter((v) => !removed.has(v.id));

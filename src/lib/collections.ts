@@ -2,8 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { getKey, putKey } from "./db";
-import { supabase } from "./supabase";
-import { beginSync, endSync, enqueueRetry } from "./sync-queue";
+import { deleteRows, fetchTable, upsertRows } from "./api-sync";
+import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue";
 
 /*
  * A persisted, reactive list of records. Each domain (enquiries, calls, employees, ledger...)
@@ -15,15 +15,18 @@ import { beginSync, endSync, enqueueRetry } from "./sync-queue";
  *
  * Bump `seedVersion` when the demo seed changes shape; stored data is then re-seeded.
  *
- * Passing `supabaseTable` opts a collection into also syncing with a Supabase table shaped
- * (id text primary key, data jsonb) - same shape as stock-store.ts's `vehicles` table. Reads
- * prefer Supabase when it's configured, falling back to the local IndexedDB copy only when
- * Supabase is unreachable or not configured at all; every write mirrors to that local copy
- * either way, so the collection still works offline. Collections that don't pass it are
- * untouched. An empty Supabase table is never auto-seeded with demo data - once a project is
- * live, "empty" legitimately means "nothing here right now" (e.g. after an intentional clear-out
- * or every record having been deleted), not "needs the demo fleet/roster back." Only the local,
- * single-browser IndexedDB fallback still seeds, and only when Supabase can't be reached at all.
+ * Passing `supabaseTable` opts a collection into also syncing with the self-hosted backend's
+ * /api/sync endpoint (lib/api-sync.ts -> src/app/api/sync/route.ts -> raw PostgreSQL via
+ * lib/server-db.ts), against a table shaped (id text primary key, data jsonb) - same shape as
+ * stock-store.ts's `vehicles` table. The option is still named `supabaseTable` even though data
+ * no longer goes through Supabase - renaming it would mean touching every collection definition
+ * for a cosmetic change. Reads prefer the backend when it's reachable, falling back to the local
+ * IndexedDB copy only when it's unreachable; every write mirrors to that local copy either way, so
+ * the collection still works offline. Collections that don't pass it are untouched. An empty
+ * backend table is never auto-seeded with demo data - once a project is live, "empty" legitimately
+ * means "nothing here right now" (e.g. after an intentional clear-out or every record having been
+ * deleted), not "needs the demo fleet/roster back." Only the local, single-browser IndexedDB
+ * fallback still seeds, and only when the backend can't be reached at all.
  */
 
 interface Stored<T> {
@@ -37,67 +40,53 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((l) => l());
   const table = opts.supabaseTable;
-  // Set once a write against `table` has failed, so a missing/misconfigured table logs one
-  // clear diagnostic instead of spamming the console on every subsequent add/update/delete.
+  // Set once a read/write against `table` has failed, so a missing table or unreachable backend
+  // logs one clear diagnostic instead of spamming the console on every subsequent attempt.
   let warnedMissingTable = false;
-  function warnSyncFailed(action: string, message: string) {
+  function warnSyncFailed(action: string) {
     if (warnedMissingTable) return;
     warnedMissingTable = true;
-    console.error(
-      `Supabase ${action} failed (${name}): ${message}. Has the migration that creates "${table}" been run against this Supabase project? See supabase/migrations/.`,
-    );
+    console.error(`/api/sync ${action} failed (${name}, table "${table}"). Is the self-hosted database reachable, and does this table exist?`);
   }
 
-  async function fetchFromSupabase(): Promise<T[] | null> {
-    if (!table || !supabase) return null;
-    try {
-      const { data, error } = await supabase.from(table).select("data");
-      if (error) {
-        warnSyncFailed("read", error.message);
-        return null;
-      }
-      if (!data) return null;
-      return data.map((row: { data: T }) => row.data);
-    } catch {
-      return null;
-    }
+  async function fetchRemote(): Promise<T[] | null> {
+    if (!table) return null;
+    const rows = await fetchTable<T>(table);
+    reportSyncResult(rows !== null);
+    if (rows === null) warnSyncFailed("read");
+    return rows;
   }
 
   function syncUpsert(items: T[]) {
-    if (!table || !supabase || items.length === 0) return;
+    if (!table || items.length === 0) return;
     const rows = items.map((item) => ({ id: item.id, data: item }));
     beginSync();
-    supabase
-      .from(table)
-      .upsert(rows)
-      .then(({ error }) => {
-        endSync();
-        if (error) {
-          warnSyncFailed("sync", error.message);
-          enqueueRetry({ table, kind: "upsert", rows });
-        }
-      });
+    upsertRows(table, rows).then((ok) => {
+      endSync();
+      reportSyncResult(ok);
+      if (!ok) {
+        warnSyncFailed("sync");
+        enqueueRetry({ table, kind: "upsert", rows });
+      }
+    });
   }
 
   function syncDelete(ids: string[]) {
-    if (!table || !supabase || ids.length === 0) return;
+    if (!table || ids.length === 0) return;
     beginSync();
-    supabase
-      .from(table)
-      .delete()
-      .in("id", ids)
-      .then(({ error }) => {
-        endSync();
-        if (error) {
-          warnSyncFailed("delete", error.message);
-          enqueueRetry({ table, kind: "delete", ids });
-        }
-      });
+    deleteRows(table, ids).then((ok) => {
+      endSync();
+      reportSyncResult(ok);
+      if (!ok) {
+        warnSyncFailed("delete");
+        enqueueRetry({ table, kind: "delete", ids });
+      }
+    });
   }
 
   function load() {
     loading ??= (async () => {
-      const remote = await fetchFromSupabase();
+      const remote = await fetchRemote();
       if (remote) {
         cache = remote;
         emit();
@@ -117,7 +106,7 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
   }
 
   /**
-   * Re-fetches from Supabase and replaces the cache if it's configured - `load()`'s own promise
+   * Re-fetches from the backend and replaces the cache if it's reachable - `load()`'s own promise
    * is cached forever (so a long-lived tab only ever fetches once), which is exactly how a second
    * device's changes stop showing up without a hard reload. This is the stale-while-revalidate
    * half: `load()` still resolves instantly from whatever's cached, revalidate() pulls what's
@@ -126,7 +115,7 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
    * nothing to revalidate against.
    */
   async function revalidate() {
-    const remote = await fetchFromSupabase();
+    const remote = await fetchRemote();
     if (remote) {
       cache = remote;
       emit();
@@ -142,16 +131,12 @@ export function defineCollection<T extends { id: string }>(name: string, seed: (
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) revalidate();
     });
-    // Live cross-device sync: any change to this collection's table from any client re-pulls the
-    // whole list (simpler and safer than merging a single changed row into the cache). A no-op
-    // until Supabase is configured for this deployment, and harmless if Realtime replication
-    // isn't enabled for this table - the channel just never fires.
-    if (supabase && table) {
-      supabase
-        .channel(`${table}-live`)
-        .on("postgres_changes", { event: "*", schema: "public", table }, () => revalidate())
-        .subscribe();
-    }
+    // Live cross-device sync: a plain REST endpoint has no push/realtime channel to subscribe to
+    // (unlike Supabase's old postgres_changes), so this polls instead - same cadence as the retry
+    // queue's own background drain. Simpler and safer than trying to merge a single changed row
+    // into the cache: this store already holds the whole list in memory, so a wholesale refresh
+    // can't drift from a partial merge.
+    if (table) setInterval(revalidate, 20_000);
   }
 
   async function save(items: T[]) {

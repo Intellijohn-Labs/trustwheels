@@ -2,10 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import { getKey, putKey } from "./db";
-import { supabase } from "./supabase";
+import { deleteRows, upsertRows } from "./api-sync";
 
 /*
- * A shared retry queue for Supabase writes that fail (offline, timeout, transient error).
+ * A shared retry queue for /api/sync writes that fail (offline, timeout, transient error).
  * collections.ts and stock-store.ts both call `enqueueRetry()` from inside their own fire-and-
  * forget upsert/delete calls whenever one comes back with an error, instead of just logging it
  * and moving on. The queue itself is persisted to IndexedDB (survives a reload while offline) and
@@ -47,7 +47,7 @@ function loadQueue() {
   return loading;
 }
 
-/** Call right before a fire-and-forget Supabase write starts, so the pill can show "Syncing…" while it's in flight. */
+/** Call right before a fire-and-forget /api/sync write starts, so the pill can show "Syncing…" while it's in flight. */
 export function beginSync() {
   inFlight++;
   emit();
@@ -56,6 +56,23 @@ export function beginSync() {
 /** Call once that write settles, success or not. */
 export function endSync() {
   inFlight = Math.max(0, inFlight - 1);
+  emit();
+}
+
+/**
+ * Whether the most recently *settled* /api/sync call (read or write, from any collection)
+ * succeeded. Starts `false` (optimistic "reachable") rather than defaulting to an error state, so
+ * a fresh page load reports "Synced" the moment its first call succeeds instead of being stuck
+ * showing a stale "not configured" until something happens to flip it - the actual bug this
+ * replaces (that state used to come from a static, build-time `!supabase` check that never
+ * re-evaluated once the project was decommissioned).
+ */
+let lastSyncFailed = false;
+
+/** Collections call this after every /api/sync read/write settles, so the pill reflects reality. */
+export function reportSyncResult(ok: boolean) {
+  if (lastSyncFailed === !ok) return;
+  lastSyncFailed = !ok;
   emit();
 }
 
@@ -71,19 +88,17 @@ let draining = false;
 
 /** Replays every queued write in order; anything that still fails stays queued for next time. */
 export async function drain() {
-  if (draining || !supabase || !isOnline()) return;
+  if (draining || !isOnline()) return;
   await loadQueue();
   if (queue.length === 0) return;
   draining = true;
   beginSync();
   const pending = [...queue];
   for (const op of pending) {
-    try {
-      const { error } = op.kind === "upsert" ? await supabase.from(op.table).upsert(op.rows!) : await supabase.from(op.table).delete().in("id", op.ids!);
-      if (!error) queue = queue.filter((q) => q.id !== op.id);
-    } catch {
-      // network still down or table still unreachable - leave it queued, try again next drain
-    }
+    const ok = op.kind === "upsert" ? await upsertRows(op.table, op.rows!) : await deleteRows(op.table, op.ids!);
+    reportSyncResult(ok);
+    if (ok) queue = queue.filter((q) => q.id !== op.id);
+    // not ok: network still down or the table still unreachable - leave it queued, try again next drain
   }
   persist();
   endSync();
@@ -92,17 +107,18 @@ export async function drain() {
 }
 
 /**
- * A distinct state from "offline": the device has no connectivity problem, there's simply no
- * Supabase project configured for this deployment (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY missing
- * at build time). Every device in that state is working against its own local, never-shared
- * IndexedDB copy, which is exactly what makes two devices "see completely different data" -
- * silently falling back to "offline" here would hide that this isn't temporary and won't resolve
- * itself by reconnecting.
+ * A distinct state from "offline": the device has no connectivity problem, /api/sync itself is
+ * unreachable or erroring (wrong DATABASE_URL, the backend down, a missing table). Every device in
+ * that state is working against its own local, never-shared IndexedDB copy, which is exactly what
+ * makes two devices "see completely different data" - silently falling back to "offline" here
+ * would hide that this isn't temporary and won't resolve itself by reconnecting. Reflects the
+ * *actual* result of the last /api/sync call (`reportSyncResult`), not a static build-time check -
+ * that's what previously left this stuck showing "Local only" even once the backend was working.
  */
 function computeStatus(): SyncStatus {
-  if (!supabase) return "not-configured";
   if (!isOnline()) return "offline";
   if (inFlight > 0 || queue.length > 0) return "syncing";
+  if (lastSyncFailed) return "not-configured";
   return "synced";
 }
 

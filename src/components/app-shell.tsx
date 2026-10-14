@@ -160,7 +160,7 @@ const SYNC_STATUS: Record<SyncStatus, { dot: string; text: string; label: string
     dot: "bg-danger",
     text: "text-danger",
     label: "Local only",
-    title: "Not connected to the shared database on this deployment - changes made here stay on this device only and won't appear on others until Supabase is configured",
+    title: "Not connected to the shared database - changes made here stay on this device only and won't appear on others until /api/sync is reachable again",
     icon: TriangleAlert,
   },
 };
