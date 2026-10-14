@@ -62,6 +62,7 @@ export const PERMISSIONS = [
   "hr.delete",
   "documents.delete",
   "settings.manage",
+  "escalation_contacts.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

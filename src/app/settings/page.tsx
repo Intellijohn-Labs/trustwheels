@@ -9,6 +9,7 @@ import { useRole } from "@/lib/role-context";
 import { ACCENTS, setAccent, useAccent } from "@/components/accent-picker";
 import { setTheme, useThemeChoice, type ThemeChoice } from "@/components/theme-toggle";
 import { PageHeader, Panel, cn } from "@/components/ui";
+import { EscalationContactsPanel } from "@/components/panels/escalation-contacts-panel";
 
 const THEMES: { id: ThemeChoice; label: string; hint: string; icon: typeof Sun }[] = [
   { id: "light", label: "Light", hint: "Bright, for daytime", icon: Sun },
@@ -105,6 +106,8 @@ export default function SettingsPage() {
           </div>
         </Panel>
       )}
+
+      {can("escalation_contacts.manage") && <EscalationContactsPanel />}
     </div>
   );
 }
