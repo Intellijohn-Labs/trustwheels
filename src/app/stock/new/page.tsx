@@ -100,6 +100,7 @@ const EMPTY: FormState = {
   documents: {},
 };
 
+const MAX_OWNERS = 20;
 const THIS_YEAR = new Date().getFullYear();
 const EARLIEST_YEAR = 1960;
 const MONTHS: { val: string; label: string }[] = [
@@ -141,6 +142,10 @@ function validate(f: FormState): Errors {
   need("year");
   need("fuel");
   need("colour");
+  const owners = Number(f.owners);
+  if (f.owners.trim() === "") e.owners = "Required";
+  else if (!Number.isInteger(owners) || owners < 1) e.owners = "Enter a whole number, 1 or more";
+  else if (owners > MAX_OWNERS) e.owners = `Can't be more than ${MAX_OWNERS}`;
   if (!f.odometerKm) e.odometerKm = "Required";
   if (f.fuel === "petrol" && !f.engineCc) e.engineCc = "Required";
   if (f.chassisNo.length < 6) e.chassisNo = f.chassisNo ? "Too short" : "Required";
@@ -578,12 +583,19 @@ export default function NewVehiclePage() {
             )}
           </div>
         </Field>
-        <Field label="No. of owners" required>
-          <Segmented
-            name="Owners"
+        <Field label="No. of owners" htmlFor="owners" required error={show("owners")}>
+          <input
+            id="owners"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={MAX_OWNERS}
+            step={1}
             value={form.owners}
-            onChange={(v) => set("owners", v)}
-            options={["1", "2", "3", "4"].map((n) => ({ value: n, label: n === "4" ? "4+" : n }))}
+            onChange={(e) => set("owners", e.target.value)}
+            onBlur={touch("owners")}
+            placeholder="e.g. 1"
+            className={inputClass(!!show("owners"))}
           />
         </Field>
         

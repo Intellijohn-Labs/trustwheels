@@ -148,7 +148,7 @@ function VehicleDetail() {
               [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
               ["Odometer", `${formatNumber(v.odometerKm)} km`],
               ["Colour", v.colour],
-              ["Owners", v.owners >= 4 ? "4+" : v.owners],
+              ["Owners", v.owners],
               ["Chassis no.", <Mono key="c">{v.chassisNo}</Mono>],
               ["Engine no.", <Mono key="e">{v.engineNo}</Mono>],
             ]}
