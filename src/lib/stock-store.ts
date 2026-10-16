@@ -493,7 +493,6 @@ export async function quickAddToTransit(input: { registrationNo: string; model: 
       insurancePolicyNo: "",
       financeStatus: "free",
       conditionNotes: "Quick transit entry - full intake details pending.",
-      accidentHistory: "none",
       knownDefects: "",
       agreedValuePaise: 0,
       seller: { name: "", phone: "" },

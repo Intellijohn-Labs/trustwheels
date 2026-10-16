@@ -69,7 +69,7 @@ export interface Vehicle {
   rearTyrePercent?: number;
   paintPercent?: number;
   batteryStatus?: "good" | "not_good";
-  accidentHistory: AccidentHistory;
+  accidentHistory?: AccidentHistory; // no longer asked at intake; kept for older records
   knownDefects: string;
 
   agreedValuePaise: number;

@@ -250,7 +250,7 @@ You bring vehicles into the business: record every exchange or direct purchase, 
    - Then choose **Make**, **Model**, **Year** and **Fuel**, and enter **Engine CC**, **Odometer (km)**, **Colour**, **No. of owners**, **Chassis no.** and **Engine no.**
 4. **Photos**: tap each of the 6 boxes: **Front, Rear, Left side, Right side, Odometer, Chassis vs RC** (the chassis number photographed next to the RC). On a phone the camera opens directly. The counter must show **6/6**.
 5. **Insurance & finance**: enter the insurance date and policy number. Choose **Free (no loan)** or **Under finance**; if under finance, enter the **Financier** and the **NOC status**.
-6. **Condition**: choose the accident history, and note the condition and any known defects.
+6. **Condition**: enter the **front and rear tyre life** (in %), choose the **battery condition** (Good or Bad), and note the condition and any known defects.
 7. **Seller & value**: enter the seller's name, 10-digit mobile, and the **Purchased value** in ₹.
 8. Tap **Save vehicle**. You get a **Provisional ID**, and the **48-hour verification timer** starts.
 

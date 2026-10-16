@@ -11,7 +11,7 @@ import { useRole } from "@/lib/role-context";
 import { useToast } from "@/components/toast";
 import { couldBeReg, displayReg, formatIsoDate, groupIndian, isValidReg, normaliseReg } from "@/lib/format";
 import { newId } from "@/lib/collections";
-import type { AccidentHistory, Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
+import type { Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
 import { ColourPicker } from "@/components/colour-picker";
 import { MonthPicker } from "@/components/month-picker";
@@ -47,7 +47,9 @@ interface FormState {
   financier: string;
   nocStatus?: NocStatus;
   conditionNotes: string;
-  accidentHistory?: AccidentHistory;
+  frontTyrePercent: string;
+  rearTyrePercent: string;
+  batteryStatus?: "good" | "not_good";
   knownDefects: string;
   agreedValue: string; // whole rupees, digits only
   sellerName: string;
@@ -77,6 +79,8 @@ const EMPTY: FormState = {
   insuranceValidTill: "",
   insurancePolicyNo: "",
   financier: "",
+  frontTyrePercent: "",
+  rearTyrePercent: "",
   conditionNotes: "",
   knownDefects: "",
   agreedValue: "",
@@ -134,7 +138,12 @@ function validate(f: FormState): Errors {
     need("financier");
     need("nocStatus");
   }
-  need("accidentHistory");
+  for (const k of ["frontTyrePercent", "rearTyrePercent"] as const) {
+    const n = Number(f[k]);
+    if (f[k] === "") e[k] = "Enter the tyre life, 0 to 100";
+    else if (!Number.isFinite(n) || n < 0 || n > 100) e[k] = "Enter a value between 0 and 100";
+  }
+  need("batteryStatus", "Select the battery condition");
   if (!f.agreedValue || Number(f.agreedValue) <= 0) e.agreedValue = "Enter the purchased value";
   if (!f.sellerName.trim()) e.sellerName = "Enter the seller's name";
   if (!f.sellerPhone) e.sellerPhone = "Enter the seller's mobile number";
@@ -236,7 +245,9 @@ export default function NewVehiclePage() {
         financier: form.financeStatus === "financed" ? form.financier.trim() : undefined,
         nocStatus: form.financeStatus === "financed" ? form.nocStatus : undefined,
         conditionNotes: form.conditionNotes.trim(),
-        accidentHistory: form.accidentHistory!,
+        frontTyrePercent: Number(form.frontTyrePercent),
+        rearTyrePercent: Number(form.rearTyrePercent),
+        batteryStatus: form.batteryStatus!,
         knownDefects: form.knownDefects.trim(),
         agreedValuePaise: Number(form.agreedValue) * 100,
         seller: { name: form.sellerName.trim(), phone: form.sellerPhone, phoneAlt: form.sellerPhoneAlt },
@@ -575,20 +586,55 @@ export default function NewVehiclePage() {
       </Section>
 
       <Section title="Condition">
-        <Field label="Accident history" required error={show("accidentHistory")} wide>
+        <Field label="Front tyre" htmlFor="frontTyre" required error={show("frontTyrePercent")}>
+          <div className="relative">
+            <input
+              id="frontTyre"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={100}
+              step={1}
+              value={form.frontTyrePercent}
+              onChange={(e) => set("frontTyrePercent", e.target.value)}
+              onBlur={touch("frontTyrePercent")}
+              placeholder="e.g. 70"
+              className={`${inputClass(!!show("frontTyrePercent"))} pr-10 tabular-nums`}
+            />
+            <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-base text-muted">%</span>
+          </div>
+        </Field>
+        <Field label="Rear tyre" htmlFor="rearTyre" required error={show("rearTyrePercent")}>
+          <div className="relative">
+            <input
+              id="rearTyre"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={100}
+              step={1}
+              value={form.rearTyrePercent}
+              onChange={(e) => set("rearTyrePercent", e.target.value)}
+              onBlur={touch("rearTyrePercent")}
+              placeholder="e.g. 70"
+              className={`${inputClass(!!show("rearTyrePercent"))} pr-10 tabular-nums`}
+            />
+            <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-base text-muted">%</span>
+          </div>
+        </Field>
+        <Field label="Battery condition" required error={show("batteryStatus")} wide>
           <Segmented
-            name="Accident history"
-            value={form.accidentHistory}
-            onChange={(v) => set("accidentHistory", v)}
+            name="Battery condition"
+            value={form.batteryStatus}
+            onChange={(v) => set("batteryStatus", v)}
             options={[
-              { value: "none", label: "None" },
-              { value: "minor", label: "Minor" },
-              { value: "major", label: "Major" },
+              { value: "good", label: "Good" },
+              { value: "not_good", label: "Bad" },
             ]}
           />
         </Field>
         <Field label="Condition notes" htmlFor="notes">
-          <textarea id="notes" value={form.conditionNotes} onChange={(e) => set("conditionNotes", e.target.value)} placeholder="Tyres, paint, battery…" className={textareaClass()} />
+          <textarea id="notes" value={form.conditionNotes} onChange={(e) => set("conditionNotes", e.target.value)} placeholder="Paint, body, anything else worth noting…" className={textareaClass()} />
         </Field>
         <Field label="Known defects" htmlFor="defects">
           <textarea id="defects" value={form.knownDefects} onChange={(e) => set("knownDefects", e.target.value)} placeholder="Anything the workshop should fix" className={textareaClass()} />

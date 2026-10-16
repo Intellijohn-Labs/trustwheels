@@ -169,6 +169,9 @@ function VehicleDetail() {
         <Card title="Condition">
           <Specs
             rows={[
+              ["Front tyre", v.frontTyrePercent != null ? `${v.frontTyrePercent}%` : "—"],
+              ["Rear tyre", v.rearTyrePercent != null ? `${v.rearTyrePercent}%` : "—"],
+              ["Battery", v.batteryStatus ? (v.batteryStatus === "good" ? "Good" : "Bad") : "—"],
               ["Notes", v.conditionNotes || "—"],
               ["Known defects", v.knownDefects || "—"],
             ]}

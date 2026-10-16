@@ -294,7 +294,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                     </div>
                     <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
                       <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Battery</span>
-                      <span className="font-bold text-emerald-700 [html[data-theme='dark']_&]:text-emerald-400 uppercase">{v.batteryStatus || "GOOD"}</span>
+                      <span className={`font-bold uppercase ${v.batteryStatus === "not_good" ? "text-red-700 [html[data-theme='dark']_&]:text-red-400" : "text-emerald-700 [html[data-theme='dark']_&]:text-emerald-400"}`}>{v.batteryStatus === "not_good" ? "BAD" : "GOOD"}</span>
                     </div>
                   </div>
 
