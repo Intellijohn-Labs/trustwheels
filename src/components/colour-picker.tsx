@@ -29,7 +29,14 @@ export function ColourPicker({
   const preset = COLOUR_NAMES.find((n) => n.toLowerCase() === value.trim().toLowerCase());
 
   return (
-    <div className="flex flex-col gap-2">
+    // Blur is reported only when focus leaves the whole picker, so moving from the dropdown to the
+    // custom-name box (which opens and takes focus on "Other...") doesn't count as leaving the field.
+    <div
+      className="flex flex-col gap-2"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onBlur?.();
+      }}
+    >
       <div className="relative">
         <select
           id={id}
@@ -44,7 +51,6 @@ export function ColourPicker({
               onChange(v);
             }
           }}
-          onBlur={onBlur}
           className={cn(inputClass(invalid), "appearance-none pr-10")}
         >
           <option value="">Select colour</option>
@@ -64,9 +70,9 @@ export function ColourPicker({
           aria-label="Colour name"
           value={value}
           onChange={(e) => onChange(e.target.value.slice(0, 40))}
-          onBlur={onBlur}
           autoFocus={otherOpen}
-          placeholder="Type the colour name, e.g. Violet, Pearl White"
+          data-error-focus={invalid ? "" : undefined}
+          placeholder="Enter custom colour name (e.g. Matte Olive Green, Candy Red)"
           className={inputClass(invalid)}
         />
       )}

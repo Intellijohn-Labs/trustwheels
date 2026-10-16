@@ -170,7 +170,7 @@ function validate(f: FormState): Errors {
   else if (f.mfgMonth > THIS_MONTH) e.mfgMonth = "Can't be in the future";
   else if (f.mfgMonth < EARLIEST_MONTH) e.mfgMonth = `Can't be before ${EARLIEST_YEAR}`;
   need("fuel");
-  if (!f.colour.trim()) e.colour = "Pick a colour or enter one under Other";
+  if (!f.colour.trim()) e.colour = "Pick a colour, or choose Other and type its name";
   const owners = Number(f.owners);
   if (f.owners.trim() === "") e.owners = REQUIRED;
   else if (!Number.isInteger(owners) || owners < 1) e.owners = "Enter a whole number, 1 or more";
@@ -278,7 +278,8 @@ export default function NewVehiclePage() {
     const first = document.querySelector<HTMLElement>("[data-field-error]");
     if (!first) return;
     first.scrollIntoView({ behavior: "smooth", block: "center" });
-    first.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])")?.focus({ preventScroll: true });
+    // A field can mark the control that needs fixing (the custom-colour box), else the first control inside it.
+    (first.querySelector<HTMLElement>("[data-error-focus]") ?? first.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])"))?.focus({ preventScroll: true });
   }, [attempt]);
 
   async function onSubmit(e: FormEvent) {
