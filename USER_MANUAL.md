@@ -121,7 +121,7 @@ Every warning also has **words and an icon**, so you never have to rely on colou
 
 ### The Stock Deck
 
-**Stock & hub → Stock Deck** shows every vehicle as a playing card. The front has the vehicle name, registration, the date it was added to stock, and a suit in the corner.
+**Stock & hub → Stock Deck** shows every vehicle as a playing card. The front has the vehicle's status, name, registration and the date it was added to stock.
 
 1. **Click a card** to flip it. The back shows the vehicle's **current status** in a colour of its own (amber: verification pending, cyan: in transit, indigo: receiving, purple: in reconditioning, green: ready for sale, crimson: booked or sold), with odometer, manufacture month and year, engine, tyres and battery. A vehicle in transit also shows the live time left.
 2. **Click again** to open the **full dossier**: every detail, all photos and all documents.

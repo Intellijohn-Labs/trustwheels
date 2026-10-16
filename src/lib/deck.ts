@@ -60,24 +60,6 @@ export function deckStatusLabel(v: Vehicle, status: DeckStatus): string {
   return DECK_THEMES[status].label;
 }
 
-export const SUITS = [
-  { char: "♠", red: false },
-  { char: "♥", red: true },
-  { char: "♣", red: false },
-  { char: "♦", red: true },
-] as const;
-
-/** A stable suit per vehicle, so a card keeps its suit between visits. */
-export function suitFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return SUITS[h % SUITS.length];
-}
-
-export function rankFor(v: Vehicle) {
-  return (v.make.trim()[0] ?? "A").toUpperCase();
-}
-
 // ---- dossier ------------------------------------------------------------------------
 
 export interface DossierFile {

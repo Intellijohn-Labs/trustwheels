@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import { ArrowRight, RotateCcw } from "lucide-react";
-import { DECK_THEMES, deckStatus, deckStatusLabel, mfgLabel, rankFor, suitFor } from "@/lib/deck";
+import { DECK_THEMES, deckStatus, deckStatusLabel, mfgLabel } from "@/lib/deck";
 import { branchName } from "@/lib/masters";
 import { displayReg, formatNumber } from "@/lib/format";
 import { formatHM } from "@/lib/verification";
@@ -15,22 +15,10 @@ const cq = (n: number): CSSProperties => ({ fontSize: `${n}cqw` });
 
 const addedOn = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 
-/** Rank and suit in a card corner; the bottom-right one is turned upside down, like a real card. */
-function Corner({ rank, suit, flipped }: { rank: string; suit: string; flipped?: boolean }) {
-  return (
-    <div aria-hidden className={cn("pointer-events-none absolute flex flex-col items-center font-serif leading-none text-white", flipped ? "right-[6cqw] bottom-[5cqw] rotate-180" : "top-[5cqw] left-[6cqw]")}>
-      <span className="font-bold" style={cq(11)}>
-        {rank}
-      </span>
-      <span style={cq(9)}>{suit}</span>
-    </div>
-  );
-}
-
 function Bike() {
   return (
     <div className="relative grid place-items-center">
-      <div className="absolute rounded-full blur-2xl" style={{ width: "52cqw", height: "52cqw", background: "radial-gradient(circle, rgb(255 255 255 / 0.4), transparent 70%)" }} aria-hidden />
+      <div className="absolute rounded-full blur-2xl" style={{ width: "58cqw", height: "58cqw", background: "radial-gradient(circle, rgb(255 255 255 / 0.4), transparent 70%)" }} aria-hidden />
       <svg
         viewBox="0 0 200 120"
         fill="none"
@@ -38,7 +26,7 @@ function Bike() {
         strokeLinecap="round"
         strokeLinejoin="round"
         className="relative"
-        style={{ width: "56cqw", filter: "drop-shadow(0 0 1.4cqw rgb(255 255 255 / 0.55))" }}
+        style={{ width: "62cqw", filter: "drop-shadow(0 0 1.4cqw rgb(255 255 255 / 0.55))" }}
         aria-hidden
       >
         {[45, 155].map((cx) => (
@@ -82,8 +70,6 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
   const [flipped, setFlipped] = useState(false);
   const status = deckStatus(v);
   const theme = DECK_THEMES[status];
-  const suit = suitFor(v.id);
-  const rank = rankFor(v);
   const name = `${v.make} ${v.model}`;
   const d = v.dispatch;
   const transit = status === "in_transit" && d && !v.receipt;
@@ -97,23 +83,25 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
         <div className="deck-card" data-flipped={flipped}>
           {/* FRONT */}
           <div className="deck-face deck-front" aria-hidden={flipped}>
-            <Corner rank={rank} suit={suit.char} />
-            <Corner rank={rank} suit={suit.char} flipped />
+            <span className="deck-pill pointer-events-none absolute top-[7cqw] left-1/2 inline-flex -translate-x-1/2 items-center gap-[1.6cqw] rounded-full px-[3.4cqw] py-[1.3cqw] font-bold tracking-wider whitespace-nowrap uppercase" style={cq(3.9)}>
+              <span className="rounded-full" style={{ width: "2.2cqw", height: "2.2cqw", background: "#fff", boxShadow: "0 0 1.6cqw rgb(255 255 255 / 0.9)" }} />
+              {deckStatusLabel(v, status)}
+            </span>
 
-            <div className="pointer-events-none absolute inset-x-[17cqw] top-[10cqw] bottom-[13cqw] flex flex-col items-center justify-center gap-[3.2cqw] text-center">
+            <div className="pointer-events-none absolute inset-x-[9cqw] top-[16cqw] bottom-[14cqw] flex flex-col items-center justify-center gap-[3.4cqw] text-center">
               <Bike />
               <div className="w-full">
-                <p className="line-clamp-2 font-extrabold tracking-tight" style={{ ...cq(8.4), lineHeight: 1.12 }}>
+                <p className="line-clamp-2 font-extrabold tracking-tight" style={{ ...cq(8.8), lineHeight: 1.12 }}>
                   {name}
                 </p>
-                <p className="truncate font-medium text-white/80" style={cq(4.4)}>
+                <p className="truncate font-medium text-white/80" style={cq(4.6)}>
                   {v.variant || "Standard"}
                 </p>
               </div>
-              <span className="rounded-full border border-white/20 bg-black/40 px-[4cqw] py-[1.2cqw] font-mono font-bold tracking-wider text-white" style={cq(5.2)}>
+              <span className="rounded-full border border-white/20 bg-black/40 px-[4cqw] py-[1.2cqw] font-mono font-bold tracking-wider text-white" style={cq(5.4)}>
                 {displayReg(v.registrationNo) || "NO REG"}
               </span>
-              <p className="font-medium text-white/85" style={cq(4.4)}>
+              <p className="font-medium text-white/85" style={cq(4.6)}>
                 Stock added: {addedOn(v.createdAt)}
               </p>
             </div>
