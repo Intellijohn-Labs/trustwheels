@@ -7,8 +7,7 @@ import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { cancelDispatch, deleteVehicle, dispatchVehicle, quickAddToTransit, useVehicles } from "@/lib/stock-store";
 import { BRANCHES, LIFECYCLE_STAGES, SLA, branchName } from "@/lib/masters";
-import { displayReg, formatDateTime, formatPhone, isValidMobile, normaliseReg } from "@/lib/format";
-import { localInput } from "@/lib/datetime-input";
+import { displayReg, formatDateTime, formatDateTimeSeconds, formatPhone, isValidMobile, normaliseReg } from "@/lib/format";
 import { formatDuration, formatHM, verifyState } from "@/lib/verification";
 import { inTransit, transitBreached, transitHours, transitRemainingMs } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
@@ -219,17 +218,17 @@ const HANDOVER_DOC_ITEMS = [
   "Vehicle Key (Spare)",
   "Insurance Copy",
   "Forms 28/29/30 (Signed)",
-  "Seller KYC",
+  "Seller KYC (e-Aadhaar)",
+  "Finance NOC",
   "Tax / PUC Receipt",
 ];
 
 function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [rider, setRider] = useState("");
   const [riderPhone, setRiderPhone] = useState("");
-  // Defaults to now; editable for a handover that already happened. Re-read when the dialog opens, not on every render.
-  const [when, setWhen] = useState(() => localInput(Date.now()));
+  // Live clock shown in the dialog. The saved handover time is read again at the moment of the click, not taken from this.
+  const now = useNow(1000);
   const [tried, setTried] = useState(false);
-  const [future, setFuture] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedDocs, setSelectedDocs] = useState<string[]>([
     "RC Book (Original)",
@@ -246,21 +245,17 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
   // Source is the hub the bike is at right now (where this dispatch is being started); destination is Angamaly.
   const from = vehicle.branchId;
   const to = "ang";
-  const whenMs = new Date(when).getTime();
-  const whenError = !when || Number.isNaN(whenMs) ? "Enter the dispatch date and time" : future ? "Can't be in the future" : undefined;
   const phoneError = !riderPhone ? "Enter the rider's mobile number" : !isValidMobile(riderPhone) ? "Enter a valid 10-digit mobile number" : undefined;
   const riderError = !rider.trim() ? "Enter the rider's name" : undefined;
 
   async function submit() {
-    const inFuture = !Number.isNaN(whenMs) && whenMs > Date.now() + 60_000;
-    if (riderError || phoneError || whenError || inFuture) {
+    if (riderError || phoneError) {
       setTried(true);
-      setFuture(inFuture);
       return;
     }
     if (
       await run(
-        () => dispatchVehicle(vehicle.id, rider, notes, to, from, { riderPhone, handoverAt: new Date(whenMs).toISOString(), handoverDocs: selectedDocs }),
+        () => dispatchVehicle(vehicle.id, rider, notes, to, from, { riderPhone, handoverAt: new Date().toISOString(), handoverDocs: selectedDocs }),
         `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for ${branchName(to)}`,
       )
     )
@@ -300,24 +295,17 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
         </Field>
       </div>
       <div className="mt-4">
-        <Field
-          label="Dispatch date & time"
-          htmlFor="dispatch-when"
-          required
-          error={tried ? whenError : undefined}
-          hint={`Defaults to now. ${branchName(to)} must receive it within ${SLA.transitHours} hours of this time.`}
-        >
-          <input
-            id="dispatch-when"
-            type="datetime-local"
-            value={when}
-            onChange={(e) => {
-              setWhen(e.target.value);
-              setFuture(false);
-            }}
-            className={inputClass(tried && !!whenError)}
-          />
-        </Field>
+        <p className="text-sm font-medium text-ink">Dispatch date &amp; time</p>
+        <div className="mt-1.5 flex items-center gap-2.5 rounded-xl bg-sunken px-3.5 py-3">
+          <Clock className="size-4 shrink-0 text-muted" />
+          <time dateTime={new Date(now).toISOString()} className="font-mono text-base font-semibold tabular-nums text-ink">
+            {formatDateTimeSeconds(now)}
+          </time>
+          <span className="ml-auto rounded-full bg-ok-soft px-2 py-0.5 text-xs font-semibold text-ok">Live</span>
+        </div>
+        <p className="mt-1.5 text-xs text-muted">
+          The exact time you tap Hand over now is recorded. {branchName(to)} must receive it within {SLA.transitHours} hours of that time.
+        </p>
       </div>
       <div className="mt-4">
         <Field label="Handover notes (optional)" htmlFor="dispatch-notes" hint="Vehicle condition, handover instructions, driver contact, etc.">

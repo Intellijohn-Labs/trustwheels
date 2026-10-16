@@ -28,6 +28,14 @@ export function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" });
 }
 
+/** "14/10/2026, 11:33:05 PM" in Asia/Kolkata - for a live clock that ticks in seconds. */
+export function formatDateTimeSeconds(ms: number) {
+  const d = new Date(ms);
+  const date = d.toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" });
+  const time = d.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  return `${date}, ${time}`;
+}
+
 export function formatDateTime(iso: string) {
   const d = new Date(iso);
   const date = d.toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" });

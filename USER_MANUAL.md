@@ -264,7 +264,7 @@ You bring vehicles into the business: record every exchange or direct purchase, 
 
 **Step 3: Dispatch to Angamaly**
 1. Open **Transit**. Under **Ready to dispatch** you'll see your verified vehicles.
-2. Tap **Dispatch**. The **From** hub is filled in for you. Enter the **Rider name** and the rider's 10-digit **Rider phone / mobile**, check the **Dispatch date & time** (it starts as now; change it only if the handover already happened), then tap **Hand over now**.
+2. Tap **Dispatch**. The **From** hub is filled in for you. Enter the **Rider name** and the rider's 10-digit **Rider phone / mobile**, tick the **handover checklist** items (including **Seller KYC (e-Aadhaar)** and **Finance NOC**), then tap **Hand over now**. The **Dispatch date & time** is a live clock and can't be edited; the exact second you tap the button is recorded.
 3. The vehicle moves to **In transit** with a live timer. The 48-hour limit starts now.
 
 **Step 4: Watch transit**
