@@ -264,11 +264,11 @@ You bring vehicles into the business: record every exchange or direct purchase, 
 
 **Step 3: Dispatch to Angamaly**
 1. Open **Transit**. Under **Ready to dispatch** you'll see your verified vehicles.
-2. Tap **Dispatch**, enter the **Rider name**, then tap **Hand over now**.
+2. Tap **Dispatch**. The **From** hub is filled in for you. Enter the **Rider name** and the rider's 10-digit **Rider phone / mobile**, check the **Dispatch date & time** (it starts as now; change it only if the handover already happened), then tap **Hand over now**.
 3. The vehicle moves to **In transit** with a live timer. The 48-hour limit starts now.
 
 **Step 4: Watch transit**
-- **In transit** shows each vehicle's rider, handover time and hours elapsed. Anything over 48 h turns red.
+- **In transit** shows each vehicle's rider and phone, handover time and hours elapsed. Anything over 48 h turns red.
 - **Branch transit performance** shows your branch's average transit time and number of breaches.
 
 #### D. Rules you must follow
@@ -372,7 +372,7 @@ Open **Dashboard** and read the tiles:
 - **Awaiting verification**
 
 **Step 2: Receive a vehicle when it arrives**
-1. Open **Receiving**. Under **Arriving**, find the vehicle. Its dispatch note shows the branch, rider, handover time and registration number.
+1. Open **Receiving**. Under **Arriving**, find the vehicle. Its dispatch note shows the hub it was dispatched from, the dispatch date and time, the rider's name and phone (tap it to call), and the registration number. The same details are at the top of the **Receive** window.
 2. Walk to the vehicle and read the number plate yourself.
 3. Tap **Receive**. In **Registration number on the plate**, type what **you see on the plate**, not what's on screen.
 4. Add **Notes** if anything is unusual (damage, missing key, helmet, etc.).

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Bike, Clock, Loader2, Plus, ShieldAlert, Trash2, Truck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bike, Clock, Loader2, Plus, ShieldAlert, Trash2, Truck } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { cancelDispatch, deleteVehicle, dispatchVehicle, quickAddToTransit, useVehicles } from "@/lib/stock-store";
 import { BRANCHES, LIFECYCLE_STAGES, SLA, branchName } from "@/lib/masters";
-import { displayReg, formatDateTime, normaliseReg } from "@/lib/format";
+import { displayReg, formatDateTime, formatPhone, isValidMobile, normaliseReg } from "@/lib/format";
+import { localInput } from "@/lib/datetime-input";
 import { formatDuration, verifyState } from "@/lib/verification";
 import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
@@ -30,6 +31,25 @@ export function awaitingDispatch(v: Vehicle) {
 /** Past 75% of the transit limit but not yet breached. */
 export function transitNearLimit(v: Vehicle, now: number) {
   return inTransit(v) && !transitBreached(v, now) && transitHours(v, now) > SLA.transitHours * 0.75;
+}
+
+/** 10-digit mobile input with a +91 prefix; keeps digits only. */
+function PhoneInput({ id, value, onChange, invalid }: { id: string; value: string; onChange: (v: string) => void; invalid?: boolean }) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
+      <input
+        id={id}
+        type="tel"
+        inputMode="numeric"
+        autoComplete="off"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 10))}
+        placeholder="98470 12345"
+        className={`${inputClass(invalid)} pl-12 tabular-nums`}
+      />
+    </div>
+  );
 }
 
 // ---- add to transit (manual, 5-field quick entry - not tied to a specific row) -------
@@ -64,6 +84,8 @@ function AddToTransitDialog({ onClose }: { onClose: () => void }) {
   const [regNo, setRegNo] = useState("");
   const [model, setModel] = useState("");
   const [rider, setRider] = useState("");
+  const [riderPhone, setRiderPhone] = useState("");
+  const [tried, setTried] = useState(false);
   const [fromBranch, setFromBranch] = useState(originBranches.some((b) => b.id === user.base) ? user.base : (originBranches[0]?.id ?? "b1"));
   const [toBranch, setToBranch] = useState("ang");
   const { submit: run, failure, busy } = useInlineAction();
@@ -78,9 +100,13 @@ function AddToTransitDialog({ onClose }: { onClose: () => void }) {
   }
 
   async function submit() {
+    if (!isValidMobile(riderPhone)) {
+      setTried(true);
+      return;
+    }
     if (
       await run(
-        () => quickAddToTransit({ registrationNo: regNo, model, rider, from: fromBranch, to: toBranch }),
+        () => quickAddToTransit({ registrationNo: regNo, model, rider, riderPhone, from: fromBranch, to: toBranch }),
         `${matched ? `${matched.make} ${matched.model}` : displayReg(reg)} added to transit → ${branchName(toBranch)}`,
       )
     )
@@ -132,6 +158,12 @@ function AddToTransitDialog({ onClose }: { onClose: () => void }) {
       <div className="mt-4">
         <Field label="Rider / driver name" htmlFor="add-rider" required>
           <input id="add-rider" value={rider} onChange={(e) => setRider(e.target.value)} autoComplete="off" className={inputClass()} />
+        </Field>
+      </div>
+
+      <div className="mt-4">
+        <Field label="Rider phone / mobile" htmlFor="add-rider-phone" required error={tried && !isValidMobile(riderPhone) ? (riderPhone ? "Enter a valid 10-digit mobile number" : "Enter the rider's mobile number") : undefined}>
+          <PhoneInput id="add-rider-phone" value={riderPhone} onChange={setRiderPhone} invalid={tried && !isValidMobile(riderPhone)} />
         </Field>
       </div>
 
@@ -193,6 +225,11 @@ const HANDOVER_DOC_ITEMS = [
 
 function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [rider, setRider] = useState("");
+  const [riderPhone, setRiderPhone] = useState("");
+  // Defaults to now; editable for a handover that already happened. Re-read when the dialog opens, not on every render.
+  const [when, setWhen] = useState(() => localInput(Date.now()));
+  const [tried, setTried] = useState(false);
+  const [future, setFuture] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedDocs, setSelectedDocs] = useState<string[]>([
     "RC Book (Original)",
@@ -206,10 +243,28 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
     );
   };
 
+  // Source is the hub the bike is at right now (where this dispatch is being started); destination is Angamaly.
+  const from = vehicle.branchId;
+  const to = "ang";
+  const whenMs = new Date(when).getTime();
+  const whenError = !when || Number.isNaN(whenMs) ? "Enter the dispatch date and time" : future ? "Can't be in the future" : undefined;
+  const phoneError = !riderPhone ? "Enter the rider's mobile number" : !isValidMobile(riderPhone) ? "Enter a valid 10-digit mobile number" : undefined;
+  const riderError = !rider.trim() ? "Enter the rider's name" : undefined;
+
   async function submit() {
-    const docPayload = selectedDocs.length > 0 ? `[Handover Docs: ${selectedDocs.join(", ")}]` : "[Handover Docs: None]";
-    const combinedNotes = notes.trim() ? `${notes.trim()}\n\n${docPayload}` : docPayload;
-    if (await run(() => dispatchVehicle(vehicle.id, rider, combinedNotes), `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for Angamaly`)) onClose();
+    const inFuture = !Number.isNaN(whenMs) && whenMs > Date.now() + 60_000;
+    if (riderError || phoneError || whenError || inFuture) {
+      setTried(true);
+      setFuture(inFuture);
+      return;
+    }
+    if (
+      await run(
+        () => dispatchVehicle(vehicle.id, rider, notes, to, from, { riderPhone, handoverAt: new Date(whenMs).toISOString(), handoverDocs: selectedDocs }),
+        `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for ${branchName(to)}`,
+      )
+    )
+      onClose();
   }
 
   return (
@@ -223,15 +278,47 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
           <Button size="lg" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" type="submit" variant="primary" className="flex-[2]" disabled={busy || !rider.trim()}>
+          <Button size="lg" type="submit" variant="primary" className="flex-[2]" disabled={busy}>
             <Truck className="size-4" /> Hand over now
           </Button>
         </>
       }
     >
-      <Field label="Rider name" htmlFor="rider" required hint={`The handover time is recorded now. Angamaly must receive it within ${SLA.transitHours} hours.`}>
-        <input id="rider" autoFocus value={rider} onChange={(e) => setRider(e.target.value)} autoComplete="off" className={inputClass(!!failure)} />
-      </Field>
+      <div className="flex items-center gap-2 rounded-xl bg-sunken px-3.5 py-2.5 text-sm">
+        <span className="text-muted">From</span>
+        <span className="font-medium">{branchName(from)}</span>
+        <ArrowRight className="size-4 text-muted" />
+        <span className="text-muted">To</span>
+        <span className="font-medium">{branchName(to)}</span>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Field label="Rider name" htmlFor="rider" required error={tried ? riderError : undefined}>
+          <input id="rider" autoFocus value={rider} onChange={(e) => setRider(e.target.value)} autoComplete="off" className={inputClass(!!failure || (tried && !!riderError))} />
+        </Field>
+        <Field label="Rider phone / mobile" htmlFor="rider-phone" required error={tried ? phoneError : undefined}>
+          <PhoneInput id="rider-phone" value={riderPhone} onChange={setRiderPhone} invalid={tried && !!phoneError} />
+        </Field>
+      </div>
+      <div className="mt-4">
+        <Field
+          label="Dispatch date & time"
+          htmlFor="dispatch-when"
+          required
+          error={tried ? whenError : undefined}
+          hint={`Defaults to now. ${branchName(to)} must receive it within ${SLA.transitHours} hours of this time.`}
+        >
+          <input
+            id="dispatch-when"
+            type="datetime-local"
+            value={when}
+            onChange={(e) => {
+              setWhen(e.target.value);
+              setFuture(false);
+            }}
+            className={inputClass(tried && !!whenError)}
+          />
+        </Field>
+      </div>
       <div className="mt-4">
         <Field label="Handover notes (optional)" htmlFor="dispatch-notes" hint="Vehicle condition, handover instructions, driver contact, etc.">
           <textarea
@@ -502,6 +589,7 @@ export function InTransitPanel({ limit }: { limit?: number }) {
             <CardMeta>
               <span>
                 Rider <span className="font-medium text-ink">{v.dispatch!.rider}</span>
+                {v.dispatch!.riderPhone && <> · {formatPhone(v.dispatch!.riderPhone)}</>}
               </span>
               <span>{formatDateTime(v.dispatch!.handoverAt)}</span>
             </CardMeta>
@@ -523,7 +611,15 @@ export function InTransitPanel({ limit }: { limit?: number }) {
             ? [{ header: "", cell: (v: Vehicle) => <RowCheckbox checked={selection.isSelected(v.id)} onChange={() => selection.toggle(v.id)} label={`Select ${v.make} ${v.model}`} /> }]
             : []),
           { header: "Vehicle", cell: (v) => <VehicleCell vehicle={v} /> },
-          { header: "Rider", cell: (v) => v.dispatch!.rider },
+          {
+            header: "Rider",
+            cell: (v) => (
+              <div className="text-xs whitespace-nowrap">
+                <p className="text-sm">{v.dispatch!.rider}</p>
+                {v.dispatch!.riderPhone && <p className="text-muted">{formatPhone(v.dispatch!.riderPhone)}</p>}
+              </div>
+            ),
+          },
           { header: "Handed over", cell: (v) => <span className="whitespace-nowrap text-muted">{formatDateTime(v.dispatch!.handoverAt)}</span> },
           {
             header: "Elapsed",

@@ -9,7 +9,7 @@ import { assertCan, assertScope, getActor } from "./session";
 import { deleteRows, fetchTable, upsertRows } from "./api-sync";
 import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue";
 import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
-import { normaliseReg, displayReg, formatPaise } from "./format";
+import { normaliseReg, displayReg, formatPaise, isValidMobile } from "./format";
 import { newId } from "./collections";
 import { missingDocuments, verifyDocument } from "./documents";
 import { documentLabel, inferMakeFromModel } from "./masters";
@@ -425,18 +425,42 @@ export async function markPayoutPaid(id: string, reference: string) {
 
 // ---- dispatch & receipt ----------------------------------------------------------
 
-export async function dispatchVehicle(id: string, rider: string, notes?: string, to = "ang", from?: string) {
+export interface DispatchExtra {
+  /** Rider's 10-digit mobile. Required. */
+  riderPhone: string;
+  /** ISO time of the handover; defaults to now. Can't be in the future. */
+  handoverAt?: string;
+  /** Items ticked on the handover checklist. */
+  handoverDocs?: string[];
+}
+
+export async function dispatchVehicle(id: string, rider: string, notes: string | undefined, to: string, from: string | undefined, extra: DispatchExtra) {
   assertCan("transit.dispatch");
   const v = await update(id, (v) => {
     assertScope(v.branchId);
     if (v.dispatch) fail("Already dispatched");
     if (!rider.trim()) fail("Enter the rider's name");
+    if (!isValidMobile(extra.riderPhone)) fail("Enter the rider's 10-digit mobile number");
+    const at = extra.handoverAt ? new Date(extra.handoverAt) : new Date();
+    if (Number.isNaN(at.getTime())) fail("Enter a valid dispatch date and time");
+    if (at.getTime() > Date.now() + 60_000) fail("Dispatch time can't be in the future");
+    const handoverAt = at.toISOString();
     const origin = from ?? v.branchId;
     if (to === origin) fail("Destination must be different from the origin");
     return {
       ...v,
-      ...advance(v, 6),
-      dispatch: { rider: rider.trim(), handoverAt: nowIso(), by: getActor().name, from: origin, to, notes: notes?.trim() || undefined, prevStage: v.stage },
+      ...advance(v, 6, handoverAt),
+      dispatch: {
+        rider: rider.trim(),
+        riderPhone: extra.riderPhone,
+        handoverAt,
+        by: getActor().name,
+        from: origin,
+        to,
+        notes: notes?.trim() || undefined,
+        handoverDocs: extra.handoverDocs,
+        prevStage: v.stage,
+      },
     };
   });
   return v;
@@ -466,7 +490,7 @@ export async function cancelDispatch(id: string) {
  * result is a normal dispatched vehicle, so the transit table, "Mark as received", SLA tracking
  * and badges need no special-casing for how the entry got there.
  */
-export async function quickAddToTransit(input: { registrationNo: string; model: string; rider: string; from: string; to: string; notes?: string }) {
+export async function quickAddToTransit(input: { registrationNo: string; model: string; rider: string; riderPhone: string; from: string; to: string; notes?: string }) {
   await load();
   const reg = normaliseReg(input.registrationNo);
   if (!reg) fail("Enter the vehicle's registration number");
@@ -498,7 +522,7 @@ export async function quickAddToTransit(input: { registrationNo: string; model: 
       seller: { name: "", phone: "" },
       photos: {},
     }));
-  return dispatchVehicle(vehicle.id, input.rider, input.notes, input.to, input.from);
+  return dispatchVehicle(vehicle.id, input.rider, input.notes, input.to, input.from, { riderPhone: input.riderPhone });
 }
 
 function nextStockId() {

@@ -127,13 +127,18 @@ export interface Purchase {
 
 export interface Dispatch {
   rider: string;
+  /** Rider's 10-digit mobile, so the receiving branch can reach them. Absent on dispatches made before it was captured. */
+  riderPhone?: string;
   handoverAt: string;
   by: string;
   /** Origin branch for this leg - usually `branchId`, but independently settable from the manual /transit form. */
   from: string;
   /** Destination branch for this leg - the Angamaly hub by default, but any other branch can be chosen. */
   to: string;
+  /** Handover notes only. Older dispatches have the checklist appended here as "[Handover Docs: ...]" instead. */
   notes?: string;
+  /** Documents / items ticked on the handover checklist. */
+  handoverDocs?: string[];
   /** Stage the vehicle was at right before this dispatch, restored if the dispatch is cancelled. */
   prevStage: number;
 }

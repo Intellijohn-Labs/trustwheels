@@ -7,7 +7,7 @@ import { celebrate } from "@/lib/celebrate";
 import { ArrowLeft, Bike, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { deleteVehicle, setAskingPrice, useVehicle } from "@/lib/stock-store";
 import { PHOTO_SLOTS, branchName } from "@/lib/masters";
-import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise } from "@/lib/format";
+import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise, formatPhone } from "@/lib/format";
 import type { Vehicle } from "@/lib/types";
 import { Button, StageBadge, cn } from "@/components/ui";
 import { VerifyButton } from "@/components/verify-button";
@@ -256,9 +256,13 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
       "Dispatch",
       v.dispatch ? (
         <>
-          {v.dispatch.rider} · {branchName(v.dispatch.from)} → {branchName(v.dispatch.to)} · {formatDateTime(v.dispatch.handoverAt)} ·{" "}
+          {v.dispatch.rider}
+          {v.dispatch.riderPhone ? ` (${formatPhone(v.dispatch.riderPhone)})` : ""} · {branchName(v.dispatch.from)} → {branchName(v.dispatch.to)} · {formatDateTime(v.dispatch.handoverAt)} ·{" "}
           {Math.round(transitHours(v, now))}h in transit {transitBreached(v, now) && <Pill tone="danger">Over {SLA.transitHours}h</Pill>}
           {v.dispatch.notes && <span className="mt-0.5 block text-xs text-muted">Note: {v.dispatch.notes}</span>}
+          {v.dispatch.handoverDocs && v.dispatch.handoverDocs.length > 0 && (
+            <span className="mt-0.5 block text-xs text-muted">Handed over: {v.dispatch.handoverDocs.join(", ")}</span>
+          )}
         </>
       ) : (
         "Not dispatched"

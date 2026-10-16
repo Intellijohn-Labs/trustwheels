@@ -9,6 +9,16 @@ export function groupIndian(digits: string) {
   return digits ? inr.format(Number(digits)) : "";
 }
 
+/** A 10-digit Indian mobile number (starts 6-9), digits only. */
+export function isValidMobile(digits: string) {
+  return /^[6-9]\d{9}$/.test(digits);
+}
+
+/** "9847012345" -> "+91 98470 12345" */
+export function formatPhone(digits: string) {
+  return digits.length === 10 ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : digits;
+}
+
 export function formatNumber(n: number) {
   return inr.format(n);
 }

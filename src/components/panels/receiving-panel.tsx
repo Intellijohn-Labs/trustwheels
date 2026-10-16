@@ -7,9 +7,9 @@ import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
 import { receiveVehicle } from "@/lib/stock-store";
 import { SLA, branchName } from "@/lib/masters";
-import { displayReg, formatDateTime, normaliseReg } from "@/lib/format";
+import { displayReg, formatDateTime, formatPhone, normaliseReg } from "@/lib/format";
 import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
-import type { Vehicle } from "@/lib/types";
+import type { Dispatch, Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
 import { DeleteVehicleButton } from "../delete-vehicle-button";
 import { BulkDeleteBar } from "../bulk-delete-bar";
@@ -27,6 +27,25 @@ export function receivedToday(v: Vehicle, now: number) {
 }
 
 // ---- receive dialog ----------------------------------------------------------------
+
+/** Handover note and ticked items. Dispatches before the checklist had its own field carry it inside the note as "[Handover Docs: ...]". */
+function handoverSummary(d: Dispatch): { docs: string[]; note: string } {
+  if (d.handoverDocs) return { docs: d.handoverDocs, note: (d.notes ?? "").trim() };
+  const raw = d.notes ?? "";
+  const m = raw.match(/\[Handover Docs: (.*?)\]/);
+  return { docs: m && m[1] && m[1] !== "None" ? m[1].split(", ") : [], note: raw.replace(/\[Handover Docs: .*?\]/, "").trim() };
+}
+
+/** Tappable rider number, or a plain "not recorded" for dispatches made before it was captured. */
+function RiderPhone({ phone }: { phone?: string }) {
+  return phone ? (
+    <a href={`tel:+91${phone}`} className="font-medium text-brand hover:underline">
+      {formatPhone(phone)}
+    </a>
+  ) : (
+    <span className="text-muted">Not recorded</span>
+  );
+}
 
 function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [reg, setReg] = useState("");
@@ -79,12 +98,16 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
       ) : (
         <div className="grid gap-4">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-sunken px-3.5 py-3 text-sm">
-            <dt className="text-muted">From</dt>
-            <dd className="font-medium">{branchName(vehicle.branchId)}</dd>
+            <dt className="text-muted">Dispatched from</dt>
+            <dd className="font-medium">{branchName(d.from)}</dd>
+            <dt className="text-muted">Dispatched on</dt>
+            <dd className="font-medium">{formatDateTime(d.handoverAt)}</dd>
             <dt className="text-muted">Rider</dt>
             <dd className="font-medium">{d.rider}</dd>
-            <dt className="text-muted">Handed over</dt>
-            <dd className="font-medium">{formatDateTime(d.handoverAt)}</dd>
+            <dt className="text-muted">Rider phone</dt>
+            <dd>
+              <RiderPhone phone={d.riderPhone} />
+            </dd>
             <dt className="text-muted">Dispatched by</dt>
             <dd className="font-medium">{d.by}</dd>
           </dl>
@@ -110,10 +133,7 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
             />
           </Field>
           {(() => {
-            const rawNotes = d.notes || "";
-            const match = rawNotes.match(/\[Handover Docs: (.*?)\]/);
-            const docsList = match && match[1] && match[1] !== "None" ? match[1].split(", ") : [];
-            const userNotes = rawNotes.replace(/\[Handover Docs: .*?\]/, "").trim();
+            const { docs: docsList, note: userNotes } = handoverSummary(d);
 
             return (
               <div className="space-y-3 rounded-xl border border-line bg-sunken/60 p-3.5">
@@ -208,9 +228,14 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
               </div>
               <CardMeta>
                 <span>
-                  Rider <span className="font-medium text-ink">{v.dispatch!.rider}</span>
+                  From <span className="font-medium text-ink">{branchName(v.dispatch!.from)}</span>
                 </span>
                 <span>{formatDateTime(v.dispatch!.handoverAt)}</span>
+              </CardMeta>
+              <CardMeta>
+                <span>
+                  Rider <span className="font-medium text-ink">{v.dispatch!.rider}</span> · <RiderPhone phone={v.dispatch!.riderPhone} />
+                </span>
                 <span>
                   Reg. on record <span className="font-mono font-medium text-ink">{displayReg(v.registrationNo)}</span>
                 </span>
@@ -241,9 +266,12 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
               cell: (v) => (
                 <div className="text-xs whitespace-nowrap">
                   <p>
-                    <span className="text-muted">Rider</span> <span className="font-medium">{v.dispatch!.rider}</span>
+                    <span className="text-muted">From</span> <span className="font-medium">{branchName(v.dispatch!.from)}</span>
                   </p>
                   <p className="text-muted">{formatDateTime(v.dispatch!.handoverAt)}</p>
+                  <p>
+                    <span className="text-muted">Rider</span> <span className="font-medium">{v.dispatch!.rider}</span> · <RiderPhone phone={v.dispatch!.riderPhone} />
+                  </p>
                   <p>
                     <span className="text-muted">Reg. on record</span> <span className="font-mono font-medium">{displayReg(v.registrationNo)}</span>
                   </p>
