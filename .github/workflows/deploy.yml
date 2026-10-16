@@ -1,0 +1,24 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: webuser
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            export PATH=$PATH:/home/webuser/.local/share/pnpm:/home/webuser/.nvm/versions/node/$(ls /home/webuser/.nvm/versions/node 2>/dev/null | tail -n 1)/bin
+            cd /home/webuser/trustwheels
+            git pull origin main
+            pnpm install
+            pnpm build
+            pm2 restart trustwheels
