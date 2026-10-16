@@ -147,7 +147,7 @@ function VehicleDetail() {
               ["Fuel", v.fuel === "electric" ? "Electric" : "Petrol"],
               [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
               ["Odometer", `${formatNumber(v.odometerKm)} km`],
-              ["Colour", <ColourValue key="col" name={v.colour} />],
+              ["Colour", <ColourValue key="col" name={v.colour} hex={v.colourHex} />],
               ["Owners", v.owners],
               ["Chassis no.", <Mono key="c">{v.chassisNo}</Mono>],
               ["Engine no.", <Mono key="e">{v.engineNo}</Mono>],
@@ -409,8 +409,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function ColourValue({ name }: { name: string }) {
-  const hex = colourHex(name);
+function ColourValue({ name, hex: given }: { name: string; hex?: string }) {
+  const hex = given ?? colourHex(name);
   return (
     <span className="inline-flex items-center gap-2">
       {hex && <span style={{ backgroundColor: hex }} className="size-3.5 rounded-full ring-1 ring-inset ring-black/20" aria-hidden />}
