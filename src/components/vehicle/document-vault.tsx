@@ -8,13 +8,13 @@ import { useRole } from "@/lib/role-context";
 import { DOCUMENT_TYPES, documentLabel } from "@/lib/masters";
 import { uploadVehicleDocument } from "@/lib/vehicle-media";
 import { formatDateTime } from "@/lib/format";
-import { allRequiredDocsVerified, getLatestDocument, isDocumentRequiredFor, isExpired, missingDocuments } from "@/lib/documents";
+import { allRequiredDocsVerified, assembleDeliveryPack, getLatestDocument, isDocumentRequiredFor, isExpired, missingDocuments } from "@/lib/documents";
 import { deleteDocumentRecord, setFinanceStatus, updateDocuments, verifyDocumentRecord } from "@/lib/stock-store";
 import { newId } from "@/lib/collections";
 import type { Document, DocumentStatus, DocumentType, Vehicle } from "@/lib/types";
 
 /*
- * Module 3: Document Attachment & Vault. Every mandatory document (RC, insurance, forms,
+ * Module 3: Document Attachment & Vault. Every mandatory document (RC, insurance,
  * seller KYC) must be uploaded and verified — not expired — before the
  * vehicle can pass the quality gate onto "On display". That hard lock lives in stock-store's
  * approveGate(); this panel is where the branch team gets the checklist to zero out first.
@@ -74,6 +74,8 @@ export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
   const missing = missingDocuments(v);
   const complete = allRequiredDocsVerified(v);
   const [packOpen, setPackOpen] = useState(false);
+  // What the pack lists: the latest file per document type shown above. Not v.documents.length, which also counts replaced versions and hidden types.
+  const packCount = assembleDeliveryPack(v).length;
 
   return (
     <section className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
@@ -105,10 +107,10 @@ export function DocumentVault({ vehicle: v }: { vehicle: Vehicle }) {
         ))}
       </ul>
 
-      {v.documents.length > 0 && (
+      {packCount > 0 && (
         <div className="mt-4 border-t border-line pt-3">
           <Button size="sm" onClick={() => setPackOpen((o) => !o)}>
-            <Package className="size-3.5" /> {packOpen ? "Hide" : "View"} delivery pack ({v.documents.length})
+            <Package className="size-3.5" /> {packOpen ? "Hide" : "View"} delivery pack ({packCount})
           </Button>
           {packOpen && <DeliveryPack vehicle={v} />}
         </div>

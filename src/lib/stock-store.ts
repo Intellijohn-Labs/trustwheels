@@ -656,7 +656,7 @@ export async function approveGate(id: string) {
     if (v.gate) fail("Already approved");
     if (v.stage !== 8) fail("Blocked: this vehicle has already returned to general stock evaluation");
     if (!v.verified) fail("Blocked: documents not verified");
-    // Hard lock: every mandatory document (RC, insurance, forms, KYC) must be
+    // Hard lock: every mandatory document (RC, insurance, KYC) must be
     // uploaded and verified, and not expired, before the vehicle can go "On display".
     const missing = missingDocuments(v);
     if (missing.length) fail(`Blocked: missing or unverified documents — ${missing.map(documentLabel).join(", ")}`);

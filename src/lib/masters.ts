@@ -77,7 +77,6 @@ export const DOCUMENT_TYPES: { type: DocumentType; label: string; required: bool
   { type: "rc_book_back", label: "RC Book (Back)", required: false, hasExpiry: false },
   { type: "insurance", label: "Insurance Certificate", required: true, hasExpiry: true },
   { type: "finance_noc", label: "Finance NOC", required: false, hasExpiry: true },
-  { type: "forms_2829", label: "Forms 28/29/30", required: false, hasExpiry: false },
   { type: "seller_kyc", label: "Seller KYC", required: true, hasExpiry: false },
 ];
 

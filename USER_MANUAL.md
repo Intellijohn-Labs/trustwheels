@@ -922,7 +922,7 @@ The following parts of the plan are **not in this first release**. Until they ar
 
 | Feature | What to do for now |
 |---|---|
-| Uploading document scans (RC, insurance, NOC, Forms 28/29/30) to a document vault | Check the originals; use **Mark as verified** to record the check |
+| Uploading document scans (RC, insurance, NOC) to a document vault | Check the originals; use **Mark as verified** to record the check |
 | Re-photographing the vehicle at Angamaly receipt | Note any damage in **Notes** when receiving |
 | Customer delivery OTP by SMS | Get the customer's signature on the delivery note |
 | WhatsApp staff commands, customer bot, Facebook/Instagram messages | Continue using phone and WhatsApp as today; enter the enquiry in **Enquiries** |
