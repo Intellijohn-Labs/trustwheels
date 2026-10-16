@@ -74,7 +74,7 @@ export const PHOTO_SLOTS: { slot: PhotoSlot; label: string; hint: string }[] = [
 /** Document types required for vehicle acquisition. */
 export const DOCUMENT_TYPES: { type: DocumentType; label: string; required: boolean; hasExpiry: boolean }[] = [
   { type: "rc_book_front", label: "RC Book (Front)", required: true, hasExpiry: false },
-  { type: "rc_book_back", label: "RC Book (Back)", required: true, hasExpiry: false },
+  { type: "rc_book_back", label: "RC Book (Back)", required: false, hasExpiry: false },
   { type: "insurance", label: "Insurance Certificate", required: true, hasExpiry: true },
   { type: "finance_noc", label: "Finance NOC", required: false, hasExpiry: true },
   { type: "forms_2829", label: "Forms 28/29/30", required: false, hasExpiry: false },
