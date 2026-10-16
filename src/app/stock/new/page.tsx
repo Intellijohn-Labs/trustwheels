@@ -11,7 +11,7 @@ import { useRole } from "@/lib/role-context";
 import { useToast } from "@/components/toast";
 import { couldBeReg, displayReg, formatIsoDate, groupIndian, isValidReg, normaliseReg } from "@/lib/format";
 import { newId } from "@/lib/collections";
-import type { Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
+import type { Document, DocumentType, FinanceStatus, Fuel, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
 import { ColourPicker } from "@/components/colour-picker";
 import { MonthPicker } from "@/components/month-picker";
@@ -41,11 +41,8 @@ interface FormState {
   fuel?: Fuel;
   chassisNo: string;
   engineNo: string;
-  insuranceValidTill: string;
-  insurancePolicyNo: string;
   financeStatus?: FinanceStatus;
   financier: string;
-  nocStatus?: NocStatus;
   nocSeal?: "yes" | "no";
   nocSign?: "yes" | "no";
   rcKycMismatch: "yes" | "no";
@@ -85,8 +82,7 @@ const EMPTY: FormState = {
   owners: "",
   chassisNo: "",
   engineNo: "",
-  insuranceValidTill: "",
-  insurancePolicyNo: "",
+  financeStatus: "free",
   financier: "",
   frontTyrePercent: "",
   rearTyrePercent: "",
@@ -147,12 +143,10 @@ function validate(f: FormState): Errors {
   else if (f.engineCc && !(Number.isFinite(Number(f.engineCc)) && Number(f.engineCc) > 0)) e.engineCc = "Enter a number greater than 0";
   if (f.chassisNo.length < 6) e.chassisNo = f.chassisNo ? "Too short" : "Required";
   if (f.engineNo.length < 5) e.engineNo = f.engineNo ? "Too short" : "Required";
-  need("financeStatus");
   if (f.financeStatus === "financed") {
     need("financier", "Enter the financier's name");
     need("nocSeal", "Select Yes or No");
     need("nocSign", "Select Yes or No");
-    need("nocStatus");
   }
   if (f.rcPhoneWorking === "no" && f.rcCurrentPhone && !MOBILE_RE.test(f.rcCurrentPhone)) e.rcCurrentPhone = "Enter a valid 10-digit mobile number";
   need("hasChallan", "Select Yes or No");
@@ -201,7 +195,7 @@ export default function NewVehiclePage() {
       if (v === "financed") return { ...f, financeStatus: v };
       const documents = { ...f.documents };
       delete documents.finance_noc;
-      return { ...f, financeStatus: v, financier: "", nocStatus: undefined, nocSeal: undefined, nocSign: undefined, documents };
+      return { ...f, financeStatus: v, financier: "", nocSeal: undefined, nocSign: undefined, documents };
     });
 
   // "No" drops the amount and received flag so nothing stale is saved.
@@ -278,11 +272,10 @@ export default function NewVehiclePage() {
         fuel: form.fuel!,
         chassisNo: form.chassisNo,
         engineNo: form.engineNo,
-        insuranceValidTill: form.insuranceValidTill || undefined,
-        insurancePolicyNo: form.insurancePolicyNo.trim(),
-        financeStatus: form.financeStatus!,
+        financeStatus: form.financeStatus ?? "free",
         financier: form.financeStatus === "financed" ? form.financier.trim() : undefined,
-        nocStatus: form.financeStatus === "financed" ? form.nocStatus : undefined,
+        // The separate NOC status field is gone: a NOC file uploaded here counts as received.
+        nocStatus: form.financeStatus === "financed" ? (form.documents.finance_noc ? "received" : "pending") : undefined,
         nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
         nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
@@ -682,41 +675,6 @@ export default function NewVehiclePage() {
           )}
         </div>
       </section>
-
-      <Section title="Insurance & finance">
-        <Field label="Insurance valid till" htmlFor="ins-date">
-          <input id="ins-date" type="date" value={form.insuranceValidTill} onChange={(e) => set("insuranceValidTill", e.target.value)} className={inputClass()} />
-        </Field>
-        <Field label="Policy no." htmlFor="policy">
-          <input id="policy" value={form.insurancePolicyNo} onChange={(e) => set("insurancePolicyNo", e.target.value)} className={inputClass()} />
-        </Field>
-        <Field label="Finance status" required error={show("financeStatus")} wide>
-          <Segmented
-            name="Finance status"
-            value={form.financeStatus}
-            onChange={setFinanceStatus}
-            options={[
-              { value: "free", label: "Free (no loan)" },
-              { value: "financed", label: "Under finance" },
-            ]}
-          />
-        </Field>
-        {form.financeStatus === "financed" && (
-          <>
-            <Field label="NOC status" required error={show("nocStatus")}>
-              <Segmented
-                name="NOC status"
-                value={form.nocStatus}
-                onChange={(v) => set("nocStatus", v)}
-                options={[
-                  { value: "pending", label: "Pending" },
-                  { value: "received", label: "Received" },
-                ]}
-              />
-            </Field>
-          </>
-        )}
-      </Section>
 
       <Section title="Challan">
         <Field label="Challan pending / amount pending?" required error={show("hasChallan")} wide>

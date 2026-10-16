@@ -56,7 +56,7 @@ export interface Vehicle {
   engineNo: string;
 
   insuranceValidTill?: string; // YYYY-MM-DD
-  insurancePolicyNo: string;
+  insurancePolicyNo?: string; // no longer asked at intake; kept for older records
   financeStatus: FinanceStatus;
   financier?: string;
   nocStatus?: NocStatus;
