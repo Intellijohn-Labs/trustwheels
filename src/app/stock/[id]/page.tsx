@@ -161,7 +161,13 @@ function VehicleDetail() {
               ["Insurance till", v.insuranceValidTill ? formatIsoDate(v.insuranceValidTill) : "—"],
               ["Policy no.", v.insurancePolicyNo || "—"],
               ["Finance", v.financeStatus === "financed" ? `Under finance · ${v.financier}` : "Free"],
-              ...(v.financeStatus === "financed" ? [["NOC", v.nocStatus === "received" ? "Received" : "Pending"] as [string, string]] : []),
+              ...(v.financeStatus === "financed"
+                ? ([
+                    ["NOC", v.nocStatus === "received" ? "Received" : "Pending"],
+                    ["NOC seal", v.nocSeal === "yes" ? "Yes" : v.nocSeal === "no" ? "No" : "—"],
+                    ["NOC sign", v.nocSign === "yes" ? "Yes" : v.nocSign === "no" ? "No" : "—"],
+                  ] as [string, string][])
+                : []),
             ]}
           />
         </Card>

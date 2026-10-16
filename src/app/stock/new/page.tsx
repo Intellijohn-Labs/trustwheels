@@ -46,6 +46,8 @@ interface FormState {
   financeStatus?: FinanceStatus;
   financier: string;
   nocStatus?: NocStatus;
+  nocSeal?: "yes" | "no";
+  nocSign?: "yes" | "no";
   conditionNotes: string;
   frontTyrePercent: string;
   rearTyrePercent: string;
@@ -135,7 +137,9 @@ function validate(f: FormState): Errors {
   if (f.engineNo.length < 5) e.engineNo = f.engineNo ? "Too short" : "Required";
   need("financeStatus");
   if (f.financeStatus === "financed") {
-    need("financier");
+    need("financier", "Enter the financier's name");
+    need("nocSeal", "Select Yes or No");
+    need("nocSign", "Select Yes or No");
     need("nocStatus");
   }
   for (const k of ["frontTyrePercent", "rearTyrePercent"] as const) {
@@ -172,6 +176,15 @@ export default function NewVehiclePage() {
 
   const errors = useMemo(() => validate(form), [form]);
   const show = (k: keyof Errors) => (submitted || touched[k as keyof FormState] ? errors[k] : undefined);
+
+  // Switching back to "No" drops everything entered for the loan, so none of it is saved by accident.
+  const setFinanceStatus = (v: FinanceStatus) =>
+    setForm((f) => {
+      if (v === "financed") return { ...f, financeStatus: v };
+      const documents = { ...f.documents };
+      delete documents.finance_noc;
+      return { ...f, financeStatus: v, financier: "", nocStatus: undefined, nocSeal: undefined, nocSign: undefined, documents };
+    });
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const touch = (k: keyof FormState) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -244,6 +257,8 @@ export default function NewVehiclePage() {
         financeStatus: form.financeStatus!,
         financier: form.financeStatus === "financed" ? form.financier.trim() : undefined,
         nocStatus: form.financeStatus === "financed" ? form.nocStatus : undefined,
+        nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
+        nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
         frontTyrePercent: Number(form.frontTyrePercent),
         rearTyrePercent: Number(form.rearTyrePercent),
@@ -519,7 +534,7 @@ export default function NewVehiclePage() {
             <Segmented
               name="Under finance"
               value={form.financeStatus}
-              onChange={(v) => set("financeStatus", v)}
+              onChange={setFinanceStatus}
               options={[
                 { value: "free", label: "No" },
                 { value: "financed", label: "Yes" },
@@ -528,6 +543,39 @@ export default function NewVehiclePage() {
           </Field>
           {form.financeStatus === "financed" && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Financier name" htmlFor="financier" required error={show("financier")} wide>
+                <input
+                  id="financier"
+                  value={form.financier}
+                  onChange={(e) => set("financier", e.target.value)}
+                  onBlur={touch("financier")}
+                  autoComplete="off"
+                  placeholder="Bank or financier, e.g. Muthoot Capital"
+                  className={inputClass(!!show("financier"))}
+                />
+              </Field>
+              <Field label="NOC seal" required error={show("nocSeal")}>
+                <Segmented
+                  name="NOC seal"
+                  value={form.nocSeal}
+                  onChange={(v) => set("nocSeal", v)}
+                  options={[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                  ]}
+                />
+              </Field>
+              <Field label="NOC sign" required error={show("nocSign")}>
+                <Segmented
+                  name="NOC sign"
+                  value={form.nocSign}
+                  onChange={(v) => set("nocSign", v)}
+                  options={[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                  ]}
+                />
+              </Field>
               <DocumentUploadSlot
                 label={FINANCE_NOC.label}
                 required
@@ -551,7 +599,7 @@ export default function NewVehiclePage() {
           <Segmented
             name="Finance status"
             value={form.financeStatus}
-            onChange={(v) => set("financeStatus", v)}
+            onChange={setFinanceStatus}
             options={[
               { value: "free", label: "Free (no loan)" },
               { value: "financed", label: "Under finance" },
@@ -560,16 +608,6 @@ export default function NewVehiclePage() {
         </Field>
         {form.financeStatus === "financed" && (
           <>
-            <Field label="Financier" htmlFor="financier" required error={show("financier")}>
-              <input
-                id="financier"
-                value={form.financier}
-                onChange={(e) => set("financier", e.target.value)}
-                onBlur={touch("financier")}
-                placeholder="e.g. Muthoot Capital"
-                className={inputClass(!!show("financier"))}
-              />
-            </Field>
             <Field label="NOC status" required error={show("nocStatus")}>
               <Segmented
                 name="NOC status"

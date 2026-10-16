@@ -60,6 +60,8 @@ export interface Vehicle {
   financeStatus: FinanceStatus;
   financier?: string;
   nocStatus?: NocStatus;
+  nocSeal?: "yes" | "no"; // finance NOC carries the financier's seal
+  nocSign?: "yes" | "no"; // finance NOC is signed
 
   hasChallan?: "yes" | "no";
   challanAmountPaise?: number;
