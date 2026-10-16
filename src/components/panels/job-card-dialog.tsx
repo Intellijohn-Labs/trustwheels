@@ -215,6 +215,12 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                 {manage && !locked ? (
                   <>
                     <input
+                      id="service_advisor_input"
+                      name="service_advisor_name"
+                      autoComplete="off"
+                      data-1p-ignore="true"
+                      data-lpignore="true"
+                      data-form-type="other"
                       aria-label="Service advisor name"
                       list="advisor-options"
                       value={advisor}
@@ -244,6 +250,12 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                 {manage && !locked ? (
                   <>
                     <input
+                      id="lead_technician_input"
+                      name="lead_technician_name"
+                      autoComplete="off"
+                      data-1p-ignore="true"
+                      data-lpignore="true"
+                      data-form-type="other"
                       aria-label="Technician name"
                       list="technician-options"
                       value={technician}
