@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plus, ShieldCheck, Trash2, Undo2, Wrench, X } from "lucide-react";
+import { Camera, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plus, ShieldCheck, Trash2, Undo2, UserRound, Wrench, X } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
@@ -15,6 +15,7 @@ import {
   removeJobItem,
   removeReconPhoto,
   setReconDates,
+  setServiceAdvisor,
   setTechnician,
 } from "@/lib/stock-store";
 import { formatDateTime, formatPaise, groupIndian } from "@/lib/format";
@@ -24,7 +25,6 @@ import { useAction } from "../toast";
 import { Button, Segmented, cn, inputClass } from "../ui";
 import { AceCard } from "../vehicle/ace-card";
 import { Dialog, VehicleSummary } from "./dialog";
-import { ReconFlagPill } from "./recon-panel";
 import { formatHours } from "./vehicle-cell";
 
 export const JOB_KINDS: { value: JobKind; label: string }[] = [
@@ -95,6 +95,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
   const [description, setDescription] = useState("");
   const [cost, setCost] = useState("");
   const [technician, setTechnicianInput] = useState(recon.technicianName ?? "");
+  const [advisor, setAdvisorInput] = useState(recon.serviceAdvisor ?? "");
   const [startDate, setStartDate] = useState(recon.reconStartDate ? recon.reconStartDate.slice(0, 10) : "");
   const [startTime, setStartTime] = useState(recon.reconStartDate && recon.reconStartDate.length > 10 ? recon.reconStartDate.slice(11, 16) : "");
   const [endDate, setEndDate] = useState(recon.reconEndDate ? recon.reconEndDate.slice(0, 10) : "");
@@ -185,7 +186,6 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
             </div>
             <div className="flex flex-col items-end gap-1.5">
               <div className="flex items-center gap-2">
-                <ReconFlagPill vehicle={v} now={now} />
                 <span className="rounded-md border border-line bg-panel px-2.5 py-1 font-mono text-xs font-semibold text-foreground">
                   {v.registrationNo || "NO REG"}
                 </span>
@@ -208,7 +208,34 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
               <span className="mt-0.5 block font-medium text-foreground">{recon.supervisor || "Unassigned"}</span>
               <span className="text-[11px] text-muted">Floor In-Charge</span>
             </div>
-            <div className="col-span-2 rounded-lg border border-line/60 bg-panel/70 p-2.5 sm:col-span-2">
+            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
+              <span className="block font-semibold uppercase tracking-wider text-muted">Service Advisor</span>
+              <div className="mt-1 flex items-center gap-2">
+                <UserRound className="size-3.5 shrink-0 text-brand" />
+                {manage && !locked ? (
+                  <>
+                    <input
+                      aria-label="Service advisor name"
+                      list="advisor-options"
+                      value={advisor}
+                      onChange={(e) => setAdvisorInput(e.target.value)}
+                      onBlur={() => advisor.trim() !== (recon.serviceAdvisor ?? "") && run(() => setServiceAdvisor(v.id, advisor))}
+                      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                      placeholder="Assign…"
+                      className="h-7 w-full min-w-0 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                    />
+                    <datalist id="advisor-options">
+                      {technicianOptions.map((name) => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
+                  </>
+                ) : (
+                  <span className="truncate text-xs font-medium text-foreground">{recon.serviceAdvisor || "Not assigned"}</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Lead Technician <span className="text-red-500 font-bold">*</span>
               </span>
@@ -223,8 +250,8 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       onChange={(e) => setTechnicianInput(e.target.value)}
                       onBlur={() => technician.trim() !== (recon.technicianName ?? "") && run(() => setTechnician(v.id, technician))}
                       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                      placeholder="Assign Lead Technician (Required)..."
-                      className="h-7 w-full rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                      placeholder="Assign…"
+                      className="h-7 w-full min-w-0 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
                     />
                     <datalist id="technician-options">
                       {technicianOptions.map((name) => (
@@ -233,7 +260,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                     </datalist>
                   </>
                 ) : (
-                  <span className="text-xs font-medium text-foreground">{recon.technicianName || "Not assigned"}</span>
+                  <span className="truncate text-xs font-medium text-foreground">{recon.technicianName || "Not assigned"}</span>
                 )}
               </div>
             </div>

@@ -600,6 +600,14 @@ export function setTechnician(id: string, name: string) {
   });
 }
 
+export function setServiceAdvisor(id: string, name: string) {
+  return editRecon(id, (_, r) => ({ recon: { ...r, serviceAdvisor: name.trim() || undefined } })).then((updated) => {
+    const reg = displayReg(updated.registrationNo);
+    logActivity("EDIT", reg, `Set service advisor to "${name.trim() || "(none)"}" on ${reg}'s job card`);
+    return updated;
+  });
+}
+
 export const MIN_COMPLETION_PHOTOS = 2;
 
 /**

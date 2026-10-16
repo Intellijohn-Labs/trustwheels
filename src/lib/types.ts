@@ -161,6 +161,8 @@ export interface Recon {
   supervisor: string;
   /** Individual mechanic doing the work on this vehicle - distinct from `supervisor`, the fixed role holder who manages the workshop. */
   technicianName?: string;
+  /** Service advisor handling the customer side of this job card. */
+  serviceAdvisor?: string;
   reconStartDate?: string;
   reconEndDate?: string;
   startedAt: string;
