@@ -12,7 +12,7 @@ export type DeckStatus = "verification_pending" | "in_stock" | "in_transit" | "r
 
 export interface DeckTheme {
   label: string;
-  /** Main accent and a lighter companion, then the two ends of the card back's gradient. */
+  /** The status colour at its most vivid (chips, dots), a light tint of it for glows and highlights, then the card body's gradient from top (bg1) to bottom (bg2). White type sits on the body, so the shades are chosen to keep it readable. */
   accent: string;
   accent2: string;
   bg1: string;
@@ -20,15 +20,15 @@ export interface DeckTheme {
 }
 
 export const DECK_THEMES: Record<DeckStatus, DeckTheme> = {
-  verification_pending: { label: "Verification pending", accent: "#f59e0b", accent2: "#fb923c", bg1: "#4a1d03", bg2: "#1c0a02" },
-  in_stock: { label: "Verified · at branch", accent: "#60a5fa", accent2: "#93c5fd", bg1: "#172554", bg2: "#0a1128" },
-  in_transit: { label: "In transit", accent: "#22d3ee", accent2: "#38bdf8", bg1: "#083344", bg2: "#04141c" },
-  receiving: { label: "Receiving", accent: "#818cf8", accent2: "#a78bfa", bg1: "#26225e", bg2: "#0d0b24" },
-  reconditioning: { label: "In reconditioning", accent: "#e879f9", accent2: "#c084fc", bg1: "#42105f", bg2: "#14041f" },
-  evaluation: { label: "Sale review", accent: "#cbd5e1", accent2: "#e2e8f0", bg1: "#2d2d33", bg2: "#0e0e10" },
-  ready_for_sale: { label: "Ready for sale", accent: "#34d399", accent2: "#6ee7b7", bg1: "#04382b", bg2: "#02130f" },
-  rejected: { label: "Rejected stock", accent: "#94a3b8", accent2: "#cbd5e1", bg1: "#27303f", bg2: "#0b1220" },
-  sold: { label: "Booked / sold", accent: "#fb7185", accent2: "#fda4af", bg1: "#5b0a22", bg2: "#1c0309" },
+  verification_pending: { label: "Verification pending", accent: "#d97706", accent2: "#fde68a", bg1: "#c9660a", bg2: "#9a4509" },
+  in_stock: { label: "Verified · at branch", accent: "#2563eb", accent2: "#bfdbfe", bg1: "#2563eb", bg2: "#1d4ed8" },
+  in_transit: { label: "In transit", accent: "#0891b2", accent2: "#a5f3fc", bg1: "#0b86a8", bg2: "#075985" },
+  receiving: { label: "Receiving", accent: "#4f46e5", accent2: "#c7d2fe", bg1: "#4f46e5", bg2: "#4338ca" },
+  reconditioning: { label: "In reconditioning", accent: "#7c3aed", accent2: "#ddd6fe", bg1: "#7c3aed", bg2: "#6d28d9" },
+  evaluation: { label: "Sale review", accent: "#ea580c", accent2: "#fed7aa", bg1: "#dc4f0b", bg2: "#b53a0a" },
+  ready_for_sale: { label: "Ready for sale", accent: "#059669", accent2: "#a7f3d0", bg1: "#059669", bg2: "#047857" },
+  rejected: { label: "Rejected stock", accent: "#475569", accent2: "#cbd5e1", bg1: "#475569", bg2: "#334155" },
+  sold: { label: "Booked / sold", accent: "#dc2626", accent2: "#fecaca", bg1: "#dc2626", bg2: "#b91c1c" },
 };
 
 /** Display order for the filter chips (roughly the vehicle's journey). */

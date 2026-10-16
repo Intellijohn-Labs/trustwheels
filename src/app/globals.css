@@ -739,8 +739,8 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   box-shadow:
-    0 1.4cqw 3.4cqw rgb(0 0 0 / 0.3),
-    0 0.3cqw 0.7cqw rgb(0 0 0 / 0.22);
+    0 1.4cqw 3.4cqw color-mix(in srgb, var(--deck-bg2) 60%, transparent),
+    0 0.3cqw 0.7cqw rgb(0 0 0 / 0.25);
 }
 .deck-face::before {
   content: "";
@@ -751,35 +751,36 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
 }
 .deck-front {
   transform: rotateY(0deg);
-  color: #1c1917;
-  border: 0.5cqw solid #d9cfb4;
+  color: #fff;
+  border: 0.5cqw solid rgb(255 255 255 / 0.4);
   background:
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--deck) 20%, transparent), transparent 55%),
-    linear-gradient(160deg, #fffdf6 0%, #f6f0df 100%);
+    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.2), transparent 60%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.045) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
+    linear-gradient(165deg, var(--deck-bg1) 0%, var(--deck-bg2) 100%);
 }
 .deck-front::before {
-  border: 0.35cqw solid color-mix(in srgb, var(--deck) 45%, #c9bc98);
+  border: 0.35cqw solid rgb(255 255 255 / 0.35);
 }
 .deck-back {
   transform: rotateY(180deg);
-  color: #f8fafc;
-  border: 0.5cqw solid color-mix(in srgb, var(--deck) 55%, transparent);
+  color: #fff;
+  border: 0.5cqw solid rgb(255 255 255 / 0.4);
   background:
-    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--deck) 26%, transparent), transparent 60%),
-    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.03) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
+    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.2), transparent 60%),
+    repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.045) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
     linear-gradient(165deg, var(--deck-bg1) 0%, var(--deck-bg2) 100%);
 }
 .deck-back::before {
-  border: 0.35cqw solid color-mix(in srgb, var(--deck) 35%, transparent);
+  border: 0.35cqw solid rgb(255 255 255 / 0.35);
 }
 .deck-pill {
-  border: 0.3cqw solid color-mix(in srgb, var(--deck) 55%, transparent);
-  background: color-mix(in srgb, var(--deck) 22%, transparent);
-  color: var(--deck-2);
+  border: 0.3cqw solid rgb(255 255 255 / 0.35);
+  background: rgb(0 0 0 / 0.28);
+  color: #fff;
 }
 .deck-tile {
   border-radius: 2.4cqw;
   padding: 1.8cqw 2.4cqw;
-  border: 0.3cqw solid rgb(255 255 255 / 0.12);
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.03));
+  border: 0.3cqw solid rgb(255 255 255 / 0.2);
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.26), rgb(0 0 0 / 0.16));
 }

@@ -107,8 +107,8 @@ export function DossierDialog({ vehicle: v, onClose }: { vehicle: Vehicle; onClo
       subtitle={
         <span className="inline-flex flex-wrap items-center gap-2">
           <span className="font-mono">{displayReg(v.registrationNo)}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style={{ background: theme.bg1, boxShadow: `inset 0 0 0 1px ${theme.accent}` }}>
-            <span className="size-1.5 rounded-full" style={{ background: theme.accent }} />
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style={{ background: `linear-gradient(135deg, ${theme.bg1}, ${theme.bg2})` }}>
+            <span className="size-1.5 rounded-full bg-white" />
             {deckStatusLabel(v, status)}
           </span>
         </span>
