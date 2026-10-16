@@ -32,7 +32,6 @@ interface FormState {
   make: string;
   model: string;
   variant: string;
-  year: string;
   engineCc: string;
   odometerKm: string;
   keyCount: string;
@@ -66,7 +65,6 @@ const EMPTY: FormState = {
   make: "",
   model: "",
   variant: "",
-  year: "",
   engineCc: "",
   odometerKm: "",
   keyCount: "2",
@@ -89,22 +87,9 @@ const EMPTY: FormState = {
 const MAX_OWNERS = 20;
 const THIS_YEAR = new Date().getFullYear();
 const EARLIEST_YEAR = 1960;
-const MONTHS: { val: string; label: string }[] = [
-  { val: "01", label: "January (01)" },
-  { val: "02", label: "February (02)" },
-  { val: "03", label: "March (03)" },
-  { val: "04", label: "April (04)" },
-  { val: "05", label: "May (05)" },
-  { val: "06", label: "June (06)" },
-  { val: "07", label: "July (07)" },
-  { val: "08", label: "August (08)" },
-  { val: "09", label: "September (09)" },
-  { val: "10", label: "October (10)" },
-  { val: "11", label: "November (11)" },
-  { val: "12", label: "December (12)" },
-];
-
-const YEARS = Array.from({ length: THIS_YEAR - EARLIEST_YEAR + 1 }, (_, i) => String(THIS_YEAR - i));
+/** "YYYY-MM" for the current month - the latest manufacture month the form accepts. */
+const THIS_MONTH = `${THIS_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+const EARLIEST_MONTH = `${EARLIEST_YEAR}-01`;
 const digits = (s: string, max = 12) => s.replace(/\D/g, "").slice(0, max);
 const alnum = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -125,7 +110,10 @@ function validate(f: FormState): Errors {
   else if (!isValidReg(f.registrationNo)) e.registrationNo = "Not a valid registration number";
   need("make");
   need("model");
-  need("year");
+  if (!f.mfgMonth) e.mfgMonth = "Required";
+  else if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(f.mfgMonth)) e.mfgMonth = "Use the format YYYY-MM";
+  else if (f.mfgMonth > THIS_MONTH) e.mfgMonth = "Can't be in the future";
+  else if (f.mfgMonth < EARLIEST_MONTH) e.mfgMonth = `Can't be before ${EARLIEST_YEAR}`;
   need("fuel");
   if (!f.colour.trim()) e.colour = "Pick a colour or enter one under Other";
   const owners = Number(f.owners);
@@ -224,7 +212,8 @@ export default function NewVehiclePage() {
         make: form.make,
         model: form.model,
         variant: form.variant.trim(),
-        year: Number(form.year),
+        year: Number(form.mfgMonth.slice(0, 4)),
+        month: Number(form.mfgMonth.slice(5, 7)),
         engineCc: Number(form.engineCc) || 0,
         odometerKm: Number(form.odometerKm),
         colour: form.colour.trim(),
@@ -361,17 +350,19 @@ export default function NewVehiclePage() {
         <Field label="Variant" htmlFor="variant">
           <input id="variant" value={form.variant} onChange={(e) => set("variant", e.target.value)} placeholder="e.g. DLX, Disc" className={inputClass()} />
         </Field>
-        <Field label="Mfg month & year" htmlFor="year" required error={show("year")}>
+        <Field label="Mfg month & year" htmlFor="mfgMonth" required error={show("mfgMonth")}>
           <input
-            id="year"
+            id="mfgMonth"
             type="month"
-            value={form.year}
-            onChange={(e) => set("year", e.target.value)}
-            onBlur={touch("year")}
-            className={inputClass(!!show("year"))}
+            min={EARLIEST_MONTH}
+            max={THIS_MONTH}
+            placeholder="YYYY-MM"
+            value={form.mfgMonth}
+            onChange={(e) => set("mfgMonth", e.target.value)}
+            onBlur={touch("mfgMonth")}
+            className={inputClass(!!show("mfgMonth"))}
           />
         </Field>
-        
         <Field label="Fuel" required error={show("fuel")}>
           <Segmented
             name="Fuel"

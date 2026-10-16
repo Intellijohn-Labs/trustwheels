@@ -143,7 +143,7 @@ function VehicleDetail() {
         <Card title="Vehicle">
           <Specs
             rows={[
-              ["Year", v.year],
+              ["Mfg", v.month ? `${new Date(v.year, v.month - 1).toLocaleString("en-IN", { month: "short" })} ${v.year}` : v.year],
               ["Fuel", v.fuel === "electric" ? "Electric" : "Petrol"],
               [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
               ["Odometer", `${formatNumber(v.odometerKm)} km`],
