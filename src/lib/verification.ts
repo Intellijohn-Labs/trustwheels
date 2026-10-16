@@ -15,6 +15,13 @@ export function verifyState(v: Vehicle, now: number): VerifyState {
 }
 
 /** 1d 04h 09m 05s style; days are dropped when zero. */
+/** "47h 32m" - whole hours and minutes (hours can pass 24), for countdown pills. */
+export function formatHM(ms: number) {
+  const mins = Math.max(0, Math.floor(ms / 60_000));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(Math.floor(mins / 60))}h ${pad(mins % 60)}m`;
+}
+
 export function formatDuration(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const d = Math.floor(total / 86_400);

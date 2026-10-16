@@ -57,6 +57,12 @@ export function transitHours(v: Vehicle, now: number) {
   return ((v.receipt ? t(v.receipt.at) : now) - t(v.dispatch.handoverAt)) / HOUR;
 }
 
+/** Time left on the transit SLA: handover + SLA.transitHours - now. Negative once the limit has passed. */
+export function transitRemainingMs(v: Vehicle, now: number) {
+  if (!v.dispatch) return 0;
+  return t(v.dispatch.handoverAt) + SLA.transitHours * HOUR - now;
+}
+
 export function transitBreached(v: Vehicle, now: number) {
   return inTransit(v) && transitHours(v, now) > SLA.transitHours;
 }

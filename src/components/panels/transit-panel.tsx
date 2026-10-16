@@ -9,8 +9,8 @@ import { cancelDispatch, deleteVehicle, dispatchVehicle, quickAddToTransit, useV
 import { BRANCHES, LIFECYCLE_STAGES, SLA, branchName } from "@/lib/masters";
 import { displayReg, formatDateTime, formatPhone, isValidMobile, normaliseReg } from "@/lib/format";
 import { localInput } from "@/lib/datetime-input";
-import { formatDuration, verifyState } from "@/lib/verification";
-import { inTransit, transitBreached, transitHours } from "@/lib/workflow";
+import { formatDuration, formatHM, verifyState } from "@/lib/verification";
+import { inTransit, transitBreached, transitHours, transitRemainingMs } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 import { DataTable } from "../data-table";
 import { DeleteVehicleButton } from "../delete-vehicle-button";
@@ -463,22 +463,31 @@ export function ReadyToDispatchPanel({ limit }: { limit?: number }) {
 
 // ---- in transit ----------------------------------------------------------------------
 
+/**
+ * Live reverse countdown to the transit SLA (handover time + SLA.transitHours). Green while
+ * there's comfortable time, amber under 12 h left (the same point the row turns amber), and a
+ * solid red "SLA BREACHED" with how long it's overdue once the limit passes. The caller's `now`
+ * ticks it; shown on both the Transit and Receiving lists.
+ */
 export function TransitSlaPill({ vehicle, now }: { vehicle: Vehicle; now: number }) {
-  if (transitBreached(vehicle, now))
+  const left = transitRemainingMs(vehicle, now);
+  if (left < 0)
     return (
-      <Pill tone="danger" icon={<AlertTriangle className="size-3" />}>
-        Breached · escalated to manager &amp; Managing Partner
-      </Pill>
+      <span title="Escalated to the branch manager and Managing Partner">
+        <Pill tone="danger" className="font-bold ring-2 ring-danger/30" icon={<AlertTriangle className="size-3" />}>
+          SLA BREACHED · Overdue by {formatHM(-left)}
+        </Pill>
+      </span>
     );
   if (transitNearLimit(vehicle, now))
     return (
       <Pill tone="warn" icon={<Clock className="size-3" />}>
-        Near limit
+        Expiring soon · {formatHM(left)} left
       </Pill>
     );
   return (
-    <Pill tone="neutral" icon={<Clock className="size-3" />}>
-      On time
+    <Pill tone="ok" icon={<Clock className="size-3" />}>
+      {formatHM(left)} left
     </Pill>
   );
 }

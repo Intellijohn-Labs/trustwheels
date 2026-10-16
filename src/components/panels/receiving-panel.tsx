@@ -16,7 +16,7 @@ import { BulkDeleteBar } from "../bulk-delete-bar";
 import { RowCheckbox, SelectAllCheckbox, useSelection } from "../selection";
 import { Button, Field, Panel, Pill, cn, inputClass, textareaClass } from "../ui";
 import { Dialog, VehicleSummary, useInlineAction } from "./dialog";
-import { RemoveFromTransitButton, TransitSlaPill } from "./transit-panel";
+import { RemoveFromTransitButton, TransitSlaPill, transitNearLimit } from "./transit-panel";
 import { CardMeta, ResponsiveTable } from "./responsive-table";
 import { VehicleCell, formatHours } from "./vehicle-cell";
 
@@ -55,6 +55,7 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
   const stockId = received?.stockId;
   const { submit, failure, busy, setFailure } = useInlineAction();
   const d = vehicle.dispatch!;
+  const now = useNow(15_000);
 
   async function onSubmit() {
     if (stockId) return onClose();
@@ -110,6 +111,10 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
             </dd>
             <dt className="text-muted">Dispatched by</dt>
             <dd className="font-medium">{d.by}</dd>
+            <dt className="text-muted">Transit SLA</dt>
+            <dd>
+              <TransitSlaPill vehicle={vehicle} now={now} />
+            </dd>
           </dl>
           <Field
             label="Registration number on the plate"
@@ -191,7 +196,7 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
 export function ArrivingPanel({ limit }: { limit?: number }) {
   const { vehicles, ready } = useScopedVehicles();
   const { can } = useRole();
-  const now = useNow(30_000);
+  const now = useNow(15_000);
   // Held here, not in the row: the row leaves the list the moment the vehicle is received,
   // and the dialog must stay open to show the issued Stock ID.
   const [receiving, setReceiving] = useState<Vehicle>();
@@ -219,7 +224,7 @@ export function ArrivingPanel({ limit }: { limit?: number }) {
         <ResponsiveTable
           rows={ready ? shown : []}
           rowKey={(v) => v.id}
-          rowTone={(v) => (transitBreached(v, now) ? "danger" : undefined)}
+          rowTone={(v) => (transitBreached(v, now) ? "danger" : transitNearLimit(v, now) ? "warn" : undefined)}
           card={(v) => (
             <>
               <div className="flex items-center gap-2">
