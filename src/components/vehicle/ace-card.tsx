@@ -2,6 +2,7 @@
 
 import { useId, useState, type KeyboardEvent } from "react";
 import { RotateCcw } from "lucide-react";
+import { mfgLabel } from "@/lib/deck";
 import type { Vehicle } from "@/lib/types";
 import { cn } from "../ui";
 
@@ -61,13 +62,6 @@ function BikeEmblem() {
       </svg>
     </div>
   );
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "Oct 2021" when the manufacture month is on record, otherwise just "2021". */
-function mfgLabel(v: Vehicle) {
-  return v.month && v.month >= 1 && v.month <= 12 ? `${MONTHS[v.month - 1]} ${v.year}` : String(v.year);
 }
 
 function Metric({ label, children }: { label: string; children: React.ReactNode }) {

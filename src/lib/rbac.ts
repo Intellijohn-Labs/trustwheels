@@ -19,6 +19,7 @@ export type Role =
 
 export const PERMISSIONS = [
   "dashboard.view",
+  "deck.view",
   "stock.view",
   "stock.create",
   "stock.verify",
@@ -85,25 +86,25 @@ export const ROLES: Record<Role, RoleDef> = {
   partner: {
     label: "Partner",
     description: "Branch admin / investor for the assigned branches.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "sales.view", "funds.view", "reports.view"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "sales.view", "funds.view", "reports.view"],
     scope: ["b1", "b2"],
   },
   branch_manager: {
     label: "Branch Manager",
     description: "Acquisition, documents, dispatch to Angamaly, transit tracking.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "stock.verify", "transit.view", "transit.dispatch"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "stock.verify", "transit.view", "transit.dispatch"],
     scope: ["b1", "b3"],
   },
   branch_accountant: {
     label: "Branch Accountant",
     description: "Purchase values, seller payments, amounts due from Angamaly.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "payments.view", "purchase.enter"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "payments.view", "purchase.enter"],
     scope: ["b1"],
   },
   hub_admin: {
     label: "Administration (Angamaly)",
     description: "Receives vehicles, checks identity against dispatch, books into stock.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "stock.verify", "transit.view", "hub.receive"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "stock.verify", "transit.view", "hub.receive"],
     scope: "all",
   },
   supervisor: {
@@ -117,6 +118,7 @@ export const ROLES: Record<Role, RoleDef> = {
     description: "Final delivery release, SLA and Code Red monitoring.",
     permissions: [
       "dashboard.view",
+      "deck.view",
       "stock.view",
       "stock.create",
       "stock.verify",
@@ -133,7 +135,7 @@ export const ROLES: Record<Role, RoleDef> = {
   sales_executive: {
     label: "Sales Executive",
     description: "Enquiries, Day 2/3/4 follow-ups, bookings and booking documents.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
     scope: "all",
   },
   telecaller: {
@@ -145,7 +147,7 @@ export const ROLES: Record<Role, RoleDef> = {
   central_accountant: {
     label: "Central Accountant",
     description: "Seller payouts, RTO fees, and the customer-facing sales accounts ledger.",
-    permissions: ["dashboard.view", "stock.view", "stock.create", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
+    permissions: ["dashboard.view", "deck.view", "stock.view", "stock.create", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
     scope: "all",
   },
   hr: {
@@ -214,6 +216,7 @@ export const PANELS = [
   { key: "employees_access", label: "Employees & Access", group: "Overview", permission: "staff.manage" },
   { key: "activity_log", label: "Activity Log", group: "Overview", permission: "audit.view" },
   { key: "all_stock", label: "All Stock", group: "Stock & hub", permission: "stock.view" },
+  { key: "stock_deck", label: "Stock Deck", group: "Stock & hub", permission: "deck.view" },
   { key: "add_stock", label: "Add Stock", group: "Stock & hub", permission: "stock.create" },
   { key: "doc_verification", label: "Document Verification", group: "Stock & hub", permission: "stock.verify" },
   { key: "transit", label: "Transit", group: "Stock & hub", permission: "transit.view" },
@@ -300,8 +303,9 @@ export const ROUTES: RouteDef[] = [
   { path: "/audit-logs", label: "Activity Log", group: "Overview", icon: "BookOpen", anyOf: ["audit.view"] },
 
   { path: "/stock", label: "All stock", group: "Stock & hub", icon: "LayoutList", anyOf: ["stock.view"] },
+  { path: "/stock/deck", label: "Stock Deck", group: "Stock & hub", icon: "Spade", anyOf: ["deck.view"] },
   { path: "/stock/new", label: "Add stock", group: "Stock & hub", icon: "Plus", anyOf: ["stock.create"] },
-  { path: "/stock/[id]", label: "Vehicle", group: "Stock & hub", icon: "Bike", anyOf: ["stock.view", "recon.view"], hidden: true, pattern: /^\/stock\/(?!new$)[^/]+$/ },
+  { path: "/stock/[id]", label: "Vehicle", group: "Stock & hub", icon: "Bike", anyOf: ["stock.view", "recon.view"], hidden: true, pattern: /^\/stock\/(?!(?:new|deck)$)[^/]+$/ },
   { path: "/overdue", label: "Document Verification", group: "Stock & hub", icon: "TriangleAlert", anyOf: ["stock.verify"] },
   { path: "/transit", label: "Transit", group: "Stock & hub", icon: "Truck", anyOf: ["transit.view"] },
   { path: "/receiving", label: "Receiving", group: "Stock & hub", icon: "PackageCheck", anyOf: ["hub.receive"] },

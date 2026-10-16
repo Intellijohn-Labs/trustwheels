@@ -119,6 +119,16 @@ Every vehicle passes through 12 stages. You can see them on any vehicle's page u
 
 Every warning also has **words and an icon**, so you never have to rely on colour alone.
 
+### The Stock Deck
+
+**Stock & hub → Stock Deck** shows every vehicle as a playing card. The front has the vehicle name, registration, the date it was added to stock, and a suit in the corner.
+
+1. **Click a card** to flip it. The back shows the vehicle's **current status** in a colour of its own (amber: verification pending, cyan: in transit, indigo: receiving, purple: in reconditioning, green: ready for sale, crimson: booked or sold), with odometer, manufacture month and year, engine, tyres and battery. A vehicle in transit also shows the live time left.
+2. **Click again** to open the **full dossier**: every detail, all photos and all documents.
+3. In the dossier, the download button on a photo or document saves that one file. **Download vehicle pack (ZIP)** saves everything, plus a text copy of the details, in one file. If a file can't be read, the pack still downloads and the text copy lists what was left out.
+
+Use the search box or the status buttons above the cards to narrow the deck.
+
 ---
 
 ## 4. Role guides
@@ -918,6 +928,7 @@ The following parts of the plan are **not in this first release**. Until they ar
 | Escalations | ✓ | — | — | — | — | — | ✓ | — | — | — | — |
 | Reports | ✓ | ✓ | — | — | — | — | — | — | — | — | — |
 | All stock | ✓ | *view* | ✓ | *view* | ✓ | — | ✓ | ✓ | — | *view* | — |
+| Stock Deck | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ | ✓ | — | ✓ | — |
 | Add stock | ✓ | — | ✓ | — | — | — | — | — | — | — | — |
 | Verification | ✓ | — | ✓ | — | ✓ | — | ✓ | — | — | — | — |
 | Transit | ✓ | — | ✓ | — | *view* | — | *view* | — | — | — | — |
