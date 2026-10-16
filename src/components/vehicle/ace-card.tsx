@@ -63,11 +63,18 @@ function BikeEmblem() {
   );
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Oct 2021" when the manufacture month is on record, otherwise just "2021". */
+function mfgLabel(v: Vehicle) {
+  return v.month && v.month >= 1 && v.month <= 12 ? `${MONTHS[v.month - 1]} ${v.year}` : String(v.year);
+}
+
 function Metric({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="ace-tile min-w-0">
-      <span className="block text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{label}</span>
-      <span className="mt-0.5 block truncate font-mono text-sm font-bold">{children}</span>
+      <span className="block truncate text-[10px] font-semibold tracking-wider text-gray-400 uppercase max-[389px]:text-[9px] max-[389px]:tracking-normal">{label}</span>
+      <span className="mt-0.5 block truncate font-mono text-[13px] font-bold tracking-tight sm:text-sm sm:tracking-normal">{children}</span>
     </div>
   );
 }
@@ -128,7 +135,7 @@ export function AceCard({ vehicle: v }: { vehicle: Vehicle }) {
             </div>
 
             {/* BACK */}
-            <div className="ace-back ace-face flex flex-col gap-2.5 p-4" aria-hidden={!flipped}>
+            <div className="ace-back ace-face flex flex-col gap-2.5 p-4 max-[359px]:p-3" aria-hidden={!flipped}>
               <div className="relative flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[var(--ace)] uppercase">
                 <span className="[html[data-theme='dark']_&]:hidden">♥</span>
                 <span className="hidden [html[data-theme='dark']_&]:inline">♠</span>
@@ -139,9 +146,8 @@ export function AceCard({ vehicle: v }: { vehicle: Vehicle }) {
                 <Metric label="Engine CC">
                   <span className="text-[var(--ace)]">{v.engineCc ? `${v.engineCc} cc` : "—"}</span>
                 </Metric>
-                <Metric label="Year · Fuel">
-                  <span className="text-white">{v.year}</span>
-                  <span className="ml-1 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{v.fuel === "electric" ? "EV" : "Petrol"}</span>
+                <Metric label={`Mfg · ${v.fuel === "electric" ? "EV" : "Petrol"}`}>
+                  <span className="text-white">{mfgLabel(v)}</span>
                 </Metric>
                 <Metric label="Odo (km)">
                   <span className="text-[var(--ace)]">{v.odometerKm ? v.odometerKm.toLocaleString("en-IN") : "—"}</span>
