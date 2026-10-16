@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, TriangleAlert, Wrench } from "lucide-react";
 import { Dialog, useInlineAction } from "./dialog";
 import { RupeeInput } from "./job-card-dialog";
@@ -10,7 +10,7 @@ import { Button, Field, Pill, textareaClass } from "../ui";
 import { displayReg, formatPaise } from "@/lib/format";
 import { allRequiredDocsVerified, missingDocuments } from "@/lib/documents";
 import { PHOTO_SLOTS } from "@/lib/masters";
-import { sendToReconditioning, setAskingPrice, setSaleReadiness, updateVehiclePhotos } from "@/lib/stock-store";
+import { recordFinalLook, sendToReconditioning, setAskingPrice, setSaleReadiness } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
 import type { PhotoSlot, Vehicle } from "@/lib/types";
 
@@ -37,25 +37,49 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
   const alreadyReady = vehicle.saleReadiness?.status === "ready_for_sale";
   const { submit, failure, busy } = useInlineAction();
 
-  const [editPrice, setEditPrice] = useState(false);
+  // Selling price and final look are both required. The price starts as the current asking price, if there is one.
   const [price, setPrice] = useState(vehicle.proposedPricePaise ? String(vehicle.proposedPricePaise / 100) : "");
-  const priceError = editPrice && (!price || Number(price) <= 0) ? "Enter a valid selling price" : undefined;
+  const priceOk = !!price && Number(price) > 0;
+  // Clicking Confirm with either missing doesn't submit: it lists what's missing, outlines it in red and scrolls to it.
+  const [attempted, setAttempted] = useState(false);
+  const [attemptTick, setAttemptTick] = useState(0);
 
-  const [editPhotos, setEditPhotos] = useState(false);
-  const [photos, setPhotos] = useState<Partial<Record<PhotoSlot, string>>>(vehicle.photos);
-  const photoCount = PHOTO_SLOTS.filter((p) => vehicle.photos[p.slot]).length;
+  // Final look: new photos of the reconditioned vehicle, one per angle. Until an angle has one, its
+  // intake photo is shown blurred. Required unless this vehicle already went through it before.
+  const [finalPhotos, setFinalPhotos] = useState<Partial<Record<PhotoSlot, string>>>({});
+  const finalLookDone = !!vehicle.finalLook;
+  const finalCount = PHOTO_SLOTS.filter((p) => finalPhotos[p.slot]).length;
+  const finalLookOk = finalLookDone || finalCount === PHOTO_SLOTS.length;
+  const issues = [
+    ...(priceOk ? [] : ["Set a selling price"]),
+    ...(finalLookOk ? [] : [`Add the final look photo for every angle (${finalCount}/${PHOTO_SLOTS.length} added)`]),
+  ];
+  const showPriceError = attempted && !priceOk;
+  const showPhotoError = attempted && !finalLookOk;
+
+  useEffect(() => {
+    if (!attemptTick) return;
+    const first = document.querySelector<HTMLElement>("[data-fv-error]");
+    first?.scrollIntoView({ behavior: "smooth", block: "center" });
+    first?.querySelector<HTMLElement>("input, button")?.focus({ preventScroll: true });
+  }, [attemptTick]);
 
   const [editDocuments, setEditDocuments] = useState(false);
   const missing = missingDocuments(vehicle);
   const docsComplete = allRequiredDocsVerified(vehicle);
 
   async function confirm() {
+    setAttempted(true);
+    if (issues.length) {
+      setAttemptTick((t) => t + 1);
+      return;
+    }
     const paise = Number(price) * 100;
     // Only animate the row away on a fresh "ready" decision - re-confirming an already-ready
     // vehicle doesn't move it out of the current view, so there's nothing to collapse.
     const action = async () => {
-      if (editPrice && paise !== vehicle.proposedPricePaise) await setAskingPrice(vehicle.id, paise);
-      if (editPhotos && JSON.stringify(photos) !== JSON.stringify(vehicle.photos)) await updateVehiclePhotos(vehicle.id, photos);
+      if (paise !== vehicle.proposedPricePaise) await setAskingPrice(vehicle.id, paise);
+      if (finalCount > 0) await recordFinalLook(vehicle.id, { ...vehicle.photos, ...finalPhotos });
       await setSaleReadiness(vehicle.id, "ready_for_sale");
     };
     if (await submit(() => (alreadyReady ? action() : collapseThenRun([vehicle.id], action)), "Marked as Ready for Sale")) onClose();
@@ -69,19 +93,36 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
       onClose={onClose}
       onSubmit={confirm}
       footer={
-        <>
-          <Button size="lg" className="flex-1" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button type="submit" size="lg" variant="success" className="flex-[2]" disabled={busy || !!priceError}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Confirm & Mark Ready for Sale
-          </Button>
-        </>
+        <div className="flex w-full flex-col gap-3">
+          {attempted && issues.length > 0 && (
+            <div role="alert" className="rounded-xl border border-danger bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
+              <p className="font-semibold">Complete the required steps first:</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                {issues.map((i) => (
+                  <li key={i}>{i}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <Button size="lg" className="flex-1" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="submit" size="lg" variant="success" className="flex-[2]" disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Confirm & Mark Ready for Sale
+              {!finalLookOk && <span className="font-normal">· {finalCount}/{PHOTO_SLOTS.length} final look photos</span>}
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryStat label="Current asking price" value={vehicle.proposedPricePaise ? formatPaise(vehicle.proposedPricePaise) : "Not set"} />
-        <SummaryStat label="Photos" value={`${photoCount} of ${PHOTO_SLOTS.length}`} tone={photoCount === PHOTO_SLOTS.length ? "ok" : "warn"} />
+        <SummaryStat
+          label="Final look photos"
+          value={finalLookDone && finalCount === 0 ? "Done" : `${finalCount} of ${PHOTO_SLOTS.length}`}
+          tone={finalLookOk ? "ok" : "warn"}
+        />
         <SummaryStat
           label="Documents"
           value={docsComplete ? "All verified" : `${missing.length} outstanding`}
@@ -90,38 +131,52 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
       </div>
 
       <div className="mt-4 space-y-4 divide-y divide-line">
-        <div>
-          <label className="flex cursor-pointer items-center gap-2 py-3 text-sm font-medium">
-            <input type="checkbox" checked={editPrice} onChange={(e) => setEditPrice(e.target.checked)} className="size-4 cursor-pointer accent-[var(--brand)]" />
-            Change final selling price?
-          </label>
-          {editPrice && (
-            <div className="pb-3">
-              <Field
-                label="Selling price"
-                htmlFor="fv-price"
-                required
-                error={priceError}
-                hint={vehicle.proposedPricePaise ? `Previously set to ${formatPaise(vehicle.proposedPricePaise)}` : "No asking price was set during reconditioning - enter one now"}
-              >
-                <RupeeInput id="fv-price" value={price} onChange={setPrice} placeholder="1,25,000" disabled={busy} />
-              </Field>
-            </div>
-          )}
+        <div className="pb-3" data-fv-error={showPriceError ? "" : undefined}>
+          <h3 className="py-3 text-sm font-medium">
+            Set selling price <span className="text-danger">*</span>
+          </h3>
+          <Field
+            label="Selling price"
+            htmlFor="fv-price"
+            required
+            error={showPriceError ? "Enter a selling price greater than zero" : undefined}
+            hint={vehicle.proposedPricePaise ? `Currently ${formatPaise(vehicle.proposedPricePaise)}. Change it here if the final price is different.` : "No asking price was set during reconditioning - enter one now"}
+          >
+            <RupeeInput id="fv-price" value={price} onChange={setPrice} placeholder="1,25,000" disabled={busy} invalid={showPriceError} />
+          </Field>
         </div>
 
-        <div>
-          <label className="flex cursor-pointer items-center gap-2 py-3 text-sm font-medium">
-            <input type="checkbox" checked={editPhotos} onChange={(e) => setEditPhotos(e.target.checked)} className="size-4 cursor-pointer accent-[var(--brand)]" />
-            Update or add photos?
-          </label>
-          {editPhotos && (
-            <div className="grid grid-cols-2 gap-3 pb-3 sm:grid-cols-3">
-              {PHOTO_SLOTS.map((p) => (
-                <PhotoSlotInput key={p.slot} label={p.label} hint={p.hint} value={photos[p.slot]} onChange={(url) => setPhotos((ph) => ({ ...ph, [p.slot]: url }))} />
-              ))}
-            </div>
-          )}
+        <div className="pb-3" data-fv-error={showPhotoError ? "" : undefined}>
+          <div className="flex items-center justify-between gap-3 py-3">
+            <h3 className="text-sm font-medium">
+              Add final look {!finalLookDone && <span className="text-danger">*</span>}
+            </h3>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${finalLookOk ? "bg-ok-soft text-ok" : "bg-sunken text-muted"}`}>
+              {finalLookDone && finalCount === 0 ? "Done" : `${finalCount}/${PHOTO_SLOTS.length}`}
+            </span>
+          </div>
+          <p className="-mt-1 mb-3 text-xs text-muted">
+            {finalLookDone
+              ? "Final look photos were added earlier. Add new ones below only if the vehicle's look has changed."
+              : "Add a photo of the reconditioned vehicle for every angle. The intake photos stay blurred until each one is replaced."}
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {PHOTO_SLOTS.map((p) => {
+              const fresh = finalPhotos[p.slot];
+              const old = vehicle.photos[p.slot];
+              return (
+                <PhotoSlotInput
+                  key={p.slot}
+                  label={p.label}
+                  hint={p.hint}
+                  value={fresh ?? old}
+                  intake={!fresh && !!old && !finalLookDone}
+                  invalid={showPhotoError && !fresh}
+                  onChange={(url) => setFinalPhotos((ph) => ({ ...ph, [p.slot]: url }))}
+                />
+              );
+            })}
+          </div>
         </div>
 
         <div>

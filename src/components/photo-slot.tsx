@@ -17,12 +17,15 @@ export function PhotoSlotInput({
   hint,
   value,
   invalid,
+  intake,
   onChange,
 }: {
   label: string;
   hint: string;
   value?: string;
   invalid?: boolean;
+  /** `value` is an old intake photo that still needs replacing: shown blurred with a note, until a new one is added. */
+  intake?: boolean;
   onChange: (dataUrl: string) => void;
 }) {
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -47,12 +50,14 @@ export function PhotoSlotInput({
     }
   }
 
+  // Flagged: required but missing - an empty slot, or an intake photo that still has to be replaced.
+  const flagged = !!invalid && (!value || !!intake);
+
   return (
     <div
       className={cn(
         "group relative flex aspect-[4/3] flex-col items-center justify-center overflow-hidden rounded-xl border-2 text-center transition",
-        value ? "border-transparent" : "border-dashed bg-sunken",
-        !value && (invalid ? "border-danger ring-1 ring-danger" : "border-line-strong"),
+        value ? (flagged ? "border-danger ring-1 ring-danger" : "border-transparent") : cn("border-dashed bg-sunken", flagged ? "border-danger ring-1 ring-danger" : "border-line-strong"),
       )}
     >
       <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
@@ -61,7 +66,13 @@ export function PhotoSlotInput({
       {value ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
-          <img src={value} alt={label} className="absolute inset-0 size-full object-cover" />
+          <img src={value} alt={label} className={cn("absolute inset-0 size-full object-cover transition", intake && "scale-110 opacity-70 blur-sm")} />
+          {intake && (
+            <span className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-lg bg-black/60 px-2 py-1.5 text-center text-[11px] leading-tight font-medium text-white">
+              Intake photo
+              <span className="block font-normal text-white/80">Upload the final look photo to replace it</span>
+            </span>
+          )}
           <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2.5 pt-6 pb-2 text-xs font-medium text-white">
             <span className="truncate">{label}</span>
             <span className="flex shrink-0 items-center gap-1">

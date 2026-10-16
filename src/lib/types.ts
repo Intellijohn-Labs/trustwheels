@@ -98,6 +98,8 @@ export interface Vehicle {
   dispatch?: Dispatch; // branch manager
   receipt?: Receipt; // Angamaly administration
   recon?: Recon; // supervisor
+  /** Set when the reconditioned "final look" photos were added in Final Verification (they replace the intake photos in `photos`). */
+  finalLook?: Signed;
   gate?: Signed; // Angamaly manager approval from the old quality gate - no longer set; kept so past approvals still read
   proposedPricePaise?: number;
   delivery?: Delivery; // sales executive + manager final release

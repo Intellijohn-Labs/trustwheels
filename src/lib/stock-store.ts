@@ -311,6 +311,19 @@ export function setAskingPrice(id: string, paise: number) {
 }
 
 /**
+ * Final Verification's "final look": the reconditioned vehicle's photos replace the intake ones in
+ * `photos`, and `finalLook` records who did it and when so the intake shots aren't shown as
+ * "needs replacing" again afterwards.
+ */
+export function recordFinalLook(id: string, photos: Partial<Record<PhotoSlot, string>>) {
+  assertCan("stock.verify");
+  return update(id, (v) => {
+    assertScope(v.branchId);
+    return { ...v, photos, finalLook: signed() };
+  });
+}
+
+/**
  * Replaces the intake gallery photos (front/rear/left/right/odometer/chassis) - same `stock.verify`
  * gate as the rest of the Final Verification flow this backs. Distinct from the job card's own
  * recon progress photos (addReconPhoto/removeReconPhoto), which are a separate array.

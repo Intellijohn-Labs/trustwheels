@@ -34,7 +34,7 @@ export const JOB_KINDS: { value: JobKind; label: string }[] = [
   { value: "vendor", label: "Vendor" },
 ];
 
-export function RupeeInput({ id, value, onChange, placeholder, disabled }: { id: string; value: string; onChange: (digits: string) => void; placeholder?: string; disabled?: boolean }) {
+export function RupeeInput({ id, value, onChange, placeholder, disabled, invalid }: { id: string; value: string; onChange: (digits: string) => void; placeholder?: string; disabled?: boolean; invalid?: boolean }) {
   return (
     <div className="relative">
       <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">₹</span>
@@ -45,7 +45,7 @@ export function RupeeInput({ id, value, onChange, placeholder, disabled }: { id:
         onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 8))}
         placeholder={placeholder}
         disabled={disabled}
-        className={cn(inputClass(), "pl-8 tabular-nums")}
+        className={cn(inputClass(invalid), "pl-8 tabular-nums")}
       />
     </div>
   );
