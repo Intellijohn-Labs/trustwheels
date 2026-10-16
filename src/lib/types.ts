@@ -66,6 +66,8 @@ export interface Vehicle {
   hasChallan?: "yes" | "no";
   challanAmountPaise?: number;
   challanReceived?: "yes" | "no"; // whether the pending challan amount has been received
+  rcKycMismatch?: "yes" | "no"; // name/details on the RC Book differ from the seller's KYC
+  mismatchRemarks?: string;
   challanNotes?: string;
   conditionNotes: string;
   frontTyrePercent?: number;

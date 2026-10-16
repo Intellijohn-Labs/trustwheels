@@ -48,6 +48,8 @@ interface FormState {
   nocStatus?: NocStatus;
   nocSeal?: "yes" | "no";
   nocSign?: "yes" | "no";
+  rcKycMismatch: "yes" | "no";
+  mismatchRemarks: string;
   hasChallan?: "yes" | "no";
   challanAmount: string; // whole rupees, digits only
   challanReceived?: "yes" | "no";
@@ -86,6 +88,8 @@ const EMPTY: FormState = {
   financier: "",
   frontTyrePercent: "",
   rearTyrePercent: "",
+  rcKycMismatch: "no",
+  mismatchRemarks: "",
   challanAmount: "",
   conditionNotes: "",
   knownDefects: "",
@@ -199,6 +203,8 @@ export default function NewVehiclePage() {
   const setHasChallan = (v: "yes" | "no") =>
     setForm((f) => (v === "yes" ? { ...f, hasChallan: v } : { ...f, hasChallan: v, challanAmount: "", challanReceived: undefined }));
 
+  const setMismatch = (v: "yes" | "no") => setForm((f) => ({ ...f, rcKycMismatch: v, mismatchRemarks: v === "yes" ? f.mismatchRemarks : "" }));
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const touch = (k: keyof FormState) => () => setTouched((t) => ({ ...t, [k]: true }));
 
@@ -273,6 +279,8 @@ export default function NewVehiclePage() {
         nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
         nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
+        rcKycMismatch: form.rcKycMismatch,
+        mismatchRemarks: form.rcKycMismatch === "yes" && form.mismatchRemarks.trim() ? form.mismatchRemarks.trim() : undefined,
         hasChallan: form.hasChallan!,
         challanAmountPaise: form.hasChallan === "yes" ? Number(form.challanAmount) * 100 : undefined,
         challanReceived: form.hasChallan === "yes" ? form.challanReceived : undefined,
@@ -543,6 +551,34 @@ export default function NewVehiclePage() {
               onChange={(value) => setForm((f) => ({ ...f, documents: { ...f.documents, [d.type]: value } }))}
             />
           ))}
+        </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <Field label="Mismatch between RC Book & Seller KYC details?" wide>
+            <Segmented
+              name="RC and KYC mismatch"
+              value={form.rcKycMismatch}
+              onChange={setMismatch}
+              options={[
+                { value: "no", label: "No" },
+                { value: "yes", label: "Yes" },
+              ]}
+            />
+          </Field>
+          {form.rcKycMismatch === "yes" && (
+            <div className="mt-3">
+              <Field label="Mismatch reason / remarks" htmlFor="mismatchRemarks" hint="Optional - briefly say what differs, e.g. name spelling or address.">
+                <textarea
+                  id="mismatchRemarks"
+                  value={form.mismatchRemarks}
+                  onChange={(e) => set("mismatchRemarks", e.target.value.slice(0, 300))}
+                  maxLength={300}
+                  placeholder="e.g. RC shows the previous owner's name"
+                  className={textareaClass()}
+                />
+              </Field>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
