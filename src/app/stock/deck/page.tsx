@@ -1,36 +1,113 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Spade } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, MapPin, Search, Spade, X } from "lucide-react";
 import { DeckCard } from "@/components/deck/deck-card";
 import { DossierDialog } from "@/components/deck/dossier-dialog";
 import { EmptyState, PageHeader, cn, inputClass } from "@/components/ui";
 import { DECK_STATUS_ORDER, DECK_THEMES, deckStatus, type DeckStatus } from "@/lib/deck";
 import { displayReg } from "@/lib/format";
+import { BRANCHES } from "@/lib/masters";
+import { useRole } from "@/lib/role-context";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useNow } from "@/lib/use-now";
+import { currentBranchId } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 
 const PAGE_SIZE = 24;
 
+type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom";
+
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "week", label: "Last 7 days" },
+  { value: "month", label: "This month" },
+  { value: "custom", label: "Custom range…" },
+];
+
+/** The calendar day (YYYY-MM-DD, India time) of a timestamp - the same day the rest of the app shows. */
+const istDay = (t: number | string) => new Date(t).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+function shiftDay(day: string, delta: number) {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Was this vehicle added to stock inside the chosen window? Compared by day, so a range is inclusive of both ends. */
+function addedWithin(v: Vehicle, preset: DatePreset, from: string, to: string, today: string) {
+  if (preset === "all") return true;
+  const day = istDay(v.createdAt);
+  switch (preset) {
+    case "today":
+      return day === today;
+    case "yesterday":
+      return day === shiftDay(today, -1);
+    case "week":
+      return day >= shiftDay(today, -6) && day <= today;
+    case "month":
+      return day.slice(0, 7) === today.slice(0, 7);
+    case "custom": {
+      // An inverted range (From after To) is read the other way round rather than matching nothing.
+      const [a, b] = from && to && from > to ? [to, from] : [from, to];
+      return (!a || day >= a) && (!b || day <= b);
+    }
+  }
+}
+
 export default function StockDeckPage() {
   const { vehicles, ready } = useScopedVehicles();
+  const { inScope } = useRole();
   const now = useNow(30_000);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<DeckStatus | "all">("all");
+  const [branch, setBranch] = useState<string>("all");
+  const [preset, setPreset] = useState<DatePreset>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [shown, setShown] = useState(PAGE_SIZE);
   const [open, setOpen] = useState<Vehicle>();
 
-  const withStatus = useMemo(() => vehicles.map((v) => ({ v, status: deckStatus(v) })).sort((a, b) => b.v.createdAt.localeCompare(a.v.createdAt)), [vehicles]);
-  const counts = useMemo(() => {
-    const c = {} as Record<DeckStatus, number>;
-    for (const { status: s } of withStatus) c[s] = (c[s] ?? 0) + 1;
-    return c;
-  }, [withStatus]);
-
+  const today = istDay(now);
   const q = query.trim().toLowerCase();
-  const rows = withStatus.filter(({ v, status: s }) => (status === "all" || s === status) && (!q || `${v.make} ${v.model} ${v.variant} ${v.registrationNo} ${displayReg(v.registrationNo)} ${v.stockId ?? ""}`.toLowerCase().includes(q)));
+  const withStatus = vehicles.map((v) => ({ v, status: deckStatus(v) })).sort((a, b) => b.v.createdAt.localeCompare(a.v.createdAt));
+
+  // "At a hub" = added from that branch, or currently located there (a bike received at Angamaly is still the home branch's stock).
+  const atBranch = (v: Vehicle, id: string) => v.branchId === id || currentBranchId(v) === id;
+  const textOk = (v: Vehicle) => !q || `${v.make} ${v.model} ${v.variant} ${v.registrationNo} ${displayReg(v.registrationNo)} ${v.stockId ?? ""}`.toLowerCase().includes(q);
+  // Every filter combines with every other. `skip` leaves one out, so that control's own counts reflect the rest.
+  const matches = (item: { v: Vehicle; status: DeckStatus }, skip?: "status" | "branch" | "date") =>
+    textOk(item.v) &&
+    (skip === "branch" || branch === "all" || atBranch(item.v, branch)) &&
+    (skip === "status" || status === "all" || item.status === status) &&
+    (skip === "date" || addedWithin(item.v, preset, from, to, today));
+
+  const rows = withStatus.filter((i) => matches(i));
   const visible = rows.slice(0, shown);
+
+  const statusCounts = {} as Record<DeckStatus, number>;
+  for (const i of withStatus) if (matches(i, "status")) statusCounts[i.status] = (statusCounts[i.status] ?? 0) + 1;
+  const statusTotal = Object.values(statusCounts).reduce((n, c) => n + c, 0);
+
+  const branches = BRANCHES.filter((b) => inScope(b.id)).map((b) => ({ id: b.id as string, name: b.name, n: withStatus.filter((i) => matches(i, "branch") && atBranch(i.v, b.id)).length }));
+  const presetCount = (p: DatePreset) => withStatus.filter((i) => matches(i, "date") && addedWithin(i.v, p, "", "", today)).length;
+
+  const filtersActive = !!q || status !== "all" || branch !== "all" || preset !== "all";
+  const reset = () => {
+    setQuery("");
+    setStatus("all");
+    setBranch("all");
+    setPreset("all");
+    setFrom("");
+    setTo("");
+    setShown(PAGE_SIZE);
+  };
+  const changed = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setShown(PAGE_SIZE);
+  };
 
   return (
     <div className="space-y-5">
@@ -41,23 +118,71 @@ export default function StockDeckPage() {
       />
 
       <div className="flex flex-col gap-3">
-        <div className="relative sm:max-w-sm">
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-          <input
-            type="search"
-            aria-label="Search the deck"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setShown(PAGE_SIZE);
-            }}
-            placeholder="Search by name, registration or stock ID"
-            autoComplete="off"
-            className={cn(inputClass(), "pl-10")}
-          />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_minmax(0,14rem)]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              aria-label="Search the deck"
+              value={query}
+              onChange={(e) => changed(setQuery)(e.target.value)}
+              placeholder="Search by name, registration or stock ID"
+              autoComplete="off"
+              className={cn(inputClass(), "pl-10")}
+            />
+          </div>
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+            <select aria-label="Hub or branch" value={branch} onChange={(e) => changed(setBranch)(e.target.value)} className={cn(inputClass(), "pl-10")}>
+              <option value="all">All hubs / branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} · {b.n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+            <select
+              aria-label="Stock added date"
+              value={preset}
+              onChange={(e) => {
+                const p = e.target.value as DatePreset;
+                setPreset(p);
+                if (p !== "custom") {
+                  setFrom("");
+                  setTo("");
+                }
+                setShown(PAGE_SIZE);
+              }}
+              className={cn(inputClass(), "pl-10")}
+            >
+              {DATE_PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                  {p.value !== "all" && p.value !== "custom" ? ` · ${presetCount(p.value)}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
-          {([["all", "All", vehicles.length], ...DECK_STATUS_ORDER.filter((s) => counts[s]).map((s) => [s, DECK_THEMES[s].label, counts[s]] as const)] as const).map(([key, label, n]) => {
+
+        {preset === "custom" && (
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+              From
+              <input type="date" value={from} max={to || undefined} onChange={(e) => changed(setFrom)(e.target.value)} className={cn(inputClass(), "w-44")} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+              To
+              <input type="date" value={to} min={from || undefined} onChange={(e) => changed(setTo)(e.target.value)} className={cn(inputClass(), "w-44")} />
+            </label>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by status">
+          {([["all", "All", statusTotal], ...DECK_STATUS_ORDER.filter((s) => statusCounts[s] || status === s).map((s) => [s, DECK_THEMES[s].label, statusCounts[s] ?? 0] as const)] as const).map(([key, label, n]) => {
             const on = status === key;
             const accent = key === "all" ? undefined : DECK_THEMES[key as DeckStatus].accent;
             return (
@@ -65,10 +190,7 @@ export default function StockDeckPage() {
                 key={key}
                 type="button"
                 aria-pressed={on}
-                onClick={() => {
-                  setStatus(key as DeckStatus | "all");
-                  setShown(PAGE_SIZE);
-                }}
+                onClick={() => changed(setStatus)(key as DeckStatus | "all")}
                 className={cn(
                   "btn-tap inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                   on ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
@@ -80,12 +202,25 @@ export default function StockDeckPage() {
             );
           })}
         </div>
+
+        {ready && vehicles.length > 0 && (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted" aria-live="polite">
+            <span>
+              Showing <strong className="font-semibold text-ink tabular-nums">{rows.length}</strong> of <span className="tabular-nums">{vehicles.length}</span> cards
+            </span>
+            {filtersActive && (
+              <button type="button" onClick={reset} className="btn-tap inline-flex items-center gap-1 rounded-md text-xs font-medium text-brand hover:underline">
+                <X className="size-3.5" /> Clear filters
+              </button>
+            )}
+          </p>
+        )}
       </div>
 
       {!ready ? (
         <EmptyState>Shuffling the deck…</EmptyState>
       ) : rows.length === 0 ? (
-        <EmptyState>{vehicles.length === 0 ? "No vehicles in stock yet." : "No cards match."}</EmptyState>
+        <EmptyState>{vehicles.length === 0 ? "No vehicles in stock yet." : preset !== "all" ? "No stock added within this date range." : "No cards match."}</EmptyState>
       ) : (
         <>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
