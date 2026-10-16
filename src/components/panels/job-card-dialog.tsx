@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plus, ShieldCheck, Trash2, Undo2, UserRound, Wrench, X } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
@@ -83,6 +83,12 @@ export function JobCardDialog({ vehicleId, onClose }: { vehicleId: string; onClo
   return <JobCard vehicle={vehicle} onClose={onClose} />;
 }
 
+type SignOffField = "supervisor" | "advisor" | "technician" | "start" | "end" | "photos";
+
+const cardCls = (invalid: boolean) => cn("rounded-lg border bg-panel/70 p-2.5", invalid ? "border-danger ring-1 ring-danger" : "border-line/60");
+const smallInput = (invalid: boolean, width: string) =>
+  cn("h-7 rounded border bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none", width, invalid ? "border-danger" : "border-line");
+
 function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const recon = v.recon!;
   const { can } = useRole();
@@ -108,6 +114,46 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
 
   const total = reconCostPaise(v);
   const photosLeft = Math.max(0, MIN_COMPLETION_PHOTOS - recon.photos.length);
+
+  // Sign-off checks. The button is always clickable; clicking it with something missing lists what, outlines it in red and scrolls to it.
+  const [attempted, setAttempted] = useState(false);
+  const [attemptTick, setAttemptTick] = useState(0);
+  const startAt = startDate && startTime ? `${startDate}T${startTime}` : "";
+  const endAt = endDate && endTime ? `${endDate}T${endTime}` : "";
+  const issues: { key: SignOffField; message: string }[] = [];
+  if (!recon.supervisor.trim() || recon.supervisor === "Unassigned") issues.push({ key: "supervisor", message: "Please assign a Supervisor (under Employees & Access)" });
+  if (!advisor.trim()) issues.push({ key: "advisor", message: "Please assign a Service Advisor" });
+  if (!technician.trim()) issues.push({ key: "technician", message: "Please assign a Lead Technician" });
+  if (!startAt) issues.push({ key: "start", message: "Enter the recon start date and time" });
+  if (!endAt) issues.push({ key: "end", message: "Enter the recon end date and time" });
+  else if (startAt && endAt <= startAt) issues.push({ key: "end", message: "End time must be after start time" });
+  if (photosLeft > 0) issues.push({ key: "photos", message: `Minimum ${MIN_COMPLETION_PHOTOS} inspection photos required (${recon.photos.length}/${MIN_COMPLETION_PHOTOS} added)` });
+  // Highlights follow the live values once a sign-off has been attempted, so each clears as it's fixed.
+  const bad = new Set<SignOffField>(attempted ? issues.map((i) => i.key) : []);
+  const startBad = bad.has("start");
+  const endBad = bad.has("end");
+  const endOrderBad = endBad && !!startAt && !!endAt; // both filled in, but end is not after start
+
+  useEffect(() => {
+    if (!attemptTick) return;
+    const first = document.querySelector<HTMLElement>("[data-signoff-error]");
+    first?.scrollIntoView({ behavior: "smooth", block: "center" });
+    first?.querySelector<HTMLElement>("input, button")?.focus({ preventScroll: true });
+  }, [attemptTick]);
+
+  async function handleSignOff() {
+    setAttempted(true);
+    if (issues.length) {
+      setAttemptTick((t) => t + 1);
+      return;
+    }
+    await run(async () => {
+      // Names save on blur; flush any typed-but-unsaved one first so the sign-off can't race ahead of it.
+      if (technician.trim() !== (recon.technicianName ?? "")) await setTechnician(v.id, technician);
+      if (advisor.trim() !== (recon.serviceAdvisor ?? "")) await setServiceAdvisor(v.id, advisor);
+      await completeRecon(v.id);
+    }, "Work signed off. The vehicle is back in stock for sale-readiness review.");
+  }
   const lastSendBack = recon.sendBacks.at(-1);
 
   function saveDates(sDate: string, sTime: string, eDate: string, eTime: string) {
@@ -146,21 +192,27 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
       onClose={onClose}
       footer={
         manage && !locked ? (
-          <>
-            <Button size="lg" className="flex-1" onClick={onClose}>
-              Close
-            </Button>
-            <Button
-              size="lg"
-              variant="success"
-              className="flex-[2]"
-              disabled={busy || photosLeft > 0 || !technician.trim() || !startDate || !endDate}
-              onClick={() => run(() => completeRecon(v.id), "Work signed off. The vehicle is back in stock for sale-readiness review.")}
-            >
-              <ShieldCheck className="size-4" /> Authorize & Sign off
-              {photosLeft > 0 && <span className="font-normal">· {recon.photos.length}/{MIN_COMPLETION_PHOTOS} photos</span>}
-            </Button>
-          </>
+          <div className="flex w-full flex-col gap-3">
+            {attempted && issues.length > 0 && (
+              <div role="alert" className="rounded-xl border border-danger bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
+                <p className="font-semibold">Cannot sign off:</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                  {issues.map((i) => (
+                    <li key={i.message}>{i.message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button size="lg" className="flex-1" onClick={onClose}>
+                Close
+              </Button>
+              <Button size="lg" variant="success" className="flex-[2]" disabled={busy} onClick={handleSignOff}>
+                <ShieldCheck className="size-4" /> Authorize & Sign off
+                {photosLeft > 0 && <span className="font-normal">· {recon.photos.length}/{MIN_COMPLETION_PHOTOS} photos</span>}
+              </Button>
+            </div>
+          </div>
         ) : (
           <Button size="lg" className="flex-1" onClick={onClose}>
             Close
@@ -203,13 +255,17 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
               <span className="mt-0.5 block truncate font-medium text-foreground">{v.make} {v.model}</span>
               <span className="text-[11px] text-muted">{v.variant || "Standard"}</span>
             </div>
-            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
-              <span className="block font-semibold uppercase tracking-wider text-muted">Supervisor</span>
+            <div className={cardCls(bad.has("supervisor"))} data-signoff-error={bad.has("supervisor") ? "" : undefined}>
+              <span className="block font-semibold uppercase tracking-wider text-muted">
+                Supervisor <span className="text-red-500 font-bold">*</span>
+              </span>
               <span className="mt-0.5 block font-medium text-foreground">{recon.supervisor || "Unassigned"}</span>
               <span className="text-[11px] text-muted">Floor In-Charge</span>
             </div>
-            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
-              <span className="block font-semibold uppercase tracking-wider text-muted">Service Advisor</span>
+            <div className={cardCls(bad.has("advisor"))} data-signoff-error={bad.has("advisor") ? "" : undefined}>
+              <span className="block font-semibold uppercase tracking-wider text-muted">
+                Service Advisor <span className="text-red-500 font-bold">*</span>
+              </span>
               <div className="mt-1 flex items-center gap-2">
                 <UserRound className="size-3.5 shrink-0 text-brand" />
                 {manage && !locked ? (
@@ -228,7 +284,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       onBlur={() => advisor.trim() !== (recon.serviceAdvisor ?? "") && run(() => setServiceAdvisor(v.id, advisor))}
                       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                       placeholder="Assign…"
-                      className="h-7 w-full min-w-0 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                      className={smallInput(bad.has("advisor"), "w-full min-w-0")}
                     />
                     <datalist id="advisor-options">
                       {technicianOptions.map((name) => (
@@ -241,7 +297,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                 )}
               </div>
             </div>
-            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
+            <div className={cardCls(bad.has("technician"))} data-signoff-error={bad.has("technician") ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Lead Technician <span className="text-red-500 font-bold">*</span>
               </span>
@@ -263,7 +319,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       onBlur={() => technician.trim() !== (recon.technicianName ?? "") && run(() => setTechnician(v.id, technician))}
                       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                       placeholder="Assign…"
-                      className="h-7 w-full min-w-0 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                      className={smallInput(bad.has("technician"), "w-full min-w-0")}
                     />
                     <datalist id="technician-options">
                       {technicianOptions.map((name) => (
@@ -278,7 +334,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
             </div>
 
             {/* Reconditioning Timeline (Start Date & End Date) */}
-            <div className="col-span-2 rounded-lg border border-line/60 bg-panel/70 p-2.5">
+            <div className={cn("col-span-2", cardCls(startBad))} data-signoff-error={startBad ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Recon Start Date & Time <span className="text-red-500 font-bold">*</span>
               </span>
@@ -291,7 +347,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       setStartDate(e.target.value);
                       saveDates(e.target.value, startTime, endDate, endTime);
                     }}
-                    className="h-7 flex-1 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                    className={smallInput(startBad && !startDate, "flex-1")}
                   />
                   <input
                     type="time"
@@ -300,8 +356,8 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       setStartTime(e.target.value);
                       saveDates(startDate, e.target.value, endDate, endTime);
                     }}
-                    title="Optional time"
-                    className="h-7 w-24 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                    title="Time"
+                    className={smallInput(startBad && !startTime, "w-24")}
                   />
                 </div>
               ) : (
@@ -311,7 +367,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
               )}
             </div>
 
-            <div className="col-span-2 rounded-lg border border-line/60 bg-panel/70 p-2.5">
+            <div className={cn("col-span-2", cardCls(endBad))} data-signoff-error={endBad ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Recon End Date & Time <span className="text-red-500 font-bold">*</span>
               </span>
@@ -324,7 +380,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       setEndDate(e.target.value);
                       saveDates(startDate, startTime, e.target.value, endTime);
                     }}
-                    className="h-7 flex-1 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                    className={smallInput(endBad && (!endDate || endOrderBad), "flex-1")}
                   />
                   <input
                     type="time"
@@ -333,8 +389,8 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                       setEndTime(e.target.value);
                       saveDates(startDate, startTime, endDate, e.target.value);
                     }}
-                    title="Optional time"
-                    className="h-7 w-24 rounded border border-line bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none"
+                    title="Time"
+                    className={smallInput(endBad && (!endTime || endOrderBad), "w-24")}
                   />
                 </div>
               ) : (
@@ -480,7 +536,10 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
         </section>
 
         {/* Visual Inspection & Completion Photos */}
-        <section className="rounded-xl border border-line bg-panel p-3.5">
+        <section
+          className={cn("rounded-xl border bg-panel p-3.5", bad.has("photos") ? "border-danger ring-1 ring-danger" : "border-line")}
+          data-signoff-error={bad.has("photos") ? "" : undefined}
+        >
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
