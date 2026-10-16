@@ -50,6 +50,8 @@ interface FormState {
   nocSign?: "yes" | "no";
   rcKycMismatch: "yes" | "no";
   mismatchRemarks: string;
+  rcPhoneWorking: "yes" | "no";
+  rcCurrentPhone: string;
   hasChallan?: "yes" | "no";
   challanAmount: string; // whole rupees, digits only
   challanReceived?: "yes" | "no";
@@ -90,6 +92,8 @@ const EMPTY: FormState = {
   rearTyrePercent: "",
   rcKycMismatch: "no",
   mismatchRemarks: "",
+  rcPhoneWorking: "yes",
+  rcCurrentPhone: "",
   challanAmount: "",
   conditionNotes: "",
   knownDefects: "",
@@ -150,6 +154,7 @@ function validate(f: FormState): Errors {
     need("nocSign", "Select Yes or No");
     need("nocStatus");
   }
+  if (f.rcPhoneWorking === "no" && f.rcCurrentPhone && !MOBILE_RE.test(f.rcCurrentPhone)) e.rcCurrentPhone = "Enter a valid 10-digit mobile number";
   need("hasChallan", "Select Yes or No");
   if (f.hasChallan === "yes") {
     if (!f.challanAmount || Number(f.challanAmount) <= 0) e.challanAmount = "Enter the challan amount";
@@ -204,6 +209,8 @@ export default function NewVehiclePage() {
     setForm((f) => (v === "yes" ? { ...f, hasChallan: v } : { ...f, hasChallan: v, challanAmount: "", challanReceived: undefined }));
 
   const setMismatch = (v: "yes" | "no") => setForm((f) => ({ ...f, rcKycMismatch: v, mismatchRemarks: v === "yes" ? f.mismatchRemarks : "" }));
+
+  const setRcPhoneWorking = (v: "yes" | "no") => setForm((f) => ({ ...f, rcPhoneWorking: v, rcCurrentPhone: v === "no" ? f.rcCurrentPhone : "" }));
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const touch = (k: keyof FormState) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -281,6 +288,8 @@ export default function NewVehiclePage() {
         conditionNotes: form.conditionNotes.trim(),
         rcKycMismatch: form.rcKycMismatch,
         mismatchRemarks: form.rcKycMismatch === "yes" && form.mismatchRemarks.trim() ? form.mismatchRemarks.trim() : undefined,
+        rcPhoneWorking: form.rcPhoneWorking,
+        rcCurrentPhone: form.rcPhoneWorking === "no" && form.rcCurrentPhone ? form.rcCurrentPhone : undefined,
         hasChallan: form.hasChallan!,
         challanAmountPaise: form.hasChallan === "yes" ? Number(form.challanAmount) * 100 : undefined,
         challanReceived: form.hasChallan === "yes" ? form.challanReceived : undefined,
@@ -576,6 +585,40 @@ export default function NewVehiclePage() {
                   placeholder="e.g. RC shows the previous owner's name"
                   className={textareaClass()}
                 />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <Field label="Is RC registered phone number active / working?" wide>
+            <Segmented
+              name="RC phone working"
+              value={form.rcPhoneWorking}
+              onChange={setRcPhoneWorking}
+              options={[
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No" },
+              ]}
+            />
+          </Field>
+          {form.rcPhoneWorking === "no" && (
+            <div className="mt-3">
+              <Field label="Current working mobile number" htmlFor="rcCurrentPhone" error={show("rcCurrentPhone")} hint="Optional - if different from the seller mobile.">
+                <div className="relative">
+                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
+                  <input
+                    id="rcCurrentPhone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={form.rcCurrentPhone}
+                    onChange={(e) => set("rcCurrentPhone", digits(e.target.value, 10))}
+                    onBlur={touch("rcCurrentPhone")}
+                    placeholder="98470 12345"
+                    className={`${inputClass(!!show("rcCurrentPhone"))} pl-12 tabular-nums`}
+                  />
+                </div>
               </Field>
             </div>
           )}

@@ -198,6 +198,14 @@ function VehicleDetail() {
               ["Source", v.source === "exchange" ? "Branch exchange" : "Direct purchase"],
               ["Branch", branchName(v.branchId)],
               ["Seller", v.seller.name],
+              [
+                "RC phone working",
+                v.rcPhoneWorking === "no"
+                  ? `No${v.rcCurrentPhone ? ` · now +91 ${v.rcCurrentPhone.slice(0, 5)} ${v.rcCurrentPhone.slice(5)}` : ""}`
+                  : v.rcPhoneWorking === "yes"
+                    ? "Yes"
+                    : "—",
+              ],
               ["RC / KYC mismatch", v.rcKycMismatch === "yes" ? `Yes${v.mismatchRemarks ? ` · ${v.mismatchRemarks}` : ""}` : v.rcKycMismatch === "no" ? "No" : "—"],
               ["Mobile", `+91 ${v.seller.phone.slice(0, 5)} ${v.seller.phone.slice(5)}`],
               ...(v.seller.phoneAlt ? [["Alternate mobile", `+91 ${v.seller.phoneAlt.slice(0, 5)} ${v.seller.phoneAlt.slice(5)}`] as [string, string]] : []),
