@@ -92,3 +92,4 @@ pm2 save
 - [ ] Log in with an existing staff email/password
 - [ ] Upload a vehicle photo or document and confirm it loads
 - [ ] Open an existing vehicle and confirm its old photos/documents still load
+<!-- auto-deploy test -->
