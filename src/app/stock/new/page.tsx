@@ -14,6 +14,7 @@ import { newId } from "@/lib/collections";
 import type { AccidentHistory, Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
 import { ColourPicker } from "@/components/colour-picker";
+import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
@@ -359,16 +360,14 @@ export default function NewVehiclePage() {
           <input id="variant" value={form.variant} onChange={(e) => set("variant", e.target.value)} placeholder="e.g. DLX, Disc" className={inputClass()} />
         </Field>
         <Field label="Mfg month & year" htmlFor="mfgMonth" required error={show("mfgMonth")}>
-          <input
+          <MonthPicker
             id="mfgMonth"
-            type="month"
+            value={form.mfgMonth}
             min={EARLIEST_MONTH}
             max={THIS_MONTH}
-            placeholder="YYYY-MM"
-            value={form.mfgMonth}
-            onChange={(e) => set("mfgMonth", e.target.value)}
+            onChange={(v) => set("mfgMonth", v)}
             onBlur={touch("mfgMonth")}
-            className={inputClass(!!show("mfgMonth"))}
+            invalid={!!show("mfgMonth")}
           />
         </Field>
         <Field label="Fuel" required error={show("fuel")}>
