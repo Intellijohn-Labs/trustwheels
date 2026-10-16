@@ -47,7 +47,7 @@ export function DocumentUploadSlot({
   }
 
   return (
-    <div className={cn("rounded-xl border p-3", invalid ? "border-danger" : "border-line-strong")}>
+    <div className={cn("rounded-xl border p-3", invalid ? "border-danger ring-1 ring-danger" : "border-line-strong")}>
       <div className="flex items-start gap-2.5">
         <FileText className="mt-0.5 size-4 shrink-0 text-muted" />
         <div className="min-w-0 flex-1">

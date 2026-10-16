@@ -38,7 +38,7 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", wide && "sm:col-span-2")}>
+    <div className={cn("group/field flex flex-col gap-1.5", wide && "sm:col-span-2")} data-invalid={error ? "true" : undefined} data-field-error={error ? "" : undefined}>
       <label htmlFor={htmlFor} className="text-sm font-medium text-ink">
         {label}
         {required && <span className="ml-0.5 text-danger">*</span>}
@@ -59,11 +59,11 @@ const control =
   "h-12 w-full rounded-xl border bg-surface px-3.5 text-base text-ink placeholder:text-faint outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:bg-sunken disabled:text-muted";
 
 export function inputClass(invalid?: boolean) {
-  return cn(control, invalid ? "border-danger" : "border-line-strong");
+  return cn(control, invalid ? "border-danger ring-1 ring-danger" : "border-line-strong");
 }
 
 export function textareaClass(invalid?: boolean) {
-  return cn(control, "h-auto min-h-24 py-3", invalid ? "border-danger" : "border-line-strong");
+  return cn(control, "h-auto min-h-24 py-3", invalid ? "border-danger ring-1 ring-danger" : "border-line-strong");
 }
 
 export function Segmented<T extends string>({
@@ -78,7 +78,7 @@ export function Segmented<T extends string>({
   name: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={name} className="flex gap-1 rounded-xl bg-sunken p-1">
+    <div role="radiogroup" aria-label={name} className="flex gap-1 rounded-xl bg-sunken p-1 group-data-[invalid=true]/field:ring-1 group-data-[invalid=true]/field:ring-danger">
       {options.map((o) => (
         <button
           key={o.value}

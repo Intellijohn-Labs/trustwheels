@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { createVehicle, useVehicles } from "@/lib/stock-store";
 import { isSold } from "@/lib/finance";
@@ -115,7 +115,6 @@ const THIS_MONTH = `${THIS_YEAR}-${String(new Date().getMonth() + 1).padStart(2,
 const EARLIEST_MONTH = `${EARLIEST_YEAR}-01`;
 const MOBILE_RE = /^[6-9]\d{9}$/;
 const digits = (s: string, max = 12) => s.replace(/\D/g, "").slice(0, max);
-const alnum = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 /** Case-insensitive model lookup so free-text "honda"/"Honda" both surface the same suggestions. */
 function modelsFor(make: string): string[] {
@@ -123,32 +122,63 @@ function modelsFor(make: string): string[] {
   return key ? MAKES[key] : [];
 }
 
+const REQUIRED = "This field is required";
+
+/** Field names for the "needs attention" list, in the order they appear on the form. */
+const FIELD_LABELS: [keyof Errors, string][] = [
+  ["branchId", "Branch"],
+  ["registrationNo", "Registration no."],
+  ["make", "Make"],
+  ["model", "Model"],
+  ["mfgMonth", "Mfg month & year"],
+  ["fuel", "Fuel"],
+  ["engineCc", "Engine CC"],
+  ["odometerKm", "Odometer"],
+  ["colour", "Colour"],
+  ["owners", "No. of owners"],
+  ["photos", "Photos"],
+  ["rcCurrentPhone", "Current working mobile"],
+  ["financier", "Financier name"],
+  ["nocSeal", "NOC seal"],
+  ["nocSign", "NOC sign"],
+  ["hasInsurance", "Insurance available?"],
+  ["insuranceValidTill", "Insurance valid till"],
+  ["hasChallan", "Challan pending?"],
+  ["challanAmount", "Challan amount"],
+  ["challanReceived", "Challan amount received?"],
+  ["frontTyrePercent", "Front tyre"],
+  ["rearTyrePercent", "Rear tyre"],
+  ["batteryStatus", "Battery condition"],
+  ["sellerName", "Seller name"],
+  ["sellerPhone", "Seller mobile"],
+  ["sellerPhoneAlt", "Seller alternate mobile"],
+  ["agreedValue", "Purchased value"],
+];
+
 function validate(f: FormState): Errors {
   const e: Errors = {};
-  const need = (k: keyof FormState, msg = "Required") => {
+  const need = (k: keyof FormState, msg = REQUIRED) => {
     const v = f[k];
     if (v === undefined || v === "") e[k] = msg;
   };
   need("branchId", "Choose a branch");
-  if (!f.registrationNo) e.registrationNo = "Required";
+  if (!f.registrationNo) e.registrationNo = REQUIRED;
   else if (!isValidReg(f.registrationNo)) e.registrationNo = "Not a valid registration number";
   need("make");
   need("model");
-  if (!f.mfgMonth) e.mfgMonth = "Required";
+  if (!f.mfgMonth) e.mfgMonth = REQUIRED;
   else if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(f.mfgMonth)) e.mfgMonth = "Use the format YYYY-MM";
   else if (f.mfgMonth > THIS_MONTH) e.mfgMonth = "Can't be in the future";
   else if (f.mfgMonth < EARLIEST_MONTH) e.mfgMonth = `Can't be before ${EARLIEST_YEAR}`;
   need("fuel");
   if (!f.colour.trim()) e.colour = "Pick a colour or enter one under Other";
   const owners = Number(f.owners);
-  if (f.owners.trim() === "") e.owners = "Required";
+  if (f.owners.trim() === "") e.owners = REQUIRED;
   else if (!Number.isInteger(owners) || owners < 1) e.owners = "Enter a whole number, 1 or more";
   else if (owners > MAX_OWNERS) e.owners = `Can't be more than ${MAX_OWNERS}`;
-  if (!f.odometerKm) e.odometerKm = "Required";
-  if (f.fuel === "petrol" && !f.engineCc) e.engineCc = "Required";
+  if (!f.odometerKm) e.odometerKm = REQUIRED;
+  if (f.fuel === "petrol" && !f.engineCc) e.engineCc = REQUIRED;
   else if (f.engineCc && !(Number.isFinite(Number(f.engineCc)) && Number(f.engineCc) > 0)) e.engineCc = "Enter a number greater than 0";
-  if (f.chassisNo.length < 6) e.chassisNo = f.chassisNo ? "Too short" : "Required";
-  if (f.engineNo.length < 5) e.engineNo = f.engineNo ? "Too short" : "Required";
   if (f.financeStatus === "financed") {
     need("financier", "Enter the financier's name");
     need("nocSeal", "Select Yes or No");
@@ -192,6 +222,8 @@ export default function NewVehiclePage() {
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Bumped on every failed Save so the effect below runs once the error styling has rendered.
+  const [attempt, setAttempt] = useState(0);
   const { vehicles } = useVehicles();
 
   const errors = useMemo(() => validate(form), [form]);
@@ -239,14 +271,22 @@ export default function NewVehiclePage() {
 
   const photoCount = PHOTO_SLOTS.filter((p) => form.photos[p.slot]).length;
   const errorCount = Object.keys(errors).length;
+  const missingNames = FIELD_LABELS.filter(([k]) => errors[k]).map(([, label]) => label);
+
+  useEffect(() => {
+    if (!attempt) return;
+    // Fields and the photos block mark themselves with data-field-error while invalid; first in page order wins.
+    const first = document.querySelector<HTMLElement>("[data-field-error]");
+    if (!first) return;
+    first.scrollIntoView({ behavior: "smooth", block: "center" });
+    first.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])")?.focus({ preventScroll: true });
+  }, [attempt]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitted(true);
     if (errorCount) {
-      requestAnimationFrame(() =>
-        document.querySelector('[role="alert"]')?.closest("section")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      );
+      setAttempt((n) => n + 1);
       return;
     }
     setSaving(true);
@@ -530,7 +570,7 @@ export default function NewVehiclePage() {
         
       </Section>
 
-      <section className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
+      <section className="rounded-2xl border border-line bg-surface p-4 sm:p-6" data-field-error={submitted && errors.photos ? "" : undefined}>
         <header className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">
@@ -890,18 +930,22 @@ export default function NewVehiclePage() {
       </Section>
 
       <div className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+        {submitted && errorCount > 0 && (
+          <div className="mb-3 max-h-24 overflow-y-auto" role="alert">
+            <p className="text-sm font-medium text-danger">
+              {errorCount} {errorCount === 1 ? "field needs" : "fields need"} attention:
+            </p>
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+              {missingNames.map((n) => (
+                <li key={n} className="rounded-full bg-danger-soft px-2.5 py-0.5 text-xs font-medium text-danger">
+                  {n}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="flex items-center gap-3">
-          <p className="flex-1 text-sm text-muted">
-            {submitted && errorCount > 0 ? (
-              <span className="font-medium text-danger">
-                {errorCount} {errorCount === 1 ? "field needs" : "fields need"} attention
-              </span>
-            ) : (
-              <>
-                {photoCount}/6 photos
-              </>
-            )}
-          </p>
+          <p className="flex-1 text-sm text-muted">{photoCount}/6 photos</p>
           <Link href="/stock" className="h-12 rounded-xl px-4 text-sm leading-[3rem] font-medium text-muted hover:text-ink">
             Cancel
           </Link>

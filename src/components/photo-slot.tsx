@@ -52,7 +52,7 @@ export function PhotoSlotInput({
       className={cn(
         "group relative flex aspect-[4/3] flex-col items-center justify-center overflow-hidden rounded-xl border-2 text-center transition",
         value ? "border-transparent" : "border-dashed bg-sunken",
-        !value && (invalid ? "border-danger" : "border-line-strong"),
+        !value && (invalid ? "border-danger ring-1 ring-danger" : "border-line-strong"),
       )}
     >
       <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handle(e.target.files?.[0])} />
