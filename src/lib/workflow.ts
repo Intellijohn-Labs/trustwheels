@@ -76,10 +76,12 @@ export function currentBranchId(v: Vehicle): string {
   return v.receipt ? (v.dispatch?.to ?? "ang") : v.branchId;
 }
 
-/** Reconditioning clock runs from stock entry until the manager's quality-gate sign-off. */
+/** Reconditioning clock runs from stock entry until the supervisor signs the job card off. */
 export function reconHours(v: Vehicle, now: number) {
   if (!v.recon) return 0;
-  return ((v.gate ? t(v.gate.at) : now) - t(v.recon.startedAt)) / HOUR;
+  // `gate` is only set on vehicles approved under the old quality gate; they stop at that approval.
+  const end = v.recon.completed ? t(v.recon.completed.at) : v.gate ? t(v.gate.at) : now;
+  return (end - t(v.recon.startedAt)) / HOUR;
 }
 
 export type ReconFlag = "ok" | "red48" | "red72";
@@ -91,14 +93,9 @@ export function reconFlag(v: Vehicle, now: number): ReconFlag {
 
 // Stage 8 specifically, not just "has a recon record": once a job card is signed off,
 // completeRecon() reverts `stage` to 7 (general stock evaluation) even though the recon record
-// itself (items, photos, cost) is kept, so these two stay scoped to a vehicle still actually
-// sitting at the gate.
+// itself (items, photos, cost) is kept, so this stays scoped to a vehicle still in the workshop.
 export function inRecon(v: Vehicle) {
   return !!v.recon && !v.gate && v.stage === 8;
-}
-
-export function awaitingGate(v: Vehicle) {
-  return !!v.recon?.completed && !v.gate && v.stage === 8;
 }
 
 // ---- seller payment (7 working days from cross-verification) -----------------------

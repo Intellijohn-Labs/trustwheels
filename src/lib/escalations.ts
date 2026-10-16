@@ -105,7 +105,7 @@ export function vehicleEscalations(vehicles: Vehicle[], now: number): Escalation
           kind: "recon",
           severity: flag === "red72" ? "critical" : "warning",
           title: `RED ${flag === "red72" ? SLA.reconRedHours : SLA.reconAmberHours}h · ${name(v)}`,
-          detail: `${Math.floor(h)}h in reconditioning under ${v.recon!.supervisor}${v.recon!.completed ? ", waiting at the quality gate" : ""}`,
+          detail: `${Math.floor(h)}h in reconditioning under ${v.recon!.supervisor}`,
           href: "/recon",
           overdueMs: (h - SLA.reconAmberHours) * HOUR,
           owner: v.recon!.supervisor,

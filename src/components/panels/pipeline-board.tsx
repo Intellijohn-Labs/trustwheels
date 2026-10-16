@@ -4,21 +4,19 @@ import { BRANCHES } from "@/lib/masters";
 import { useScopedVehicles } from "@/lib/scoped";
 import type { Vehicle } from "@/lib/types";
 import { useRole } from "@/lib/role-context";
-import { awaitingGate, inRecon } from "@/lib/workflow";
+import { inRecon } from "@/lib/workflow";
 import { cn } from "@/components/ui";
 
 /**
  * Real-time workflow status: how many vehicles sit at each step, per source branch.
- * Reconditioning/Quality gate reuse the shared `inRecon`/`awaitingGate` helpers rather than
- * duplicating their stage-8 check inline - once a job card is signed off, `completeRecon()`
- * returns the vehicle to general stock evaluation (a distinct step below) instead of leaving
- * it parked at the gate forever.
+ * Reconditioning reuses the shared `inRecon` helper rather than duplicating its stage-8 check
+ * inline - once a job card is signed off, `completeRecon()` returns the vehicle to general stock
+ * evaluation (a distinct step below).
  */
 const STEPS: { label: string; test: (v: Vehicle) => boolean }[] = [
   { label: "At branch", test: (v) => !v.dispatch && !v.sale },
   { label: "In transit", test: (v) => !!v.dispatch && !v.receipt },
   { label: "Reconditioning", test: inRecon },
-  { label: "Quality gate", test: awaitingGate },
   { label: "Sale readiness review", test: (v) => !!v.recon?.completed && v.stage < 8 && !v.gate && !v.sale },
   { label: "On display", test: (v) => !!v.gate && !v.sale },
   { label: "Booked / sold", test: (v) => !!v.sale && !v.delivery?.delivered },

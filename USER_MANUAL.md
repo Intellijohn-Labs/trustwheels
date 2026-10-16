@@ -61,7 +61,6 @@
 | **Verified** | The vehicle's details and documents have been checked and ticked by an authorised person. |
 | **Dispatch** | Sending the vehicle from a branch to Angamaly with a rider. |
 | **Job card** | The list of repairs (parts, labour, outside work) done during reconditioning, with costs. |
-| **Quality gate** | The Angamaly Manager's inspection before a vehicle goes **On display**. |
 | **Final release** | The Angamaly Manager's approval that a sold vehicle may be handed to the customer. |
 | **Code Red** | A serious delay that is escalated to the Manager and the Proprietor. |
 | **RED flag** | A vehicle that has been in reconditioning too long (48 or 72 hours). |
@@ -89,7 +88,6 @@ Every vehicle passes through 12 stages. You can see them on any vehicle's page u
 | 5–6 | Dispatched / In transit | Branch Manager | **Transit → Dispatch** |
 | 7 | Received at Angamaly | Administration | **Receiving → Receive** |
 | 8 | Under reconditioning | Supervisor | **Reconditioning → Open job card** |
-| 9–10 | Manager approved / On display | Manager (Angamaly) | **Quality gate → Approve for display** |
 | 11 | Sold / Booked | Sales Executive | **Book & sell** |
 | 12 | Delivered | Manager releases, Sales hands over | **Deliveries** |
 
@@ -406,7 +404,7 @@ You can also verify vehicles (**Verification** screen, or **Mark as verified** o
 Angamaly workshop (demo login: Biju Paul)
 
 #### A. Purpose
-You recondition vehicles after they are received. You keep a costed **job card**, upload repair photos, and sign off the work. **Your responsibility continues until the Manager approves the vehicle at the quality gate.** Delays count against you by name.
+You recondition vehicles after they are received. You keep a costed **job card**, upload repair photos, and sign off the work. **Your responsibility continues until you sign the job card off.** Delays count against you by name.
 
 #### B. Your screens
 **Dashboard, Reconditioning.** You can also open any vehicle's page from your queue.
@@ -417,7 +415,6 @@ You recondition vehicles after they are received. You keep a costed **job card**
 Open **Dashboard** and read the tiles:
 - **In reconditioning**
 - **RED 48h** and **RED 72h**
-- **Waiting for quality gate**
 - **My RED count**
 
 **Step 2: Work the job card**
@@ -429,15 +426,12 @@ Open **Dashboard** and read the tiles:
 
 **Step 3: Sign off**
 1. When all work is done and 4+ photos are uploaded, tap **Sign off work**. Until then the button shows how many photos are still needed (e.g. *1/4 photos*).
-2. The vehicle moves to **Waiting for quality gate**, and the job card is locked.
-
-**Step 4: If the Manager sends it back**
-The vehicle returns to your queue with the Manager's reason shown. Fix the issue, add photos if needed, and sign off again.
+2. The job card is locked and the vehicle goes back into stock, ready for its **Ready for Sale / Not Ready for Sale** decision.
 
 #### D. Rules you must follow
-- **48 hours** in reconditioning = **RED 48h**. **72 hours** = **RED 72h**. Both count against **you by name** until the Manager approves.
+- **48 hours** in reconditioning = **RED 48h**. **72 hours** = **RED 72h**. Both count against **you by name** until you sign off.
 - **4 photos minimum** (four sides) before sign-off.
-- After sign-off you can't change the job card unless the Manager sends it back.
+- After sign-off you can't change the job card.
 - Enter **real costs**. They feed the vehicle's margin and the accounts.
 
 #### E. Checklist & troubleshooting
@@ -460,37 +454,23 @@ The vehicle returns to your queue with the Manager's reason shown. Fix the issue
 Angamaly (demo login: Sanjay Pillai)
 
 #### A. Purpose
-You are the final check twice:
-1. **Quality gate**: no vehicle goes **On display** until you pass it.
-2. **Final release**: no sold vehicle is handed to a customer until you release it, and **you cannot release it until the ownership transfer is 100% confirmed.**
+You are the final check before delivery:
+1. **Final release**: no sold vehicle is handed to a customer until you release it, and **you cannot release it until the ownership transfer is 100% confirmed.**
 
 You also watch every SLA and Code Red alert across the group.
 
 #### B. Your screens
-**Dashboard, Escalations, All stock, Verification, Transit, Reconditioning** (view), **Quality gate, Book & sell** (view), **Deliveries.**
+**Dashboard, Escalations, All stock, Verification, Transit, Reconditioning** (view), **Book & sell** (view), **Deliveries.**
 
 #### C. Daily workflow
 
 **Step 1: Morning check**
 Open **Dashboard** and read the tiles:
-- **Waiting at quality gate**
 - **Awaiting final release** (*x ready · y locked until transfer is confirmed*)
 - **Code Red deliveries**
 - **Other SLA breaches**
 
-**Step 2: Quality gate**
-1. Open **Quality gate** (or use the panel on your dashboard).
-2. For each vehicle, check:
-   - the photos
-   - the job card summary
-   - **Landed cost** against the **Proposed price** (and margin)
-   - who signed it off, and when
-   - that the documents are verified
-3. Inspect the vehicle physically.
-4. If it's good, tap **Approve for display**. It goes **On display** and can now be sold.
-5. If not, tap **Send back**, write **What needs fixing** (required), and tap **Send back**. It returns to the supervisor.
-
-**Step 3: Final release (the hard delivery lock)**
+**Step 2: Final release (the hard delivery lock)**
 1. Open **Deliveries**. Use the tabs: **Awaiting delivery, Code Red, Ready to release, Released, not handed over, Recently delivered**.
 2. Each sold vehicle shows its **Ownership transfer** progress (e.g. *Transfer 3/5*).
 3. If everything is complete, the button reads **Release for delivery**. Tap it, and Sales can then hand the vehicle over.
@@ -499,7 +479,7 @@ Open **Dashboard** and read the tiles:
    - *Booking documents not signed off by sales*
    - *Sale not completed (balance not received)*
 
-**Step 4: Monitor alerts**
+**Step 3: Monitor alerts**
 Keep **Escalations** open. The **SLA & Code Red monitor** on your dashboard shows everything open, most urgent first.
 
 #### D. Rules you must follow
@@ -517,7 +497,6 @@ Keep **Escalations** open. The **SLA & Code Red monitor** on your dashboard show
 #### E. Checklist & troubleshooting
 
 **Daily checklist**
-- [ ] **Waiting at quality gate** cleared, or the supervisor told why
 - [ ] Every **Ready to release** vehicle released
 - [ ] Every Code Red delivery has an action owner today
 - [ ] **Other SLA breaches** reviewed
@@ -526,7 +505,6 @@ Keep **Escalations** open. The **SLA & Code Red monitor** on your dashboard show
 |---|---|
 | **Release locked**, and the customer is waiting | Read the locked reasons. Call the Sales Executive to complete the missing transfer steps. If *Transfer fee paid* is missing, ask the Central Accountant to approve and pay the RTO fee (paying it ticks that step automatically). |
 | A vehicle is **Code Red** but fully transferred | Release it now. Then make sure Sales records the handover the same day. |
-| You're unsure about quality | Send it back with a clear reason. Don't approve "for now". Approval puts it on the website and in front of customers. |
 
 ---
 
@@ -885,7 +863,6 @@ Below the tiles are the pending leave requests (with **Approve** / **Reject**) a
 | Tue 11:00 | Central Accountant | Approves and pays the seller (UTR entered) | **Approve → Mark paid → Confirm payment** |
 | Tue 17:00 | Administration | Reads the plate, types it, gets Stock ID `TW-01052` | **Receiving → Receive → Confirm receipt** |
 | Wed | Supervisor | Chain kit ₹2,400 + labour ₹1,200, 4 photos, price ₹68,000 | **Open job card → Add → Add photos → Sign off work** |
-| Thu 10:00 | Manager | Inspects and approves (recon done in 41 h, no RED) | **Quality gate → Approve for display** |
 | Fri | Sales Executive | Walk-in customer books with ₹5,000 advance | **Book & sell → Book this vehicle** |
 | Sat | Sales Executive | Balance received; sale recorded | **Mark as sold → Confirm sale** |
 | Sat | Sales Executive | Signs off documents; forms signed; fee requested | **Deliveries → Sign off documents / tick steps / Request fee** |
@@ -946,7 +923,6 @@ The following parts of the plan are **not in this first release**. Until they ar
 | Transit | ✓ | — | ✓ | — | *view* | — | *view* | — | — | — | — |
 | Receiving | ✓ | — | — | — | ✓ | — | — | — | — | — | — |
 | Reconditioning | ✓ | — | — | — | — | ✓ | *view* | — | — | — | — |
-| Quality gate | ✓ | — | — | — | — | — | ✓ | — | — | — | — |
 | Book & sell | ✓ | *view* | — | — | — | — | *view* | ✓ | — | — | — |
 | Enquiries | ✓ | — | — | — | — | — | — | ✓ | — | — | — |
 | Deliveries | ✓ | — | — | — | — | — | ✓ (release) | ✓ (handover) | — | — | — |

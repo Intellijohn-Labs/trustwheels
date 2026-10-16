@@ -15,9 +15,8 @@ import type { Document, DocumentStatus, DocumentType, Vehicle } from "@/lib/type
 
 /*
  * Module 3: Document Attachment & Vault. Every mandatory document (RC, insurance,
- * seller KYC) must be uploaded and verified — not expired — before the
- * vehicle can pass the quality gate onto "On display". That hard lock lives in stock-store's
- * approveGate(); this panel is where the branch team gets the checklist to zero out first.
+ * seller KYC) must be uploaded and verified — not expired. This panel is where the branch team
+ * gets the checklist to zero out.
  */
 
 const STATUS_TONE: Record<DocumentStatus, "neutral" | "warn" | "ok" | "danger"> = {

@@ -45,8 +45,8 @@ export function ReconStatus({ vehicle: v }: { vehicle: Vehicle }) {
   const lastSendBack = v.recon?.sendBacks.at(-1);
   if (v.recon?.completed)
     return (
-      <Pill tone="brand" icon={<ShieldCheck className="size-3" />}>
-        Waiting for quality gate
+      <Pill tone="ok" icon={<ShieldCheck className="size-3" />}>
+        Signed off
       </Pill>
     );
   return (
@@ -61,7 +61,7 @@ export function ReconStatus({ vehicle: v }: { vehicle: Vehicle }) {
   );
 }
 
-/** Vehicles currently RED (48h or 72h) per supervisor. Vehicles at the gate still count: the clock runs until approval. */
+/** Vehicles currently RED (48h or 72h) per supervisor. The clock runs until the job card is signed off. */
 export function redCounts(vehicles: Vehicle[], now: number) {
   const names = [...new Set([...supervisors(), ...vehicles.filter(inRecon).map((v) => v.recon!.supervisor)])];
   return names.map((name) => {
@@ -94,7 +94,7 @@ export function ReconQueuePanel({ limit, compact }: { limit?: number; compact?: 
       flush
       tone={rows.some((v) => reconFlag(v, now) === "red72") ? "danger" : undefined}
       title="Reconditioning queue"
-      description={`${rows.length} in the workshop · ${red} RED · clock runs from stock entry until the quality gate`}
+      description={`${rows.length} in the workshop · ${red} RED · clock runs from stock entry until sign-off`}
     >
       {canDelete && shown.length > 0 && (
         <label className="flex items-center gap-2.5 border-b border-line bg-sunken/60 px-4 py-2 text-sm text-muted">

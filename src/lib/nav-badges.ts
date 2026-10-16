@@ -6,7 +6,7 @@ import { useRole } from "./role-context";
 import { useOverdueFollowUpCount } from "./leads";
 import { useEscalations } from "./use-escalations";
 import { verifyState } from "./verification";
-import { awaitingGate, inRecon, isCodeRed, paymentDue, reconFlag, transitBreached } from "./workflow";
+import { inRecon, isCodeRed, paymentDue, reconFlag, transitBreached } from "./workflow";
 
 export interface NavBadge {
   count: number;
@@ -32,7 +32,6 @@ export function useNavBadges(): Record<string, NavBadge | undefined> {
     "/transit": badge(mine.filter((v) => transitBreached(v, now)).length, "danger", "Transit time limit breached"),
     "/receiving": badge(mine.filter((v) => v.dispatch && !v.receipt).length, "warn", "Vehicles on the way to Angamaly"),
     "/recon": badge(mine.filter((v) => inRecon(v) && reconFlag(v, now) !== "ok").length, "danger", "RED flags"),
-    "/quality-gate": badge(mine.filter(awaitingGate).length, "warn", "Waiting for quality check"),
     "/deliveries": badge(mine.filter((v) => isCodeRed(v, now)).length, "danger", "Code Red: sold more than 4 days ago, not delivered"),
     "/payments": badge(mine.filter((v) => ["overdue", "due-soon"].includes(paymentDue(v, now)?.status ?? "")).length, "warn", "Seller payments due within 2 working days or overdue"),
     "/fees": badge(mine.filter((v) => v.delivery?.feePayment && v.delivery.feePayment.status !== "paid").length, "warn", "Fee requests waiting"),

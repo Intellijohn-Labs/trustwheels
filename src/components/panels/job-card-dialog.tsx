@@ -155,7 +155,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
               variant="success"
               className="flex-[2]"
               disabled={busy || photosLeft > 0 || !technician.trim() || !startDate || !endDate}
-              onClick={() => run(() => completeRecon(v.id), "Work signed off. Sent to the quality gate.")}
+              onClick={() => run(() => completeRecon(v.id), "Work signed off. The vehicle is back in stock for sale-readiness review.")}
             >
               <ShieldCheck className="size-4" /> Authorize & Sign off
               {photosLeft > 0 && <span className="font-normal">· {recon.photos.length}/{MIN_COMPLETION_PHOTOS} photos</span>}
@@ -337,7 +337,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
         {locked && (
           <p className="flex items-start gap-2 rounded-xl bg-brand-soft px-3.5 py-2.5 text-sm text-brand">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-            Signed off by {recon.completed!.by} on {formatDateTime(recon.completed!.at)}. Waiting for the quality gate.
+            Signed off by {recon.completed!.by} on {formatDateTime(recon.completed!.at)}.
           </p>
         )}
         {lastSendBack && !locked && (

@@ -11,8 +11,8 @@ import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue
 import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
 import { normaliseReg, displayReg, formatPaise, isValidMobile } from "./format";
 import { newId } from "./collections";
-import { missingDocuments, verifyDocument } from "./documents";
-import { documentLabel, inferMakeFromModel } from "./masters";
+import { verifyDocument } from "./documents";
+import { inferMakeFromModel } from "./masters";
 import { logActivity } from "./activity-log";
 import { clearVehicleReferences } from "./leads";
 
@@ -70,11 +70,24 @@ function mirrorToLocal(rows: Vehicle[]) {
   }).catch(() => {});
 }
 
+/**
+ * Fills in what older records lack, and returns any vehicle left waiting at the old quality gate
+ * (signed off at stage 8, never approved) to general stock evaluation - the same place
+ * completeRecon() now sends a signed-off job card - since that approval step no longer exists.
+ */
+function normalise(v: Vehicle): Vehicle {
+  const withDocs = v.documents ? v : { ...v, documents: [] };
+  if (withDocs.recon?.completed && !withDocs.gate && withDocs.stage === 8) {
+    return { ...withDocs, stage: 7, stageHistory: withDocs.stageHistory.filter((e) => e.stage <= 7) };
+  }
+  return withDocs;
+}
+
 function load() {
   loading ??= (async () => {
     const remote = await fetchFromApi();
     if (remote) {
-      cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
+      cache = remote.map(normalise).sort(byNewest);
       emit();
       mirrorToLocal(remote);
       return;
@@ -82,7 +95,7 @@ function load() {
     // No demo seed is ever written here - this is purely the local IndexedDB copy, read as-is.
     const rows = (await tx<Vehicle[]>("vehicles", "readonly", (s) => s.getAll())) ?? [];
     // Records saved before the document vault existed have no `documents` field.
-    cache = rows.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
+    cache = rows.map(normalise).sort(byNewest);
     emit();
   })();
   return loading;
@@ -97,7 +110,7 @@ function load() {
 async function revalidate() {
   const remote = await fetchFromApi();
   if (remote) {
-    cache = remote.map((v) => (v.documents ? v : { ...v, documents: [] })).sort(byNewest);
+    cache = remote.map(normalise).sort(byNewest);
     emit();
     mirrorToLocal(remote);
   }
@@ -220,7 +233,7 @@ export async function createVehicle(input: NewVehicle): Promise<Vehicle> {
 
 /**
  * Permanently remove one vehicle record. Managing Partner only; every other role never sees the
- * option. Everything else about the vehicle (purchase, dispatch, recon, gate, sale, delivery,
+ * option. Everything else about the vehicle (purchase, dispatch, recon, sale, delivery,
  * documents, photos) lives inline on the record itself, so it's gone with it - the only external
  * reference is a lead's optional `vehicleId`, cleared via clearVehicleReferences() so no enquiry
  * is left pointing at a vehicle that no longer exists.
@@ -326,8 +339,8 @@ export function setFinanceStatus(id: string, financeStatus: FinanceStatus, finan
 
 /**
  * Manual sales-readiness tag: a quick override independent of `stage`, so a branch can flag
- * a bike as ready to sell (or reject it) without going through the recon/quality-gate
- * pipeline that separately governs when a vehicle can actually reach "On display".
+ * a bike as ready to sell (or reject it) without going through the reconditioning
+ * pipeline that separately governs `stage`.
  */
 export function setSaleReadiness(id: string, status: SaleReadinessStatus, reason?: string) {
   assertCan("stock.verify");
@@ -611,12 +624,6 @@ export function setServiceAdvisor(id: string, name: string) {
 export const MIN_COMPLETION_PHOTOS = 2;
 
 /**
- * Supervisor sign-off. Signing off now returns the vehicle straight to general stock evaluation
- * instead of waiting on a separate quality-gate approval - Ready for Sale / Not Ready for Sale
- * is the decision point from here. The job card itself (items, photos, cost) is kept exactly as
- * it is - only `stage` reverts - so landed cost and margin still account for this recon cycle.
- */
-/**
  * Clears a completed job card's sign-off and technician attribution (items/photos/cost history
  * are kept) - this is what "deleting" a row in the Technician Report actually does: that report
  * has no table of its own, it's a live aggregation over exactly these two fields grouped by month
@@ -640,6 +647,12 @@ export function clearReconCompletion(ids: string[]) {
   });
 }
 
+/**
+ * Supervisor sign-off. Signing off returns the vehicle straight to general stock evaluation -
+ * Ready for Sale / Not Ready for Sale is the decision point from here. The job card itself
+ * (items, photos, cost) is kept exactly as it is - only `stage` reverts - so landed cost and
+ * margin still account for this recon cycle.
+ */
 export function completeRecon(id: string) {
   return editRecon(id, (v, r) => {
     if (r.completed) fail("Already signed off");
@@ -648,38 +661,6 @@ export function completeRecon(id: string) {
   }).then((updated) => {
     logActivity("STATUS_CHANGE", displayReg(updated.registrationNo), `Signed off reconditioning for ${displayReg(updated.registrationNo)}`);
     return updated;
-  });
-}
-
-// ---- quality gate ----------------------------------------------------------------
-//
-// A completed job card no longer waits here - completeRecon() above returns the vehicle to
-// general stock evaluation directly. These two actions still work on any vehicle that was
-// already sitting at the gate (stage 8, completed, ungated) before that change.
-
-export async function approveGate(id: string) {
-  assertCan("gate.approve");
-  const v = await update(id, (v) => {
-    if (!v.recon?.completed) fail("Blocked: supervisor has not signed off the job card");
-    if (v.gate) fail("Already approved");
-    if (v.stage !== 8) fail("Blocked: this vehicle has already returned to general stock evaluation");
-    if (!v.verified) fail("Blocked: documents not verified");
-    // Hard lock: every mandatory document (RC, insurance, KYC) must be
-    // uploaded and verified, and not expired, before the vehicle can go "On display".
-    const missing = missingDocuments(v);
-    if (missing.length) fail(`Blocked: missing or unverified documents — ${missing.map(documentLabel).join(", ")}`);
-    const at = nowIso();
-    return { ...v, ...advance(v, 10, at), gate: { at, by: getActor().name } };
-  });
-  return v;
-}
-
-export function sendBackToRecon(id: string, reason: string) {
-  assertCan("gate.approve");
-  return update(id, (v) => {
-    if (!v.recon?.completed || v.gate || v.stage !== 8) fail("Blocked: nothing waiting at the quality gate");
-    if (!reason.trim()) fail("Give a reason for sending it back");
-    return { ...v, recon: { ...v.recon, completed: undefined, sendBacks: [...v.recon.sendBacks, { ...signed(), reason: reason.trim() }] } };
   });
 }
 

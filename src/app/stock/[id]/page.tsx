@@ -22,7 +22,7 @@ import { useRole } from "@/lib/role-context";
 import { ShieldX } from "lucide-react";
 import { SLA, TRANSFER_STEPS } from "@/lib/masters";
 import { Pill } from "@/components/ui";
-import { awaitingGate, currentBranchId, inTransit, isCodeRed, landedCostPaise, paymentDue, reconCostPaise, reconFlag, reconHours, transferProgress, transitBreached, transitHours } from "@/lib/workflow";
+import { currentBranchId, inTransit, isCodeRed, landedCostPaise, paymentDue, reconCostPaise, reconFlag, reconHours, transferProgress, transitBreached, transitHours } from "@/lib/workflow";
 import { DocumentVault } from "@/components/vehicle/document-vault";
 
 export default function VehicleDetailPage() {
@@ -294,16 +294,7 @@ function WorkflowCard({ vehicle: v, now }: { vehicle: Vehicle; now: number }) {
         "—"
       ),
     ],
-    [
-      "Quality gate",
-      v.gate
-        ? `Approved by ${v.gate.by} · ${formatDateTime(v.gate.at)}`
-        : awaitingGate(v)
-          ? "Waiting for the manager"
-          : v.recon?.completed
-            ? "Skipped - returned to stock evaluation"
-            : "—",
-    ],
+    ...(v.gate ? ([["Display approval", `Approved by ${v.gate.by} · ${formatDateTime(v.gate.at)}`]] as [string, React.ReactNode][]) : []),
     ["Landed cost", <AskingPriceCell key="landed-cost" vehicle={v} />],
     [
       "Ownership transfer",

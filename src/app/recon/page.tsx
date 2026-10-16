@@ -22,7 +22,7 @@ export default function ReconPage() {
         title="Reconditioning"
         description={
           <>
-            RED at {SLA.reconAmberHours}h and {SLA.reconRedHours}h from stock entry, until the manager passes the quality gate.
+            RED at {SLA.reconAmberHours}h and {SLA.reconRedHours}h from stock entry, until the job card is signed off.
             {!can("recon.manage") && " View only."}
           </>
         }

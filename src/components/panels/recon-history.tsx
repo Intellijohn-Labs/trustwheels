@@ -20,8 +20,8 @@ const label = (v: Vehicle) => `${v.make} ${v.model} · ${displayReg(v.registrati
 
 /**
  * Every job card that's been signed off, most recent first - the completion record itself
- * (`v.recon.completed`) is the same "done" signal the quality-gate queue and Technician Report
- * already key off, so this never drifts from what "reconditioning is finished" means elsewhere.
+ * (`v.recon.completed`) is the same "done" signal the Technician Report
+ * already keys off, so this never drifts from what "reconditioning is finished" means elsewhere.
  * A vehicle sent back for a second recon cycle (completeRecon() keeps the old job card's cost
  * history and photos; sendToReconditioning() only resets them for a fresh cycle) still shows its
  * most recent sign-off here.

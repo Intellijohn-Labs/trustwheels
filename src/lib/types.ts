@@ -88,7 +88,7 @@ export interface Vehicle {
 
   verified?: { by: string; at: string };
   sale?: Sale;
-  /** Manual sales-readiness tag, independent of `stage` - a quick override for "can this go out the door", separate from the recon/quality-gate pipeline that already governs `stage`. */
+  /** Manual sales-readiness tag, independent of `stage` - a quick override for "can this go out the door", separate from the reconditioning pipeline that already governs `stage`. */
   saleReadiness?: SaleReadiness;
   /** Set only by the /transit "Add vehicle" quick entry when no inventory match was found - a bare placeholder record, not a real intake. Removing it from transit deletes it outright rather than just cancelling the dispatch. */
   quickEntry?: true;
@@ -98,7 +98,7 @@ export interface Vehicle {
   dispatch?: Dispatch; // branch manager
   receipt?: Receipt; // Angamaly administration
   recon?: Recon; // supervisor
-  gate?: Signed; // Angamaly manager quality gate
+  gate?: Signed; // Angamaly manager approval from the old quality gate - no longer set; kept so past approvals still read
   proposedPricePaise?: number;
   delivery?: Delivery; // sales executive + manager final release
 }

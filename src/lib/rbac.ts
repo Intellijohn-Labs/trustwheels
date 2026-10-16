@@ -27,8 +27,6 @@ export const PERMISSIONS = [
   "hub.receive",
   "recon.view",
   "recon.manage",
-  "gate.view",
-  "gate.approve",
   "sales.view",
   "sale.book",
   "sale.docs",
@@ -115,15 +113,13 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   gate_manager: {
     label: "Manager (Angamaly Gatekeeper)",
-    description: "Quality gate, final delivery release, SLA and Code Red monitoring.",
+    description: "Final delivery release, SLA and Code Red monitoring.",
     permissions: [
       "stock.view",
       "stock.create",
       "stock.verify",
       "transit.view",
       "recon.view",
-      "gate.view",
-      "gate.approve",
       "sales.view",
       "delivery.view",
       "delivery.transfer",
@@ -265,7 +261,6 @@ export const ROUTES: RouteDef[] = [
   { path: "/transit", label: "Transit", group: "Stock & hub", icon: "Truck", anyOf: ["transit.view"] },
   { path: "/receiving", label: "Receiving", group: "Stock & hub", icon: "PackageCheck", anyOf: ["hub.receive"] },
   { path: "/recon", label: "Reconditioning", group: "Stock & hub", icon: "Wrench", anyOf: ["recon.view"] },
-  { path: "/quality-gate", label: "Quality gate", group: "Stock & hub", icon: "ShieldCheck", anyOf: ["gate.view"] },
 
   { path: "/verified", label: "Book & sell", group: "Sales", icon: "BadgeCheck", anyOf: ["sales.view"] },
   { path: "/enquiries", label: "Enquiries", group: "Sales", icon: "UserPlus", anyOf: ["leads.view"] },
