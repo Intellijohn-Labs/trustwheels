@@ -105,6 +105,8 @@ const EMPTY: FormState = {
   documents: {},
 };
 
+/** Red asterisk after a section title: every section marked with it has required fields. */
+const STAR = <span className="text-danger">*</span>;
 const MAX_OWNERS = 20;
 const THIS_YEAR = new Date().getFullYear();
 const EARLIEST_YEAR = 1960;
@@ -331,7 +333,7 @@ export default function NewVehiclePage() {
         <p className="text-sm text-muted">A provisional ID is issued on save. The permanent Stock ID is issued when Angamaly receives the vehicle.</p>
       </div>
 
-      <Section title="Intake">
+      <Section title={<>Intake {STAR}</>}>
         <Field label="Branch" htmlFor="branch" required error={show("branchId")} wide>
           <select id="branch" value={branchId} onChange={(e) => set("branchId", e.target.value)} onBlur={touch("branchId")} className={inputClass(!!show("branchId"))}>
             <option value="">Select branch</option>
@@ -353,7 +355,7 @@ export default function NewVehiclePage() {
         </Field>
       </Section>
 
-      <Section title="Vehicle">
+      <Section title={<>Vehicle {STAR}</>}>
         <Field
           label="Registration no."
           htmlFor="reg"
@@ -525,7 +527,7 @@ export default function NewVehiclePage() {
         <header className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">
-              Photos <span className="text-danger">*</span>
+              Photos {STAR}
             </h2>
             <p className="mt-0.5 text-sm text-muted">Four sides, the odometer, and the chassis no. photographed next to the RC.</p>
           </div>
@@ -554,7 +556,9 @@ export default function NewVehiclePage() {
 
       <section className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
         <header className="mb-4">
-          <h2 className="text-base font-semibold">Documents</h2>
+          <h2 className="text-base font-semibold">
+            Documents {STAR}
+          </h2>
           <p className="mt-0.5 text-sm text-muted">
             Attach whatever the seller has on hand now. Anything missing can be added later from the vehicle page, but it must be verified before the
             vehicle can go on display.
@@ -727,7 +731,7 @@ export default function NewVehiclePage() {
         )}
       </Section>
 
-      <Section title="Challan">
+      <Section title={<>Challan {STAR}</>}>
         <Field label="Challan pending / amount pending?" required error={show("hasChallan")} wide>
           <Segmented
             name="Challan pending"
@@ -770,7 +774,7 @@ export default function NewVehiclePage() {
         )}
       </Section>
 
-      <Section title="Condition">
+      <Section title={<>Condition {STAR}</>}>
         <Field label="Front tyre" htmlFor="frontTyre" required error={show("frontTyrePercent")}>
           <div className="relative">
             <input
@@ -826,7 +830,7 @@ export default function NewVehiclePage() {
         </Field>
       </Section>
 
-      <Section title="Seller & value">
+      <Section title={<>Seller & value {STAR}</>}>
         <Field label="Seller name" htmlFor="seller" required error={show("sellerName")}>
           <input id="seller" value={form.sellerName} onChange={(e) => set("sellerName", e.target.value)} onBlur={touch("sellerName")} autoComplete="off" className={inputClass(!!show("sellerName"))} />
         </Field>
