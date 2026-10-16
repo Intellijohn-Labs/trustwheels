@@ -101,12 +101,12 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
               <span className="rounded-full border border-white/20 bg-black/40 px-[4cqw] py-[1.2cqw] font-mono font-bold tracking-wider text-white" style={cq(5.4)}>
                 {displayReg(v.registrationNo) || "NO REG"}
               </span>
-              <p className="font-medium text-white/85" style={cq(4.6)}>
+              <p className="deck-added font-medium text-white/85" style={cq(4.6)}>
                 Stock added: {addedOn(v.createdAt)}
               </p>
             </div>
 
-            <p className="pointer-events-none absolute inset-x-0 bottom-[5.4cqw] flex items-center justify-center gap-[1.2cqw] font-semibold tracking-[0.18em] text-white/70 uppercase" style={cq(3.3)}>
+            <p className="deck-hint pointer-events-none absolute inset-x-0 bottom-[5.4cqw] flex items-center justify-center gap-[1.2cqw] font-semibold tracking-[0.18em] text-white/70 uppercase" style={cq(3.3)}>
               <RotateCcw style={{ width: "3.6cqw", height: "3.6cqw" }} /> Click to flip card
             </p>
 

@@ -784,3 +784,48 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   border: 0.3cqw solid rgb(255 255 255 / 0.2);
   background: linear-gradient(180deg, rgb(0 0 0 / 0.26), rgb(0 0 0 / 0.16));
 }
+
+/* ---- Stock Deck density (page: app/stock/deck) --------------------------------------------------
+   Cards are sized by width (not by grid track count), so changing the density animates smoothly:
+   a grid can't transition between different numbers of columns, but a width can. Columns per row
+   come from --cols at each breakpoint. */
+.deck-grid {
+  --gap: 1rem;
+  --cols: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  transition: gap 300ms ease-in-out;
+  /* Two-finger pinch is handled by the page, so the browser must not zoom the whole page instead. */
+  touch-action: pan-x pan-y;
+}
+.deck-grid > li {
+  width: calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  transition: width 300ms ease-in-out;
+}
+.deck-grid[data-zoom="compact"] { --gap: 0.625rem; --cols: 3; }
+.deck-grid[data-zoom="normal"] { --gap: 1rem; --cols: 2; }
+.deck-grid[data-zoom="large"] { --gap: 1.5rem; --cols: 1; }
+@media (max-width: 639px) {
+  .deck-grid[data-zoom="large"] > li { max-width: 24rem; margin-inline: auto; }
+}
+@media (min-width: 640px) {
+  .deck-grid[data-zoom="compact"] { --cols: 4; }
+  .deck-grid[data-zoom="normal"] { --cols: 3; --gap: 1.25rem; }
+  .deck-grid[data-zoom="large"] { --cols: 2; }
+}
+@media (min-width: 1024px) {
+  .deck-grid[data-zoom="compact"] { --cols: 5; }
+  .deck-grid[data-zoom="normal"] { --cols: 4; }
+  .deck-grid[data-zoom="large"] { --cols: 3; }
+}
+@media (min-width: 1280px) {
+  .deck-grid[data-zoom="compact"] { --cols: 6; }
+}
+/* On a very small card the secondary lines would be unreadable specks: keep the essentials. */
+@container (max-width: 135px) {
+  .deck-hint,
+  .deck-added {
+    display: none;
+  }
+}

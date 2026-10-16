@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarDays, MapPin, Search, Spade, X } from "lucide-react";
+import { useRef, useState, type TouchEvent } from "react";
+import { CalendarDays, MapPin, Minus, Plus, RotateCcw, Search, Spade, X } from "lucide-react";
 import { DeckCard } from "@/components/deck/deck-card";
 import { DossierDialog } from "@/components/deck/dossier-dialog";
-import { EmptyState, PageHeader, cn, inputClass } from "@/components/ui";
+import { EmptyState, PageHeader, Segmented, cn, inputClass } from "@/components/ui";
 import { DECK_STATUS_ORDER, DECK_THEMES, deckStatus, type DeckStatus } from "@/lib/deck";
 import { displayReg } from "@/lib/format";
 import { BRANCHES } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
 import { useScopedVehicles } from "@/lib/scoped";
+import { ZOOM_LABEL, ZOOM_LEVELS, useDeckZoom, type DeckZoom } from "@/lib/use-deck-zoom";
 import { useNow } from "@/lib/use-now";
 import { currentBranchId } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
@@ -69,6 +70,28 @@ export default function StockDeckPage() {
   const [to, setTo] = useState("");
   const [shown, setShown] = useState(PAGE_SIZE);
   const [open, setOpen] = useState<Vehicle>();
+  const [zoom, setZoom] = useDeckZoom();
+  const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
+  const stepZoom = (delta: number) => setZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, Math.max(0, zoomIdx + delta))]);
+
+  // Pinch: spreading two fingers makes cards larger, pinching in makes them smaller - one step per gesture.
+  const pinch = useRef<{ start: number; stepped: boolean } | null>(null);
+  const span = (t: TouchEvent["touches"]) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const onTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 2) pinch.current = { start: span(e.touches), stepped: false };
+  };
+  const onTouchMove = (e: TouchEvent) => {
+    const p = pinch.current;
+    if (!p || p.stepped || e.touches.length !== 2) return;
+    const ratio = span(e.touches) / p.start;
+    if (ratio > 1.25 || ratio < 0.8) {
+      stepZoom(ratio > 1 ? 1 : -1);
+      p.stepped = true;
+    }
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length < 2) pinch.current = null;
+  };
 
   const today = istDay(now);
   const q = query.trim().toLowerCase();
@@ -118,7 +141,8 @@ export default function StockDeckPage() {
       />
 
       <div className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_minmax(0,14rem)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_minmax(0,14rem)]">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
             <input
@@ -166,6 +190,43 @@ export default function StockDeckPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 max-sm:w-full" role="group" aria-label="Card size">
+          <div className="hidden items-center gap-1 rounded-xl border border-line-strong bg-surface p-1 sm:flex">
+            <button
+              type="button"
+              onClick={() => stepZoom(-1)}
+              disabled={zoomIdx === 0}
+              aria-label="Zoom out: smaller cards, more per row"
+              title="Zoom out"
+              className="btn-tap grid size-9 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
+            >
+              <Minus className="size-4" />
+            </button>
+            <span className="min-w-20 text-center text-xs font-semibold text-muted" aria-live="polite">
+              {ZOOM_LABEL[zoom]}
+            </span>
+            <button
+              type="button"
+              onClick={() => stepZoom(1)}
+              disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+              aria-label="Zoom in: larger cards, fewer per row"
+              title="Zoom in"
+              className="btn-tap grid size-9 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
+            >
+              <Plus className="size-4" />
+            </button>
+            {zoom !== "normal" && (
+              <button type="button" onClick={() => setZoom("normal")} aria-label="Reset card size" title="Reset" className="btn-tap grid size-9 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-ink">
+                <RotateCcw className="size-4" />
+              </button>
+            )}
+          </div>
+          <div className="w-full sm:hidden">
+            <Segmented<DeckZoom> name="Card size" value={zoom} onChange={setZoom} options={ZOOM_LEVELS.map((z) => ({ value: z, label: ZOOM_LABEL[z] }))} />
+          </div>
+        </div>
         </div>
 
         {preset === "custom" && (
@@ -223,13 +284,15 @@ export default function StockDeckPage() {
         <EmptyState>{vehicles.length === 0 ? "No vehicles in stock yet." : preset !== "all" ? "No stock added within this date range." : "No cards match."}</EmptyState>
       ) : (
         <>
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
-            {visible.map(({ v }) => (
-              <li key={v.id}>
-                <DeckCard vehicle={v} now={now} onOpen={setOpen} />
-              </li>
-            ))}
-          </ul>
+          <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={onTouchEnd}>
+            <ul className="deck-grid" data-zoom={zoom}>
+              {visible.map(({ v }) => (
+                <li key={v.id}>
+                  <DeckCard vehicle={v} now={now} onOpen={setOpen} />
+                </li>
+              ))}
+            </ul>
+          </div>
           {rows.length > visible.length && (
             <div className="flex justify-center">
               <button type="button" onClick={() => setShown((n) => n + PAGE_SIZE)} className="btn-tap h-11 rounded-xl border border-line-strong bg-surface px-5 text-sm font-semibold hover:bg-sunken">
