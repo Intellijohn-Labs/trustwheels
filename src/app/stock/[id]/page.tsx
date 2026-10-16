@@ -182,6 +182,7 @@ function VehicleDetail() {
               ["Branch", branchName(v.branchId)],
               ["Seller", v.seller.name],
               ["Mobile", `+91 ${v.seller.phone.slice(0, 5)} ${v.seller.phone.slice(5)}`],
+              ...(v.seller.phoneAlt ? [["Alternate mobile", `+91 ${v.seller.phoneAlt.slice(0, 5)} ${v.seller.phoneAlt.slice(5)}`] as [string, string]] : []),
               ["Entered by", `${v.enteredBy} · ${formatDateTime(v.createdAt)}`],
             ]}
           />

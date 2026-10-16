@@ -51,6 +51,7 @@ interface FormState {
   agreedValue: string; // whole rupees, digits only
   sellerName: string;
   sellerPhone: string;
+  sellerPhoneAlt: string;
   photos: Partial<Record<PhotoSlot, string>>;
   documents: Partial<Record<DocumentType, DocumentDraft>>;
 }
@@ -80,6 +81,7 @@ const EMPTY: FormState = {
   agreedValue: "",
   sellerName: "",
   sellerPhone: "",
+  sellerPhoneAlt: "",
   photos: {},
   documents: {},
 };
@@ -90,6 +92,7 @@ const EARLIEST_YEAR = 1960;
 /** "YYYY-MM" for the current month - the latest manufacture month the form accepts. */
 const THIS_MONTH = `${THIS_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 const EARLIEST_MONTH = `${EARLIEST_YEAR}-01`;
+const MOBILE_RE = /^[6-9]\d{9}$/;
 const digits = (s: string, max = 12) => s.replace(/\D/g, "").slice(0, max);
 const alnum = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -131,8 +134,12 @@ function validate(f: FormState): Errors {
   }
   need("accidentHistory");
   if (!f.agreedValue || Number(f.agreedValue) <= 0) e.agreedValue = "Enter the purchased value";
-  need("sellerName");
-  if (!/^[6-9]\d{9}$/.test(f.sellerPhone)) e.sellerPhone = f.sellerPhone ? "Enter a 10-digit mobile number" : "Required";
+  if (!f.sellerName.trim()) e.sellerName = "Enter the seller's name";
+  if (!f.sellerPhone) e.sellerPhone = "Enter the seller's mobile number";
+  else if (!MOBILE_RE.test(f.sellerPhone)) e.sellerPhone = "Enter a valid 10-digit mobile number";
+  if (!f.sellerPhoneAlt) e.sellerPhoneAlt = "Enter an alternate mobile number";
+  else if (!MOBILE_RE.test(f.sellerPhoneAlt)) e.sellerPhoneAlt = "Enter a valid 10-digit mobile number";
+  else if (f.sellerPhoneAlt === f.sellerPhone) e.sellerPhoneAlt = "Must be different from the seller mobile";
   const missing = PHOTO_SLOTS.filter((p) => !f.photos[p.slot]);
   if (missing.length) e.photos = `Add ${missing.map((m) => m.label.toLowerCase()).join(", ")}`;
   return e;
@@ -230,7 +237,7 @@ export default function NewVehiclePage() {
         accidentHistory: form.accidentHistory!,
         knownDefects: form.knownDefects.trim(),
         agreedValuePaise: Number(form.agreedValue) * 100,
-        seller: { name: form.sellerName.trim(), phone: form.sellerPhone },
+        seller: { name: form.sellerName.trim(), phone: form.sellerPhone, phoneAlt: form.sellerPhoneAlt },
         photos: form.photos,
         documents,
       });
@@ -596,11 +603,28 @@ export default function NewVehiclePage() {
               id="phone"
               type="tel"
               inputMode="numeric"
+              autoComplete="off"
               value={form.sellerPhone}
               onChange={(e) => set("sellerPhone", digits(e.target.value, 10))}
               onBlur={touch("sellerPhone")}
               placeholder="98470 12345"
               className={`${inputClass(!!show("sellerPhone"))} pl-12 tabular-nums`}
+            />
+          </div>
+        </Field>
+        <Field label="Seller alternate mobile number" htmlFor="phoneAlt" required error={show("sellerPhoneAlt")}>
+          <div className="relative">
+            <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
+            <input
+              id="phoneAlt"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="off"
+              value={form.sellerPhoneAlt}
+              onChange={(e) => set("sellerPhoneAlt", digits(e.target.value, 10))}
+              onBlur={touch("sellerPhoneAlt")}
+              placeholder="98470 12345"
+              className={`${inputClass(!!show("sellerPhoneAlt"))} pl-12 tabular-nums`}
             />
           </div>
         </Field>
