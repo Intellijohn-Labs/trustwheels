@@ -6,7 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { celebrate } from "@/lib/celebrate";
 import { ArrowLeft, Bike, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { deleteVehicle, setAskingPrice, useVehicle } from "@/lib/stock-store";
-import { PHOTO_SLOTS, branchName, colourHex } from "@/lib/masters";
+import { PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { displayReg, formatDateTime, formatIsoDate, formatNumber, formatPaise } from "@/lib/format";
 import type { Vehicle } from "@/lib/types";
 import { Button, StageBadge, cn } from "@/components/ui";
@@ -147,7 +147,7 @@ function VehicleDetail() {
               ["Fuel", v.fuel === "electric" ? "Electric" : "Petrol"],
               [v.fuel === "electric" ? "Motor" : "Engine", v.engineCc ? `${formatNumber(v.engineCc)} ${v.fuel === "electric" ? "W" : "cc"}` : "—"],
               ["Odometer", `${formatNumber(v.odometerKm)} km`],
-              ["Colour", <ColourValue key="col" name={v.colour} hex={v.colourHex} />],
+              ["Colour", v.colour],
               ["Owners", v.owners],
               ["Chassis no.", <Mono key="c">{v.chassisNo}</Mono>],
               ["Engine no.", <Mono key="e">{v.engineNo}</Mono>],
@@ -406,16 +406,6 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       <h2 className="mb-3 text-sm font-semibold">{title}</h2>
       {children}
     </section>
-  );
-}
-
-function ColourValue({ name, hex: given }: { name: string; hex?: string }) {
-  const hex = given ?? colourHex(name);
-  return (
-    <span className="inline-flex items-center gap-2">
-      {hex && <span style={{ backgroundColor: hex }} className="size-3.5 rounded-full ring-1 ring-inset ring-black/20" aria-hidden />}
-      {name || "—"}
-    </span>
   );
 }
 

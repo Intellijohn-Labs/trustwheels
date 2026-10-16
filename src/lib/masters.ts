@@ -36,58 +36,22 @@ export const MAKES: Record<string, string[]> = {
   Ola: ["S1 Pro", "S1 Air"],
 };
 
-export interface ColourOption {
-  name: string;
-  hex: string;
-}
-
-export const DEFAULT_COLOUR_MAP: Record<string, string> = {
-  "Black": "#18181b",
-  "Matt Black": "#27272a",
-  "White": "#f4f4f5",
-  "Pearl White": "#ffffff",
-  "Silver": "#cbd5e1",
-  "Grey": "#64748b",
-  "Red": "#dc2626",
-  "Maroon": "#881337",
-  "Blue": "#2563eb",
-  "Dark Blue": "#1e3a8a",
-  "Cyan / Light Blue": "#06b6d4",
-  "Green": "#16a34a",
-  "Olive Green": "#3f6212",
-  "Yellow": "#eab308",
-  "Orange": "#ea580c",
-  "Brown": "#78350f",
-  "Gold": "#d97706",
-  "Purple / Violet": "#9333ea"
-};
-
-export const COLOURS = Object.keys(DEFAULT_COLOUR_MAP);
-
-/** Quick-pick swatches on the Add Stock form. Anything else is entered through "Other" as free text. */
-export const COLOUR_SWATCHES: ColourOption[] = [
-  { name: "White", hex: "#FFFFFF" },
-  { name: "Black", hex: "#18181B" },
-  { name: "Silver", hex: "#C7CCD4" },
-  { name: "Grey", hex: "#6B7280" },
-  { name: "Red", hex: "#DC2626" },
-  { name: "Blue", hex: "#2563EB" },
-  { name: "Brown", hex: "#78350F" },
-  { name: "Green", hex: "#16A34A" },
-  { name: "Gold", hex: "#D4A017" },
-  { name: "Beige", hex: "#E3D5B8" },
+/** Common colour names offered on the Add Stock form. Anything else is typed in under "Other". */
+export const COLOUR_NAMES = [
+  "White",
+  "Black",
+  "Silver",
+  "Grey",
+  "Red",
+  "Blue",
+  "Brown",
+  "Green",
+  "Yellow",
+  "Orange",
+  "Maroon",
+  "Gold",
+  "Beige",
 ];
-
-/** Display colour for a stored colour name, or undefined for a custom shade we can't draw. */
-export function colourHex(name: string): string | undefined {
-  const key = name.trim().toLowerCase();
-  if (!key) return undefined;
-  return (
-    COLOUR_SWATCHES.find((c) => c.name.toLowerCase() === key)?.hex ??
-    Object.entries(DEFAULT_COLOUR_MAP).find(([n]) => n.toLowerCase() === key)?.[1]
-  );
-}
-
 
 /** Best-effort make lookup from a bare model name (e.g. "Splendor" -> "Hero"), for quick manual entries that only capture the model. */
 export function inferMakeFromModel(model: string): string {

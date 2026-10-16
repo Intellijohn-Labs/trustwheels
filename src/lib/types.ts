@@ -50,7 +50,6 @@ export interface Vehicle {
   engineCc: number;
   odometerKm: number;
   colour: string;
-  colourHex?: string; // exact shade picked for a custom colour; presets resolve from the name
   owners: number;
   fuel: Fuel;
   chassisNo: string;

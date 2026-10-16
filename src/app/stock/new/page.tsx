@@ -36,7 +36,6 @@ interface FormState {
   odometerKm: string;
   keyCount: string;
   colour: string;
-  colourHex?: string;
   owners: string;
   fuel?: Fuel;
   chassisNo: string;
@@ -226,7 +225,6 @@ export default function NewVehiclePage() {
         engineCc: Number(form.engineCc) || 0,
         odometerKm: Number(form.odometerKm),
         colour: form.colour.trim(),
-        colourHex: form.colourHex,
         owners: Number(form.owners),
         fuel: form.fuel!,
         chassisNo: form.chassisNo,
@@ -433,7 +431,7 @@ export default function NewVehiclePage() {
         </Field>
 
         <Field label="Colour" htmlFor="colour" required error={show("colour")}>
-          <ColourPicker id="colour" value={form.colour} onChange={(name, hex) => setForm((f) => ({ ...f, colour: name, colourHex: hex }))} onBlur={touch("colour")} invalid={!!show("colour")} />
+          <ColourPicker id="colour" value={form.colour} onChange={(v) => set("colour", v)} onBlur={touch("colour")} invalid={!!show("colour")} />
         </Field>
         <Field label="No. of owners" htmlFor="owners" required error={show("owners")}>
           <input
