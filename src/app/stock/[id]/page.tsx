@@ -175,6 +175,14 @@ function VehicleDetail() {
         <Card title="Condition">
           <Specs
             rows={[
+              [
+                "Challan",
+                v.hasChallan === "yes"
+                  ? `Pending · ${formatPaise(v.challanAmountPaise ?? 0)} · ${v.challanReceived === "yes" ? "amount received" : "amount not received"}`
+                  : v.hasChallan === "no"
+                    ? "None"
+                    : "—",
+              ],
               ["Front tyre", v.frontTyrePercent != null ? `${v.frontTyrePercent}%` : "—"],
               ["Rear tyre", v.rearTyrePercent != null ? `${v.rearTyrePercent}%` : "—"],
               ["Battery", v.batteryStatus ? (v.batteryStatus === "good" ? "Good" : "Bad") : "—"],

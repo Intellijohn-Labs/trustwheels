@@ -48,6 +48,9 @@ interface FormState {
   nocStatus?: NocStatus;
   nocSeal?: "yes" | "no";
   nocSign?: "yes" | "no";
+  hasChallan?: "yes" | "no";
+  challanAmount: string; // whole rupees, digits only
+  challanReceived?: "yes" | "no";
   conditionNotes: string;
   frontTyrePercent: string;
   rearTyrePercent: string;
@@ -83,6 +86,7 @@ const EMPTY: FormState = {
   financier: "",
   frontTyrePercent: "",
   rearTyrePercent: "",
+  challanAmount: "",
   conditionNotes: "",
   knownDefects: "",
   agreedValue: "",
@@ -142,6 +146,11 @@ function validate(f: FormState): Errors {
     need("nocSign", "Select Yes or No");
     need("nocStatus");
   }
+  need("hasChallan", "Select Yes or No");
+  if (f.hasChallan === "yes") {
+    if (!f.challanAmount || Number(f.challanAmount) <= 0) e.challanAmount = "Enter the challan amount";
+    need("challanReceived", "Select Yes or No");
+  }
   for (const k of ["frontTyrePercent", "rearTyrePercent"] as const) {
     const n = Number(f[k]);
     if (f[k] === "") e[k] = "Enter the tyre life, 0 to 100";
@@ -185,6 +194,10 @@ export default function NewVehiclePage() {
       delete documents.finance_noc;
       return { ...f, financeStatus: v, financier: "", nocStatus: undefined, nocSeal: undefined, nocSign: undefined, documents };
     });
+
+  // "No" drops the amount and received flag so nothing stale is saved.
+  const setHasChallan = (v: "yes" | "no") =>
+    setForm((f) => (v === "yes" ? { ...f, hasChallan: v } : { ...f, hasChallan: v, challanAmount: "", challanReceived: undefined }));
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const touch = (k: keyof FormState) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -260,6 +273,9 @@ export default function NewVehiclePage() {
         nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
         nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
+        hasChallan: form.hasChallan!,
+        challanAmountPaise: form.hasChallan === "yes" ? Number(form.challanAmount) * 100 : undefined,
+        challanReceived: form.hasChallan === "yes" ? form.challanReceived : undefined,
         frontTyrePercent: Number(form.frontTyrePercent),
         rearTyrePercent: Number(form.rearTyrePercent),
         batteryStatus: form.batteryStatus!,
@@ -616,6 +632,49 @@ export default function NewVehiclePage() {
                 options={[
                   { value: "pending", label: "Pending" },
                   { value: "received", label: "Received" },
+                ]}
+              />
+            </Field>
+          </>
+        )}
+      </Section>
+
+      <Section title="Challan">
+        <Field label="Challan pending / amount pending?" required error={show("hasChallan")} wide>
+          <Segmented
+            name="Challan pending"
+            value={form.hasChallan}
+            onChange={setHasChallan}
+            options={[
+              { value: "no", label: "No" },
+              { value: "yes", label: "Yes" },
+            ]}
+          />
+        </Field>
+        {form.hasChallan === "yes" && (
+          <>
+            <Field label="Challan amount" htmlFor="challanAmount" required error={show("challanAmount")}>
+              <div className="relative">
+                <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">₹</span>
+                <input
+                  id="challanAmount"
+                  inputMode="numeric"
+                  value={groupIndian(form.challanAmount)}
+                  onChange={(e) => set("challanAmount", digits(e.target.value, 7))}
+                  onBlur={touch("challanAmount")}
+                  placeholder="e.g. 1,500"
+                  className={`${inputClass(!!show("challanAmount"))} pl-8 tabular-nums`}
+                />
+              </div>
+            </Field>
+            <Field label="Challan amount received?" required error={show("challanReceived")}>
+              <Segmented
+                name="Challan amount received"
+                value={form.challanReceived}
+                onChange={(v) => set("challanReceived", v)}
+                options={[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
                 ]}
               />
             </Field>

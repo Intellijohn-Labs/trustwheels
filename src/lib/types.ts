@@ -65,6 +65,7 @@ export interface Vehicle {
 
   hasChallan?: "yes" | "no";
   challanAmountPaise?: number;
+  challanReceived?: "yes" | "no"; // whether the pending challan amount has been received
   challanNotes?: string;
   conditionNotes: string;
   frontTyrePercent?: number;
