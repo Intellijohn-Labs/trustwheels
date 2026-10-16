@@ -249,7 +249,7 @@ You bring vehicles into the business: record every exchange or direct purchase, 
    - If you see *"This registration is already in the system"*, check the linked record. It may be a genuine re-purchase.
    - Then choose **Make**, **Model**, **Year** and **Fuel**, and enter **Engine CC**, **Odometer (km)**, **Colour**, **No. of owners**, **Chassis no.** and **Engine no.**
 4. **Photos**: tap each of the 6 boxes: **Front, Rear, Left side, Right side, Odometer, Chassis vs RC** (the chassis number photographed next to the RC). On a phone the camera opens directly. The counter must show **6/6**.
-5. **Documents & finance**: attach the RC, insurance and seller KYC. Say whether the vehicle is under finance; if yes, enter the **Financier name**, **NOC seal** and **NOC sign**, and attach the **Finance NOC**.
+5. **Documents & finance**: attach the RC and seller KYC. Say whether the vehicle is under finance; if yes, enter the **Financier name**, **NOC seal** and **NOC sign**, and attach the **Finance NOC**.
 6. **Challan**: say whether a challan is pending (**No** or **Yes**). If yes, enter the **Challan amount** and whether it has been **received**.
 7. **Condition**: enter the **front and rear tyre life** (in %), choose the **battery condition** (Good or Bad), and note the condition and any known defects.
 8. **Seller & value**: enter the seller's name, 10-digit mobile, and the **Purchased value** in ₹.

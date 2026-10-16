@@ -18,11 +18,11 @@ import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
-// RC book, insurance, and seller KYC can be attached right at intake.
+// RC book and seller KYC can be attached right at intake (insurance is not collected here).
 // Forms 28/29/30 come later, during the ownership-transfer step (see the vehicle's Documents & vault panel).
 // Finance NOC is rendered separately below, gated on the "under finance" toggle - it doesn't apply
 // at all to a vehicle bought free and clear.
-const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829" && d.type !== "finance_noc");
+const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829" && d.type !== "finance_noc" && d.type !== "insurance");
 const FINANCE_NOC = DOCUMENT_TYPES.find((d) => d.type === "finance_noc")!;
 
 interface FormState {
