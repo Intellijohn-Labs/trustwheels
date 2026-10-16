@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plus, ShieldCheck, Trash2, Undo2, UserRound, Wrench, X } from "lucide-react";
+import { Camera, CheckCircle2, ChevronDown, Clock, ChevronUp, Info, Loader2, Plus, ShieldCheck, Trash2, Undo2, UserRound, Wrench, X } from "lucide-react";
 import { useScopedVehicles } from "@/lib/scoped";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
+import { localInput } from "@/lib/datetime-input";
 import { uploadVehiclePhoto } from "@/lib/vehicle-media";
 import { employees } from "@/lib/hr";
 import {
@@ -83,11 +84,26 @@ export function JobCardDialog({ vehicleId, onClose }: { vehicleId: string; onClo
   return <JobCard vehicle={vehicle} onClose={onClose} />;
 }
 
-type SignOffField = "supervisor" | "advisor" | "technician" | "start" | "end" | "photos";
+type SignOffField = "advisor" | "technician" | "start" | "end" | "photos";
 
 const cardCls = (invalid: boolean) => cn("rounded-lg border bg-panel/70 p-2.5", invalid ? "border-danger ring-1 ring-danger" : "border-line/60");
 const smallInput = (invalid: boolean, width: string) =>
   cn("h-7 rounded border bg-panel px-2 text-xs font-medium text-foreground focus:border-brand focus:outline-none", width, invalid ? "border-danger" : "border-line");
+
+/** Stored dates may be date-only ("2026-10-16", older records) or "YYYY-MM-DDTHH:mm"; <input type="datetime-local"> needs the latter. */
+const toLocalInput = (s?: string) => (!s ? "" : s.length === 10 ? `${s}T00:00` : s.slice(0, 16));
+
+function QuickButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-6 items-center gap-1 rounded-md border border-line bg-panel px-2 text-[11px] font-semibold text-foreground transition hover:border-brand hover:text-brand"
+    >
+      <Clock className="size-3" /> {children}
+    </button>
+  );
+}
 
 function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const recon = v.recon!;
@@ -102,10 +118,11 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
   const [cost, setCost] = useState("");
   const [technician, setTechnicianInput] = useState(recon.technicianName ?? "");
   const [advisor, setAdvisorInput] = useState(recon.serviceAdvisor ?? "");
-  const [startDate, setStartDate] = useState(recon.reconStartDate ? recon.reconStartDate.slice(0, 10) : "");
-  const [startTime, setStartTime] = useState(recon.reconStartDate && recon.reconStartDate.length > 10 ? recon.reconStartDate.slice(11, 16) : "");
-  const [endDate, setEndDate] = useState(recon.reconEndDate ? recon.reconEndDate.slice(0, 10) : "");
-  const [endTime, setEndTime] = useState(recon.reconEndDate && recon.reconEndDate.length > 10 ? recon.reconEndDate.slice(11, 16) : "");
+  // Start defaults to when the vehicle was entered into stock, end to the moment this card was opened. Both are
+  // editable, and are saved when changed or at sign-off.
+  const entryAt = Number.isNaN(Date.parse(v.createdAt)) ? "" : localInput(Date.parse(v.createdAt));
+  const [startAt, setStartAt] = useState(() => toLocalInput(recon.reconStartDate) || entryAt);
+  const [endAt, setEndAt] = useState(() => toLocalInput(recon.reconEndDate) || localInput(Date.now()));
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -118,21 +135,17 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
   // Sign-off checks. The button is always clickable; clicking it with something missing lists what, outlines it in red and scrolls to it.
   const [attempted, setAttempted] = useState(false);
   const [attemptTick, setAttemptTick] = useState(0);
-  const startAt = startDate && startTime ? `${startDate}T${startTime}` : "";
-  const endAt = endDate && endTime ? `${endDate}T${endTime}` : "";
   const issues: { key: SignOffField; message: string }[] = [];
-  if (!recon.supervisor.trim() || recon.supervisor === "Unassigned") issues.push({ key: "supervisor", message: "Please assign a Supervisor (under Employees & Access)" });
   if (!advisor.trim()) issues.push({ key: "advisor", message: "Please assign a Service Advisor" });
   if (!technician.trim()) issues.push({ key: "technician", message: "Please assign a Lead Technician" });
   if (!startAt) issues.push({ key: "start", message: "Enter the recon start date and time" });
   if (!endAt) issues.push({ key: "end", message: "Enter the recon end date and time" });
-  else if (startAt && endAt <= startAt) issues.push({ key: "end", message: "End time must be after start time" });
+  else if (startAt && endAt < startAt) issues.push({ key: "end", message: "End time can't be before the start time" });
   if (photosLeft > 0) issues.push({ key: "photos", message: `Minimum ${MIN_COMPLETION_PHOTOS} inspection photos required (${recon.photos.length}/${MIN_COMPLETION_PHOTOS} added)` });
   // Highlights follow the live values once a sign-off has been attempted, so each clears as it's fixed.
   const bad = new Set<SignOffField>(attempted ? issues.map((i) => i.key) : []);
   const startBad = bad.has("start");
   const endBad = bad.has("end");
-  const endOrderBad = endBad && !!startAt && !!endAt; // both filled in, but end is not after start
 
   useEffect(() => {
     if (!attemptTick) return;
@@ -141,25 +154,31 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
     first?.querySelector<HTMLElement>("input, button")?.focus({ preventScroll: true });
   }, [attemptTick]);
 
+  // Not a disabled button: a name field saving on blur sets `busy` mid-click and would swallow the click.
+  const signing = useRef(false);
+
   async function handleSignOff() {
+    if (signing.current) return;
     setAttempted(true);
     if (issues.length) {
       setAttemptTick((t) => t + 1);
       return;
     }
+    signing.current = true;
     await run(async () => {
       // Names save on blur; flush any typed-but-unsaved one first so the sign-off can't race ahead of it.
       if (technician.trim() !== (recon.technicianName ?? "")) await setTechnician(v.id, technician);
       if (advisor.trim() !== (recon.serviceAdvisor ?? "")) await setServiceAdvisor(v.id, advisor);
+      // Start/end may still be the defaults shown on screen, which aren't stored until they change.
+      if (startAt !== toLocalInput(recon.reconStartDate) || endAt !== toLocalInput(recon.reconEndDate)) await setReconDates(v.id, startAt, endAt);
       await completeRecon(v.id);
     }, "Work signed off. The vehicle is back in stock for sale-readiness review.");
+    signing.current = false;
   }
   const lastSendBack = recon.sendBacks.at(-1);
 
-  function saveDates(sDate: string, sTime: string, eDate: string, eTime: string) {
-    const fullStart = sDate ? (sTime ? `${sDate}T${sTime}` : sDate) : undefined;
-    const fullEnd = eDate ? (eTime ? `${eDate}T${eTime}` : eDate) : undefined;
-    run(() => setReconDates(v.id, fullStart, fullEnd));
+  function saveDates(start: string, end: string) {
+    run(() => setReconDates(v.id, start || undefined, end || undefined));
   }
 
   async function addItem() {
@@ -207,7 +226,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
               <Button size="lg" className="flex-1" onClick={onClose}>
                 Close
               </Button>
-              <Button size="lg" variant="success" className="flex-[2]" disabled={busy} onClick={handleSignOff}>
+              <Button size="lg" variant="success" className="flex-[2]" onClick={handleSignOff}>
                 <ShieldCheck className="size-4" /> Authorize & Sign off
                 {photosLeft > 0 && <span className="font-normal">· {recon.photos.length}/{MIN_COMPLETION_PHOTOS} photos</span>}
               </Button>
@@ -248,19 +267,12 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
             </div>
           </div>
 
-          {/* Vehicle Metadata & Tech Assignment Matrix */}
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <div className="rounded-lg border border-line/60 bg-panel/70 p-2.5">
+          {/* Vehicle, people and timeline */}
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+            <div className="col-span-2 rounded-lg border border-line/60 bg-panel/70 p-2.5 sm:col-span-1">
               <span className="block font-semibold uppercase tracking-wider text-muted">Vehicle</span>
               <span className="mt-0.5 block truncate font-medium text-foreground">{v.make} {v.model}</span>
               <span className="text-[11px] text-muted">{v.variant || "Standard"}</span>
-            </div>
-            <div className={cardCls(bad.has("supervisor"))} data-signoff-error={bad.has("supervisor") ? "" : undefined}>
-              <span className="block font-semibold uppercase tracking-wider text-muted">
-                Supervisor <span className="text-red-500 font-bold">*</span>
-              </span>
-              <span className="mt-0.5 block font-medium text-foreground">{recon.supervisor || "Unassigned"}</span>
-              <span className="text-[11px] text-muted">Floor In-Charge</span>
             </div>
             <div className={cardCls(bad.has("advisor"))} data-signoff-error={bad.has("advisor") ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
@@ -332,67 +344,80 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
                 )}
               </div>
             </div>
-
-            {/* Reconditioning Timeline (Start Date & End Date) */}
-            <div className={cn("col-span-2", cardCls(startBad))} data-signoff-error={startBad ? "" : undefined}>
+          </div>
+          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+            <div className={cardCls(startBad)} data-signoff-error={startBad ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Recon Start Date & Time <span className="text-red-500 font-bold">*</span>
               </span>
               {manage && !locked ? (
-                <div className="mt-1 flex gap-2">
+                <>
                   <input
-                    type="date"
-                    value={startDate}
+                    type="datetime-local"
+                    aria-label="Recon Start Date & Time"
+                    value={startAt}
                     onChange={(e) => {
-                      setStartDate(e.target.value);
-                      saveDates(e.target.value, startTime, endDate, endTime);
+                      setStartAt(e.target.value);
+                      saveDates(e.target.value, endAt);
                     }}
-                    className={smallInput(startBad && !startDate, "flex-1")}
+                    className={smallInput(startBad, "mt-1 w-full")}
                   />
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => {
-                      setStartTime(e.target.value);
-                      saveDates(startDate, e.target.value, endDate, endTime);
-                    }}
-                    title="Time"
-                    className={smallInput(startBad && !startTime, "w-24")}
-                  />
-                </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <QuickButton
+                      onClick={() => {
+                        const t = localInput(Date.now());
+                        setStartAt(t);
+                        saveDates(t, endAt);
+                      }}
+                    >
+                      Set to now
+                    </QuickButton>
+                    {entryAt && (
+                      <QuickButton
+                        onClick={() => {
+                          setStartAt(entryAt);
+                          saveDates(entryAt, endAt);
+                        }}
+                      >
+                        Use entry time
+                      </QuickButton>
+                    )}
+                  </div>
+                </>
               ) : (
                 <span className="mt-1 block text-xs font-medium text-foreground">
                   {recon.reconStartDate ? recon.reconStartDate.replace("T", " ") : "Not set"}
                 </span>
               )}
             </div>
-
-            <div className={cn("col-span-2", cardCls(endBad))} data-signoff-error={endBad ? "" : undefined}>
+            <div className={cardCls(endBad)} data-signoff-error={endBad ? "" : undefined}>
               <span className="block font-semibold uppercase tracking-wider text-muted">
                 Recon End Date & Time <span className="text-red-500 font-bold">*</span>
               </span>
               {manage && !locked ? (
-                <div className="mt-1 flex gap-2">
+                <>
                   <input
-                    type="date"
-                    value={endDate}
+                    type="datetime-local"
+                    aria-label="Recon End Date & Time"
+                    value={endAt}
                     onChange={(e) => {
-                      setEndDate(e.target.value);
-                      saveDates(startDate, startTime, e.target.value, endTime);
+                      setEndAt(e.target.value);
+                      saveDates(startAt, e.target.value);
                     }}
-                    className={smallInput(endBad && (!endDate || endOrderBad), "flex-1")}
+                    className={smallInput(endBad, "mt-1 w-full")}
                   />
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => {
-                      setEndTime(e.target.value);
-                      saveDates(startDate, startTime, endDate, e.target.value);
-                    }}
-                    title="Time"
-                    className={smallInput(endBad && (!endTime || endOrderBad), "w-24")}
-                  />
-                </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <QuickButton
+                      onClick={() => {
+                        const t = localInput(Date.now());
+                        setEndAt(t);
+                        saveDates(startAt, t);
+                      }}
+                    >
+                      Set to now
+                    </QuickButton>
+                  </div>
+                </>
               ) : (
                 <span className="mt-1 block text-xs font-medium text-foreground">
                   {recon.reconEndDate ? recon.reconEndDate.replace("T", " ") : "Not set"}
