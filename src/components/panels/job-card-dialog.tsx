@@ -22,6 +22,7 @@ import { reconCostPaise, reconHours } from "@/lib/workflow";
 import type { JobKind, Vehicle } from "@/lib/types";
 import { useAction } from "../toast";
 import { Button, Segmented, cn, inputClass } from "../ui";
+import { AceCard } from "../vehicle/ace-card";
 import { Dialog, VehicleSummary } from "./dialog";
 import { ReconFlagPill } from "./recon-panel";
 import { formatHours } from "./vehicle-cell";
@@ -99,7 +100,6 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
   const [endDate, setEndDate] = useState(recon.reconEndDate ? recon.reconEndDate.slice(0, 10) : "");
   const [endTime, setEndTime] = useState(recon.reconEndDate && recon.reconEndDate.length > 10 ? recon.reconEndDate.slice(11, 16) : "");
   const [uploading, setUploading] = useState(false);
-  const [showSpecs, setShowSpecs] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const { items: staff } = employees.useItems();
@@ -168,153 +168,7 @@ function JobCard({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => voi
       }
     >
       <div className="space-y-4">
-        {/* 3D Flip Playing Card for Vehicle Specs */}
-        <div className="flex justify-center py-1">
-          <div
-            className="group relative h-56 w-full max-w-sm cursor-pointer [perspective:1200px]"
-            onClick={() => setShowSpecs(!showSpecs)}
-            title="Click to flip card"
-          >
-            <div
-              className={cn(
-                "relative size-full rounded-2xl transition-all duration-700 [transform-style:preserve-3d]",
-                showSpecs ? "[transform:rotateY(180deg)]" : ""
-              )}
-            >
-              {/* FRONT: Adaptive Rummy Card using [data-theme] attribute */}
-              <div className="absolute inset-0 size-full rounded-2xl border-4 border-slate-200 [html[data-theme='dark']_&]:border-slate-800 bg-white [html[data-theme='dark']_&]:bg-slate-900 p-3 [backface-visibility:hidden] flex flex-col justify-between overflow-hidden shadow-xl [html[data-theme='dark']_&]:shadow-cyan-950/40">
-                {/* Decorative Inset Border */}
-                <div className="pointer-events-none absolute inset-1.5 rounded-xl border border-red-600/40 [html[data-theme='dark']_&]:border-cyan-400/40"></div>
-                <div className="pointer-events-none absolute inset-2 rounded-lg border border-red-500/20 [html[data-theme='dark']_&]:border-cyan-500/20"></div>
-
-                {/* Top Corner Pip */}
-                <div className="relative z-10 flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col items-center leading-none text-red-600 [html[data-theme='dark']_&]:text-cyan-400 font-serif">
-                      <span className="text-base font-extrabold">A</span>
-                      <span className="text-xs [html[data-theme='dark']_&]:hidden">♥</span>
-                      <span className="text-xs hidden [html[data-theme='dark']_&]:inline">♠</span>
-                    </div>
-                    <div className="pl-1">
-                      <span className="block font-sans text-xs font-black tracking-tight text-slate-900 [html[data-theme='dark']_&]:text-white">
-                        {v.make} {v.model}
-                      </span>
-                      <span className="block text-[10px] font-semibold text-slate-500 [html[data-theme='dark']_&]:text-slate-400 font-mono">
-                        {v.variant || "Standard"}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="rounded-md border border-red-300 [html[data-theme='dark']_&]:border-cyan-700 bg-red-50 [html[data-theme='dark']_&]:bg-cyan-950/80 px-2 py-0.5 font-mono text-[11px] font-bold text-red-700 [html[data-theme='dark']_&]:text-cyan-300 shadow-sm">
-                    {v.registrationNo || "KL REG"}
-                  </span>
-                </div>
-
-                {/* Center: Rummy Bike Emblem */}
-                <div className="relative z-10 flex flex-col items-center justify-center">
-                  <div className="relative flex items-center justify-center py-0.5">
-                    <svg
-                      className="size-20 transition-transform duration-300 group-hover:scale-105"
-                      viewBox="0 0 200 120"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      {/* Rear Wheel */}
-                      <circle cx="45" cy="85" r="22" className="stroke-slate-800 [html[data-theme='dark']_&]:stroke-slate-200" strokeWidth="4" />
-                      <circle cx="45" cy="85" r="13" className="stroke-red-600 [html[data-theme='dark']_&]:stroke-cyan-400" strokeWidth="2.5" strokeDasharray="4 2" />
-                      <circle cx="45" cy="85" r="4" className="fill-red-600 [html[data-theme='dark']_&]:fill-cyan-400" />
-                      {/* Front Wheel */}
-                      <circle cx="155" cy="85" r="22" className="stroke-slate-800 [html[data-theme='dark']_&]:stroke-slate-200" strokeWidth="4" />
-                      <circle cx="155" cy="85" r="13" className="stroke-red-600 [html[data-theme='dark']_&]:stroke-cyan-400" strokeWidth="2.5" strokeDasharray="4 2" />
-                      <circle cx="155" cy="85" r="4" className="fill-red-600 [html[data-theme='dark']_&]:fill-cyan-400" />
-                      {/* Frame */}
-                      <path d="M45 85 L85 85 L115 55 L70 55 Z" className="stroke-red-600 [html[data-theme='dark']_&]:stroke-cyan-400" strokeWidth="4" />
-                      <path d="M85 85 L135 45" className="stroke-red-700 [html[data-theme='dark']_&]:stroke-cyan-500" strokeWidth="3.5" />
-                      {/* Front Fork */}
-                      <path d="M155 85 L135 35 L125 35" className="stroke-slate-800 [html[data-theme='dark']_&]:stroke-slate-200" strokeWidth="4" />
-                      <path d="M135 35 L145 32" className="stroke-slate-600 [html[data-theme='dark']_&]:stroke-slate-400" strokeWidth="3" />
-                      {/* Tank */}
-                      <path d="M70 55 Q95 38 120 48" className="stroke-red-600 [html[data-theme='dark']_&]:stroke-cyan-400" strokeWidth="5" />
-                      <path d="M55 58 Q70 50 85 58" className="stroke-slate-800 [html[data-theme='dark']_&]:stroke-slate-200" strokeWidth="5" />
-                      {/* Headlight beam */}
-                      <polygon points="145,35 185,22 185,50" className="fill-red-500/15 [html[data-theme='dark']_&]:fill-cyan-400/20" />
-                      {/* Exhaust */}
-                      <path d="M85 75 L60 88 L35 88" className="stroke-slate-500 [html[data-theme='dark']_&]:stroke-slate-400" strokeWidth="3.5" />
-                    </svg>
-                  </div>
-                  <span className="font-serif text-[10px] font-bold tracking-wider text-red-700/80 [html[data-theme='dark']_&]:text-cyan-400/90 uppercase">
-                    ♦ TrustWheels Ace Card · Tap to Flip ♦
-                  </span>
-                </div>
-
-                {/* Bottom Corner Pip */}
-                <div className="relative z-10 flex items-end justify-between">
-                  <span className="font-mono text-[9px] font-semibold text-slate-400 [html[data-theme='dark']_&]:text-slate-500">FLIP FOR SPECS ↻</span>
-                  <div className="flex flex-col items-center leading-none text-red-600 [html[data-theme='dark']_&]:text-cyan-400 font-serif rotate-180">
-                    <span className="text-base font-extrabold">A</span>
-                    <span className="text-xs [html[data-theme='dark']_&]:hidden">♥</span>
-                    <span className="text-xs hidden [html[data-theme='dark']_&]:inline">♠</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* BACK: Rummy Card Back */}
-              <div className="absolute inset-0 size-full rounded-2xl border-4 border-slate-200 [html[data-theme='dark']_&]:border-slate-800 bg-red-700 [html[data-theme='dark']_&]:bg-slate-950 p-2.5 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col justify-between overflow-y-auto shadow-xl text-xs">
-                <div className="relative size-full rounded-xl border border-red-300/60 [html[data-theme='dark']_&]:border-cyan-500/30 bg-red-800 [html[data-theme='dark']_&]:bg-slate-900 p-2.5 flex flex-col justify-between">
-                  
-                  <div className="flex items-center justify-between border-b border-red-600 [html[data-theme='dark']_&]:border-slate-800 pb-1 text-white">
-                    <div className="flex items-center gap-1 font-bold text-[11px] text-white [html[data-theme='dark']_&]:text-cyan-300">
-                      <span className="[html[data-theme='dark']_&]:hidden">♥</span>
-                      <span className="hidden [html[data-theme='dark']_&]:inline">♠</span>
-                      <span>Mechanical Specifications</span>
-                    </div>
-                    <span className="text-[10px] text-red-200 [html[data-theme='dark']_&]:text-cyan-400 font-mono">Flip Back ↺</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5 my-1 text-[11px]">
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Engine CC</span>
-                      <span className="font-mono font-bold text-red-700 [html[data-theme='dark']_&]:text-cyan-400">{v.engineCc ? `${v.engineCc} cc` : "—"}</span>
-                    </div>
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Year / Fuel</span>
-                      <span className="font-semibold text-slate-800 [html[data-theme='dark']_&]:text-slate-200 truncate">{v.year} · {v.fuel ? v.fuel.toUpperCase() : "PETROL"}</span>
-                    </div>
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Odo (KM)</span>
-                      <span className="font-mono font-bold text-slate-900 [html[data-theme='dark']_&]:text-white">{v.odometerKm ? v.odometerKm.toLocaleString() : "—"}</span>
-                    </div>
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Front Tyre</span>
-                      <span className="font-mono font-bold text-slate-800 [html[data-theme='dark']_&]:text-slate-200">{v.frontTyrePercent != null ? `${v.frontTyrePercent}%` : "—"}</span>
-                    </div>
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Rear Tyre</span>
-                      <span className="font-mono font-bold text-slate-800 [html[data-theme='dark']_&]:text-slate-200">{v.rearTyrePercent != null ? `${v.rearTyrePercent}%` : "—"}</span>
-                    </div>
-                    <div className="rounded border border-red-200/50 [html[data-theme='dark']_&]:border-slate-700 bg-white [html[data-theme='dark']_&]:bg-slate-950 p-1 shadow-sm">
-                      <span className="block text-[8px] font-bold uppercase text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Battery</span>
-                      <span className={`font-bold uppercase ${v.batteryStatus === "not_good" ? "text-red-700 [html[data-theme='dark']_&]:text-red-400" : "text-emerald-700 [html[data-theme='dark']_&]:text-emerald-400"}`}>{v.batteryStatus === "not_good" ? "BAD" : "GOOD"}</span>
-                    </div>
-                  </div>
-
-                  <div className="rounded border border-red-200/40 [html[data-theme='dark']_&]:border-slate-800 bg-white/95 [html[data-theme='dark']_&]:bg-slate-950/90 p-1.5 text-[10px] space-y-0.5">
-                    <div className="truncate text-slate-700 [html[data-theme='dark']_&]:text-slate-300">
-                      <span className="font-bold text-slate-500 [html[data-theme='dark']_&]:text-slate-400">Chassis: </span>
-                      <span className="font-mono font-bold text-slate-900 [html[data-theme='dark']_&]:text-cyan-300">{v.chassisNo || "—"}</span>
-                    </div>
-                    {v.knownDefects && (
-                      <div className="text-red-700 [html[data-theme='dark']_&]:text-rose-400 truncate border-t border-slate-200 [html[data-theme='dark']_&]:border-slate-800 pt-0.5 font-medium">
-                        <span className="font-bold">Defect: </span>{v.knownDefects}
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AceCard vehicle={v} />
 
         {/* Physical Job Card Inspection Sheet Header */}
         <div className="rounded-xl border border-line bg-gradient-to-b from-sunken/80 to-panel p-4 shadow-sm">

@@ -590,3 +590,95 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- Ace Card (vehicle spec flip card, components/vehicle/ace-card.tsx) -------------------
+   Both faces are hidden when turned away (backface-visibility + the -webkit- prefix Safari still
+   needs), and every wrapper between the scene and the faces preserves 3D, so nothing -
+   including child transforms like the bike SVG - can show through reversed. The card is a dark
+   luxury card in both themes; only the accent changes (red + gold on light, cyan on dark). */
+.ace-scene {
+  --ace: #e5484d;
+  --ace-2: #f5b94a;
+  perspective: 1200px;
+  -webkit-perspective: 1200px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ace-scene {
+    --ace: #22d3ee;
+    --ace-2: #67e8f9;
+  }
+}
+:root[data-theme="dark"] .ace-scene {
+  --ace: #22d3ee;
+  --ace-2: #67e8f9;
+}
+.ace-tilt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 300ms ease-out;
+}
+.ace-scene:hover .ace-tilt,
+.ace-scene:focus-visible .ace-tilt {
+  transform: translateY(-4px) rotateX(3deg);
+}
+.ace-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  /* ease-out with a slight overshoot, so the turn settles like a spring */
+  transition: transform 500ms cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+.ace-card[data-flipped="true"] {
+  transform: rotateY(180deg);
+}
+.ace-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid color-mix(in srgb, var(--ace) 32%, transparent);
+  box-shadow:
+    0 22px 40px -16px color-mix(in srgb, var(--ace) 30%, #000),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  color: #f8fafc;
+}
+.ace-face::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ace) 20%, transparent);
+  pointer-events: none;
+}
+.ace-front {
+  transform: rotateY(0deg);
+  background:
+    radial-gradient(120% 90% at 88% 0%, color-mix(in srgb, var(--ace) 20%, transparent), transparent 55%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.025) 0 2px, transparent 2px 4px),
+    linear-gradient(135deg, #0f172a 0%, #111827 45%, #000 100%);
+}
+.ace-back {
+  transform: rotateY(180deg);
+  background:
+    radial-gradient(110% 80% at 8% 0%, color-mix(in srgb, var(--ace) 16%, transparent), transparent 55%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.02) 0 2px, transparent 2px 4px),
+    linear-gradient(160deg, #0b1220 0%, #0a0f1a 55%, #000 100%);
+}
+.ace-tile {
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.03));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.ace-glass {
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.05));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 4px 10px -4px rgb(0 0 0 / 0.6);
+}
