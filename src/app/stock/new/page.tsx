@@ -260,17 +260,24 @@ export default function NewVehiclePage() {
       // silently wipe the documents back out - exactly the "documents show as missing on other
       // devices" bug this was causing, since only the uploader's own tab ever saw the correct,
       // merged local state.
-      const documents: Document[] = (Object.entries(form.documents) as [DocumentType, DocumentDraft][]).map(([type, d]) => ({
-        id: newId("doc"),
-        type,
-        status: "received",
-        fileUrl: d.fileUrl,
-        fileName: d.fileName,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: user.name,
-        // The insurance expiry comes from the "Valid till" field, so the vault can flag it once it lapses.
-        expiresAt: type === "insurance" ? form.insuranceValidTill || undefined : d.expiresAt,
-      }));
+      // A slot that was uploaded and then removed stays in form.documents as `undefined`; skip those.
+      const documents: Document[] = (Object.entries(form.documents) as [DocumentType, DocumentDraft | undefined][]).flatMap(([type, d]) =>
+        d
+          ? [
+              {
+                id: newId("doc"),
+                type,
+                status: "received" as const,
+                fileUrl: d.fileUrl,
+                fileName: d.fileName,
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: user.name,
+                // The insurance expiry comes from the "Valid till" field, so the vault can flag it once it lapses.
+                expiresAt: type === "insurance" ? form.insuranceValidTill || undefined : d.expiresAt,
+              },
+            ]
+          : [],
+      );
       vehicle = await createVehicle({
         // The Source field was removed from this form, but createVehicle's `source` is still
         // required - default every intake through here to "direct" so saving keeps working.
