@@ -85,7 +85,7 @@ const EMPTY: FormState = {
   odometerKm: "",
   keyCount: "2",
   colour: "",
-  owners: "1",
+  owners: "",
   chassisNo: "",
   engineNo: "",
   insuranceValidTill: "",
@@ -594,7 +594,7 @@ export default function NewVehiclePage() {
             value={form.owners}
             onChange={(e) => set("owners", e.target.value)}
             onBlur={touch("owners")}
-            placeholder="e.g. 1"
+            placeholder="Enter number of owners"
             className={inputClass(!!show("owners"))}
           />
         </Field>
