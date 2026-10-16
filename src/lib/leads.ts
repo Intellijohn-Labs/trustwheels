@@ -158,13 +158,13 @@ export interface ConversionRow {
   rate: number; // 0..1
 }
 
-export function conversionBy(leads: Lead[], keyOf: (l: Lead) => string, labelOf: (key: string) => string = (k) => k): ConversionRow[] {
+export function conversionBy(leads: Lead[], keyOf: (l: Lead) => string): ConversionRow[] {
   const groups = new Map<string, Lead[]>();
   leads.forEach((l) => groups.set(keyOf(l), [...(groups.get(keyOf(l)) ?? []), l]));
   return [...groups.entries()]
     .map(([key, ls]) => {
       const booked = ls.filter((l) => l.stage === "booked").length;
-      return { key, label: labelOf(key), leads: ls.length, booked, rate: ls.length ? booked / ls.length : 0 };
+      return { key, label: key, leads: ls.length, booked, rate: ls.length ? booked / ls.length : 0 };
     })
     .sort((a, b) => b.leads - a.leads);
 }

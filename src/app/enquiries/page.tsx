@@ -11,7 +11,7 @@ import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "
 import { formatDateTime } from "@/lib/format";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
-import { conversionBy, deleteLead, deleteLeads, isOpenLead, sourceLabel, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead, type LeadSource } from "@/lib/leads";
+import { conversionBy, deleteLead, deleteLeads, isOpenLead, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead } from "@/lib/leads";
 
 type Filter = "open" | "booked" | "lost" | "all";
 
@@ -159,10 +159,7 @@ export default function EnquiriesPage() {
         <DataTable columns={columns} rows={rows} rowKey={(l) => l.id} empty={ready ? "No enquiries here." : "Loading…"} />
       </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <ConversionTable title="Conversion by source" rows={conversionBy(leads, (l) => l.source, (k) => sourceLabel(k as LeadSource))} />
-        <ConversionTable title="Conversion by executive" rows={conversionBy(leads, (l) => l.assignedTo)} />
-      </div>
+      <ConversionTable title="Conversion by executive" rows={conversionBy(leads, (l) => l.assignedTo)} />
 
       {adding && <EnquiryDialog onClose={() => setAdding(false)} />}
       {logging && <LogCallDialog lead={logging.lead} day={logging.day} onClose={() => setLogging(undefined)} />}
