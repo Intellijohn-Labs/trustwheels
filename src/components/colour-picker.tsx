@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Palette } from "lucide-react";
-import { COLOUR_SWATCHES } from "@/lib/masters";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { Check, ChevronDown, Plus } from "lucide-react";
+import { COLOUR_SWATCHES, colourHex } from "@/lib/masters";
 import { cn, inputClass } from "@/components/ui";
 
-const isPreset = (v: string) => COLOUR_SWATCHES.some((c) => c.name.toLowerCase() === v.trim().toLowerCase());
-
-/** Light swatches get a darker tick so the selected state is visible on White/Beige/Silver. */
-function isLight(hex: string) {
-  const n = parseInt(hex.slice(1), 16);
-  const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
-  return lum > 170;
+/** Colour preview dot. The mid-grey inset ring keeps White/Silver visible on light and dark surfaces alike. */
+function Dot({ name }: { name: string }) {
+  const hex = colourHex(name);
+  return (
+    <span
+      aria-hidden
+      style={hex ? { backgroundColor: hex } : undefined}
+      className={cn(
+        "size-4 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgba(128,128,128,0.5)]",
+        !hex && "border border-dashed border-line-strong bg-sunken shadow-none",
+      )}
+    />
+  );
 }
+
+const ADD = "__add__";
 
 export function ColourPicker({
   id,
@@ -27,91 +35,153 @@ export function ColourPicker({
   onBlur?: () => void;
   invalid?: boolean;
 }) {
-  // "Other" is on when the user opened it, or when the stored value isn't one of the swatches
-  // (e.g. a custom shade, or a legacy name like "Matt Black").
-  const [otherOpen, setOtherOpen] = useState(false);
-  const other = otherOpen || (value !== "" && !isPreset(value));
+  const listId = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [extras, setExtras] = useState<string[]>([]);
+
+  // Typed-in shades stay in the list for the rest of this form, and so does a value we didn't
+  // offer ourselves (e.g. a legacy name like "Matt Black").
+  const known = new Set([...COLOUR_SWATCHES.map((c) => c.name), ...extras].map((n) => n.toLowerCase()));
+  const custom = value && !known.has(value.toLowerCase()) ? [...extras, value] : extras;
+  const names = [...COLOUR_SWATCHES.map((c) => c.name), ...custom];
+  const items = [...names, ADD];
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
+
+  function openList() {
+    const i = names.findIndex((n) => n.toLowerCase() === value.toLowerCase());
+    setActive(i >= 0 ? i : 0);
+    setOpen(true);
+  }
+
+  function pick(item: string) {
+    setOpen(false);
+    if (item === ADD) {
+      setAdding(true);
+      return;
+    }
+    setAdding(false);
+    onChange(item);
+  }
+
+  function commit() {
+    const name = draft.trim().slice(0, 40);
+    if (!name) return;
+    const existing = names.find((n) => n.toLowerCase() === name.toLowerCase());
+    if (!existing) setExtras((x) => [...x, name]);
+    onChange(existing ?? name);
+    setDraft("");
+    setAdding(false);
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      setOpen(false);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) return openList();
+      setActive((a) => (a + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length);
+    } else if (e.key === "Enter" && open) {
+      e.preventDefault();
+      pick(items[active]);
+    }
+  }
 
   return (
-    <div id={id} className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label="Colour" aria-invalid={invalid || undefined} className="flex flex-wrap gap-x-3 gap-y-3.5">
-        {COLOUR_SWATCHES.map((c) => {
-          const active = !other && value.toLowerCase() === c.name.toLowerCase();
-          return (
-            <button
-              key={c.name}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              aria-label={c.name}
-              onClick={() => {
-                setOtherOpen(false);
-                onChange(c.name);
-              }}
-              onBlur={onBlur}
-              className="group flex w-14 flex-col items-center gap-1.5 outline-none"
-            >
-              <span
-                style={{ backgroundColor: c.hex }}
+    <div ref={root} className="relative flex flex-col gap-2" onKeyDown={onKeyDown}>
+      <button
+        id={id}
+        type="button"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open ? `${listId}-${active}` : undefined}
+        aria-invalid={invalid || undefined}
+        onClick={() => (open ? setOpen(false) : openList())}
+        onBlur={onBlur}
+        className={cn(inputClass(invalid), "flex items-center gap-2.5 text-left")}
+      >
+        {value ? <Dot name={value} /> : null}
+        <span className={cn("flex-1 truncate", !value && "text-faint")}>{value || "Select colour"}</span>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform duration-150", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute top-full right-0 left-0 z-30 mt-1 max-h-72 overflow-auto rounded-xl border border-line bg-surface p-1 shadow-lg"
+        >
+          {items.map((item, i) => {
+            const isAdd = item === ADD;
+            const selected = !isAdd && item.toLowerCase() === value.toLowerCase();
+            return (
+              <li
+                key={item}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={selected}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => pick(item)}
+                onMouseEnter={() => setActive(i)}
                 className={cn(
-                  "relative grid size-10 place-items-center rounded-full ring-1 ring-inset ring-black/15 shadow-sm transition duration-150",
-                  "group-hover:scale-110 group-hover:shadow-md group-focus-visible:ring-4 group-focus-visible:ring-brand/30",
-                  active && "scale-110 shadow-md ring-2 ring-brand ring-offset-2 ring-offset-surface",
+                  "flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-ink transition-colors",
+                  i === active && "bg-sunken",
+                  isAdd && "mt-1 border-t border-line font-medium text-brand",
+                  selected && "font-semibold",
                 )}
               >
-                <Check
-                  strokeWidth={3}
-                  className={cn(
-                    "size-4 transition duration-150",
-                    active ? "scale-100 opacity-100" : "scale-50 opacity-0",
-                    isLight(c.hex) ? "text-black/70" : "text-white",
-                  )}
-                />
-              </span>
-              <span className={cn("text-xs transition-colors", active ? "font-semibold text-ink" : "text-muted group-hover:text-ink")}>{c.name}</span>
-            </button>
-          );
-        })}
+                {isAdd ? <Plus className="size-4 shrink-0" /> : <Dot name={item} />}
+                <span className="flex-1 truncate">{isAdd ? "Add new colour…" : item}</span>
+                {selected && <Check className="size-4 shrink-0 text-brand" strokeWidth={3} />}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-        <button
-          type="button"
-          role="radio"
-          aria-checked={other}
-          aria-label="Other colour"
-          onClick={() => {
-            setOtherOpen(true);
-            if (isPreset(value)) onChange("");
-          }}
-          onBlur={onBlur}
-          className="group flex w-14 flex-col items-center gap-1.5 outline-none"
-        >
-          <span
-            style={{ background: "conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #6366f1, #d946ef, #ef4444)" }}
-            className={cn(
-              "relative grid size-10 place-items-center rounded-full ring-1 ring-inset ring-black/15 shadow-sm transition duration-150",
-              "group-hover:scale-110 group-hover:shadow-md group-focus-visible:ring-4 group-focus-visible:ring-brand/30",
-              other && "scale-110 shadow-md ring-2 ring-brand ring-offset-2 ring-offset-surface",
-            )}
+      {adding && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            aria-label="New colour name"
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              } else if (e.key === "Escape") {
+                setAdding(false);
+                setDraft("");
+              }
+            }}
+            maxLength={40}
+            placeholder="Type the colour name, e.g. Candy Red"
+            className={cn(inputClass(), "min-w-0 flex-1")}
+          />
+          <button
+            type="button"
+            onClick={commit}
+            disabled={!draft.trim()}
+            className="h-12 shrink-0 rounded-xl bg-brand px-4 text-sm font-semibold text-surface transition hover:brightness-110 disabled:opacity-40"
           >
-            <span className="grid size-5 place-items-center rounded-full bg-surface text-ink">
-              {other ? <Check strokeWidth={3} className="size-3" /> : <Palette className="size-3" />}
-            </span>
-          </span>
-          <span className={cn("text-xs transition-colors", other ? "font-semibold text-ink" : "text-muted group-hover:text-ink")}>Other</span>
-        </button>
-      </div>
-
-      {other && (
-        <input
-          type="text"
-          aria-label="Custom colour name"
-          value={isPreset(value) ? "" : value}
-          onChange={(e) => onChange(e.target.value.slice(0, 40))}
-          onBlur={onBlur}
-          placeholder="Type the exact shade, e.g. Candy Red, Midnight Teal"
-          autoFocus={otherOpen}
-          className={inputClass(invalid)}
-        />
+            Add
+          </button>
+        </div>
       )}
     </div>
   );

@@ -419,7 +419,7 @@ export default function NewVehiclePage() {
           </div>
         </Field>
 
-        <Field label="Colour" required error={show("colour")} wide>
+        <Field label="Colour" htmlFor="colour" required error={show("colour")}>
           <ColourPicker id="colour" value={form.colour} onChange={(v) => set("colour", v)} onBlur={touch("colour")} invalid={!!show("colour")} />
         </Field>
         <Field label="No. of owners" htmlFor="owners" required error={show("owners")}>
