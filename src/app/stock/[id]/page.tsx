@@ -169,7 +169,6 @@ function VehicleDetail() {
         <Card title="Condition">
           <Specs
             rows={[
-              ["Accident history", { none: "None", minor: "Minor", major: "Major" }[v.accidentHistory]],
               ["Notes", v.conditionNotes || "—"],
               ["Known defects", v.knownDefects || "—"],
             ]}

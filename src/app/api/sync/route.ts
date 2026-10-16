@@ -17,6 +17,15 @@ const ALLOWED_TABLES = new Set([
   "settlements",
   "activity_logs",
   "escalation_contacts",
+  "escalation-contacts",
+  "branches",
+  "payments",
+  "deliveries",
+  "enquiries",
+  "attendance",
+  "hr-attendance",
+  "hr-leave",
+  "hr-rosters"
 ]);
 
 export async function GET(req: Request) {

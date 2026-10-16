@@ -24,15 +24,26 @@ function objectPath(folder: "photos" | "documents", file: File) {
   return `${folder}/${crypto.randomUUID()}${ext}`;
 }
 
-async function uploadToBucket(path: string, blob: Blob, contentType: string): Promise<string | null> {
-  if (!supabase) return null;
-  try {
-    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType, upsert: true });
-    if (error) return null;
-    return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-  } catch {
-    return null;
+async function uploadToBucket(folderPath: string, blob: Blob, contentType: string): Promise<string | null> {
+  if (supabase) {
+    try {
+      const { error } = await supabase.storage.from(BUCKET).upload(folderPath, blob, { contentType, upsert: true });
+      if (!error) return supabase.storage.from(BUCKET).getPublicUrl(folderPath).data.publicUrl;
+    } catch {}
   }
+  try {
+    const fd = new FormData();
+    fd.append("file", blob, "photo.jpg");
+    fd.append("folder", "recon");
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) return data.url;
+    }
+  } catch (err) {
+    console.error("Local upload failed", err);
+  }
+  return null;
 }
 
 /**

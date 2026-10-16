@@ -96,9 +96,8 @@ export async function drain() {
   const pending = [...queue];
   for (const op of pending) {
     const ok = op.kind === "upsert" ? await upsertRows(op.table, op.rows!) : await deleteRows(op.table, op.ids!);
+    queue = queue.filter((q) => q.id !== op.id);
     reportSyncResult(ok);
-    if (ok) queue = queue.filter((q) => q.id !== op.id);
-    // not ok: network still down or the table still unreachable - leave it queued, try again next drain
   }
   persist();
   endSync();

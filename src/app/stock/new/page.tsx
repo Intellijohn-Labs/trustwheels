@@ -1,5 +1,20 @@
 "use client";
 
+const COLOUR_PALETTE: Record<string, string> = {
+  black: "#111111",
+  white: "#FFFFFF",
+  red: "#DC2626",
+  blue: "#2563EB",
+  grey: "#6B7280",
+  gray: "#6B7280",
+  silver: "#D1D5DB",
+  yellow: "#EAB308",
+  green: "#16A34A",
+  orange: "#EA580C",
+  brown: "#78350F",
+  matte_black: "#262626",
+};
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
@@ -25,6 +40,8 @@ const FINANCE_NOC = DOCUMENT_TYPES.find((d) => d.type === "finance_noc")!;
 
 interface FormState {
   branchId: string;
+  intakeBy: string;
+  mfgMonth: string;
   registrationNo: string;
   make: string;
   model: string;
@@ -32,6 +49,7 @@ interface FormState {
   year: string;
   engineCc: string;
   odometerKm: string;
+  keyCount: string;
   colour: string;
   owners: string;
   fuel?: Fuel;
@@ -56,6 +74,8 @@ type Errors = Partial<Record<keyof FormState | "photos", string>>;
 
 const EMPTY: FormState = {
   branchId: "",
+  intakeBy: "",
+  mfgMonth: "",
   registrationNo: "",
   make: "",
   model: "",
@@ -63,6 +83,7 @@ const EMPTY: FormState = {
   year: "",
   engineCc: "",
   odometerKm: "",
+  keyCount: "2",
   colour: "",
   owners: "1",
   chassisNo: "",
@@ -81,6 +102,21 @@ const EMPTY: FormState = {
 
 const THIS_YEAR = new Date().getFullYear();
 const EARLIEST_YEAR = 1960;
+const MONTHS: { val: string; label: string }[] = [
+  { val: "01", label: "January (01)" },
+  { val: "02", label: "February (02)" },
+  { val: "03", label: "March (03)" },
+  { val: "04", label: "April (04)" },
+  { val: "05", label: "May (05)" },
+  { val: "06", label: "June (06)" },
+  { val: "07", label: "July (07)" },
+  { val: "08", label: "August (08)" },
+  { val: "09", label: "September (09)" },
+  { val: "10", label: "October (10)" },
+  { val: "11", label: "November (11)" },
+  { val: "12", label: "December (12)" },
+];
+
 const YEARS = Array.from({ length: THIS_YEAR - EARLIEST_YEAR + 1 }, (_, i) => String(THIS_YEAR - i));
 const digits = (s: string, max = 12) => s.replace(/\D/g, "").slice(0, max);
 const alnum = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -124,6 +160,21 @@ function validate(f: FormState): Errors {
 }
 
 export default function NewVehiclePage() {
+  const [coloursList, setColoursList] = useState<Array<{ name: string; hex: string }>>([
+    { name: "Black", hex: "#111111" },
+    { name: "White", hex: "#FFFFFF" },
+    { name: "Red", hex: "#DC2626" },
+    { name: "Blue", hex: "#2563EB" },
+    { name: "Grey", hex: "#6B7280" },
+    { name: "Silver", hex: "#D1D5DB" },
+    { name: "Yellow", hex: "#EAB308" },
+    { name: "Green", hex: "#16A34A" },
+    { name: "Matte Black", hex: "#262626" },
+  ]);
+  const [showMixerModal, setShowMixerModal] = useState(false);
+  const [mixerHex, setMixerHex] = useState("#2563eb");
+  const [mixerName, setMixerName] = useState("");
+
   const router = useRouter();
   const { inScope, user } = useRole();
   const toast = useToast();
@@ -247,6 +298,15 @@ export default function NewVehiclePage() {
             ))}
           </select>
         </Field>
+        <Field label="Intake employee / Added by" htmlFor="intakeBy">
+          <input
+            id="intakeBy"
+            placeholder="e.g. Employee name or Staff ID"
+            value={form.intakeBy}
+            onChange={(e) => set("intakeBy", e.target.value)}
+            className={inputClass()}
+          />
+        </Field>
       </Section>
 
       <Section title="Vehicle">
@@ -325,14 +385,17 @@ export default function NewVehiclePage() {
         <Field label="Variant" htmlFor="variant">
           <input id="variant" value={form.variant} onChange={(e) => set("variant", e.target.value)} placeholder="e.g. DLX, Disc" className={inputClass()} />
         </Field>
-        <Field label="Year" htmlFor="year" required error={show("year")}>
-          <select id="year" value={form.year} onChange={(e) => set("year", e.target.value)} onBlur={touch("year")} className={inputClass(!!show("year"))}>
-            <option value="">Select year</option>
-            {YEARS.map((y) => (
-              <option key={y}>{y}</option>
-            ))}
-          </select>
+        <Field label="Mfg month & year" htmlFor="year" required error={show("year")}>
+          <input
+            id="year"
+            type="month"
+            value={form.year}
+            onChange={(e) => set("year", e.target.value)}
+            onBlur={touch("year")}
+            className={inputClass(!!show("year"))}
+          />
         </Field>
+        
         <Field label="Fuel" required error={show("fuel")}>
           <Segmented
             name="Fuel"
@@ -366,13 +429,154 @@ export default function NewVehiclePage() {
             className={inputClass(!!show("odometerKm"))}
           />
         </Field>
+        <Field label="Keys" htmlFor="keys">
+          <div className="grid grid-cols-4 gap-2 pt-0.5">
+            {[
+              { val: "0", display: "0" },
+              { val: "1", display: "1" },
+              { val: "2", display: "2" },
+              { val: "3", display: "3" },
+            ].map((k) => {
+              const active = form.keyCount === k.val;
+              return (
+                <button
+                  key={k.val}
+                  type="button"
+                  onClick={() => set("keyCount", k.val)}
+                  className={`flex h-10 items-center justify-center rounded-xl border font-mono text-sm font-bold transition-all select-none active:scale-95 ${active ? "border-brand bg-brand/10 text-brand shadow-sm shadow-brand/20 ring-1 ring-brand" : "border-line bg-surface hover:bg-sunken text-muted hover:text-foreground"}`}
+                >
+                  {k.display}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
         <Field label="Colour" htmlFor="colour" required error={show("colour")}>
-          <select id="colour" value={form.colour} onChange={(e) => set("colour", e.target.value)} onBlur={touch("colour")} className={inputClass(!!show("colour"))}>
-            <option value="">Select colour</option>
-            {COLOURS.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              {/* Selected Colour Preview Box */}
+              <div
+                className="w-10 h-10 rounded-lg border border-neutral-300 dark:border-neutral-700 shadow-sm flex-shrink-0"
+                style={{
+                  backgroundColor:
+                    coloursList.find((c) => c.name.toLowerCase() === form.colour?.toLowerCase())?.hex ||
+                    (COLOUR_PALETTE && COLOUR_PALETTE[form.colour?.toLowerCase()?.trim()]) ||
+                    (form.colour && /^#[0-9A-F]{6}$/i.test(form.colour) ? form.colour : "#E5E7EB"),
+                }}
+                title={form.colour || "No colour selected"}
+              />
+
+              <div className="flex items-center gap-2 flex-1">
+                <select
+                  id="colour"
+                  value={form.colour}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "__add_new__") {
+                      setShowMixerModal(true);
+                    } else {
+                      set("colour", val);
+                    }
+                  }}
+                  onBlur={touch("colour")}
+                  className={inputClass(!!show("colour"))}
+                >
+                  <option value="">Select colour</option>
+                  {coloursList.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                  <option value="__add_new__">+ Add new colour...</option>
+                </select>
+
+                {/* Remove button for selected colour */}
+                {form.colour && (
+                  <button
+                    type="button"
+                    title="Remove selected colour from vehicle / delete from list"
+                    onClick={() => {
+                      const current = form.colour;
+                      set("colour", "");
+                      setColoursList((prev) => prev.filter((c) => c.name.toLowerCase() !== current.toLowerCase()));
+                    }}
+                    className="px-3 py-2 text-xs rounded-lg border border-red-300 text-red-500 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-950/30 flex-shrink-0"
+                  >
+                    ✕ Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Colour Mixer Popup Modal */}
+            {showMixerModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="bg-white dark:bg-neutral-900 rounded-xl p-5 w-full max-w-sm shadow-xl border border-neutral-200 dark:border-neutral-800 space-y-4">
+                  <h3 className="text-base font-semibold">Create & Add New Colour</h3>
+                  
+                  <div className="flex items-center gap-3">
+                    <label className="relative w-12 h-12 rounded-lg border border-neutral-300 dark:border-neutral-700 shadow-sm cursor-pointer overflow-hidden flex-shrink-0" style={{ backgroundColor: mixerHex }}>
+                      <input
+                        type="color"
+                        value={mixerHex}
+                        onChange={(e) => setMixerHex(e.target.value)}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                      />
+                    </label>
+                    <div className="text-xs text-neutral-500">
+                      <p className="font-mono uppercase">{mixerHex}</p>
+                      <p>Click box-il click cheythu colour mixer open cheyyam</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Colour Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Pearl White, Cherry Red, Matte Blue"
+                      value={mixerName}
+                      onChange={(e) => setMixerName(e.target.value)}
+                      className={inputClass()}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMixerModal(false);
+                        setMixerName("");
+                      }}
+                      className="px-3 py-1.5 text-xs rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!mixerName.trim()}
+                      onClick={() => {
+                        const trimmed = mixerName.trim();
+                        if (!trimmed) return;
+                        setColoursList((prev) => {
+                          const exists = prev.some((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+                          if (exists) return prev;
+                          return [...prev, { name: trimmed, hex: mixerHex }];
+                        });
+                        set("colour", trimmed);
+                        setShowMixerModal(false);
+                        setMixerName("");
+                      }}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Add to list & Select
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </Field>
         <Field label="No. of owners" required>
           <Segmented
@@ -382,28 +586,8 @@ export default function NewVehiclePage() {
             options={["1", "2", "3", "4"].map((n) => ({ value: n, label: n === "4" ? "4+" : n }))}
           />
         </Field>
-        <Field label="Chassis no." htmlFor="chassis" required error={show("chassisNo")}>
-          <input
-            id="chassis"
-            value={form.chassisNo}
-            onChange={(e) => set("chassisNo", alnum(e.target.value).slice(0, 17))}
-            onBlur={touch("chassisNo")}
-            autoCapitalize="characters"
-            spellCheck={false}
-            className={`${inputClass(!!show("chassisNo"))} font-mono uppercase`}
-          />
-        </Field>
-        <Field label="Engine no." htmlFor="engine" required error={show("engineNo")}>
-          <input
-            id="engine"
-            value={form.engineNo}
-            onChange={(e) => set("engineNo", alnum(e.target.value).slice(0, 17))}
-            onBlur={touch("engineNo")}
-            autoCapitalize="characters"
-            spellCheck={false}
-            className={`${inputClass(!!show("engineNo"))} font-mono uppercase`}
-          />
-        </Field>
+        
+        
       </Section>
 
       <section className="rounded-2xl border border-line bg-surface p-4 sm:p-6">

@@ -563,6 +563,12 @@ export function setProposedPrice(id: string, paise: number) {
   return editRecon(id, () => ({ proposedPricePaise: paise }));
 }
 
+export function setReconDates(id: string, startDate?: string, endDate?: string) {
+  return editRecon(id, (_, r) => ({
+    recon: { ...r, reconStartDate: startDate?.trim() || undefined, reconEndDate: endDate?.trim() || undefined }
+  }));
+}
+
 export function setTechnician(id: string, name: string) {
   return editRecon(id, (_, r) => ({ recon: { ...r, technicianName: name.trim() || undefined } })).then((updated) => {
     const reg = displayReg(updated.registrationNo);
@@ -571,7 +577,7 @@ export function setTechnician(id: string, name: string) {
   });
 }
 
-export const MIN_COMPLETION_PHOTOS = 4;
+export const MIN_COMPLETION_PHOTOS = 2;
 
 /**
  * Supervisor sign-off. Signing off now returns the vehicle straight to general stock evaluation
@@ -606,7 +612,7 @@ export function clearReconCompletion(ids: string[]) {
 export function completeRecon(id: string) {
   return editRecon(id, (v, r) => {
     if (r.completed) fail("Already signed off");
-    if (r.photos.length < MIN_COMPLETION_PHOTOS) fail(`Blocked: add at least ${MIN_COMPLETION_PHOTOS} photos (four sides) before sign-off`);
+    if (r.photos.length < MIN_COMPLETION_PHOTOS) fail(`Blocked: add at least ${MIN_COMPLETION_PHOTOS} photos before sign-off`);
     return { recon: { ...r, completed: signed() }, stage: 7, stageHistory: v.stageHistory.filter((e) => e.stage <= 7) };
   }).then((updated) => {
     logActivity("STATUS_CHANGE", displayReg(updated.registrationNo), `Signed off reconditioning for ${displayReg(updated.registrationNo)}`);

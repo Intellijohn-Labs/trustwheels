@@ -12,12 +12,12 @@ export const DEFAULT_ROLE: Role = "managing_partner";
 
 const listeners = new Set<() => void>();
 
-export function getRole(): Role {
+export function getRole(): Role | null {
   try {
-    const stored = localStorage.getItem(KEY) as Role | null;
-    return stored && stored in ROLES ? stored : DEFAULT_ROLE;
+    const stored = typeof window !== "undefined" ? (localStorage.getItem(KEY) as Role | null) : null;
+    return stored && stored in ROLES ? stored : null;
   } catch {
-    return DEFAULT_ROLE;
+    return null;
   }
 }
 
@@ -34,13 +34,21 @@ export function setRole(role: Role) {
 let memory: Role | null = null;
 
 export function currentRole(): Role {
-  return memory ?? getRole();
+  return memory ?? getRole() ?? DEFAULT_ROLE;
+}
+export function hasActiveSession(): boolean {
+  return !!(memory ?? getRole());
+  return Boolean(memory ?? getRole());
 }
 
 /** Sign-out: forgets the stored role so the next visit starts from DEFAULT_ROLE, same as a first-ever visit. */
 export function clearSession() {
   try {
     localStorage.removeItem(KEY);
+    localStorage.removeItem("tw-employee-id");
+    localStorage.removeItem("tw-employee-name");
+    localStorage.removeItem("tw-employee-profile");
+    sessionStorage.clear();
   } catch {
     // storage blocked: memory reset below still clears it for this page view
   }
@@ -60,7 +68,32 @@ export function subscribeRole(listener: () => void) {
 
 export function getActor() {
   const role = currentRole();
-  return { ...DEMO_USERS[role], name: roleName(role) };
+  const demo = DEMO_USERS[role] || { id: "u-unknown", name: "User", role, base: "b1" };
+
+  try {
+    if (typeof window !== "undefined") {
+      const rawEmployee = localStorage.getItem("tw-employee-profile");
+      if (rawEmployee) {
+        const emp = JSON.parse(rawEmployee);
+        return {
+          ...demo,
+          id: emp.id || localStorage.getItem("tw-employee-id") || demo.id,
+          name: emp.name || localStorage.getItem("tw-employee-name") || demo.name,
+          base: emp.branchId || emp.base || demo.base,
+          role: emp.rbacRole || role,
+        };
+      }
+      const storedName = localStorage.getItem("tw-employee-name");
+      const storedId = localStorage.getItem("tw-employee-id");
+      return {
+        ...demo,
+        id: storedId || demo.id,
+        name: storedName || demo.name,
+      };
+    }
+  } catch {}
+
+  return demo;
 }
 
 export class ForbiddenError extends Error {

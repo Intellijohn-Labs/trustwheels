@@ -9,7 +9,7 @@ const DEFAULT_BRANCHES = [
   { id: "b3", name: "Branch 3" },
   { id: "b4", name: "Branch 4" },
   { id: "b5", name: "Branch 5" },
-  { id: "ang", name: "Angamaly Hub" },
+  { id: "ang", name: "TrustWheels" },
 ] as const;
 
 export type BranchId = (typeof DEFAULT_BRANCHES)[number]["id"];
@@ -36,7 +36,34 @@ export const MAKES: Record<string, string[]> = {
   Ola: ["S1 Pro", "S1 Air"],
 };
 
-export const COLOURS = ["Black", "White", "Red", "Blue", "Grey", "Silver", "Green", "Yellow", "Brown", "Other"];
+export interface ColourOption {
+  name: string;
+  hex: string;
+}
+
+export const DEFAULT_COLOUR_MAP: Record<string, string> = {
+  "Black": "#18181b",
+  "Matt Black": "#27272a",
+  "White": "#f4f4f5",
+  "Pearl White": "#ffffff",
+  "Silver": "#cbd5e1",
+  "Grey": "#64748b",
+  "Red": "#dc2626",
+  "Maroon": "#881337",
+  "Blue": "#2563eb",
+  "Dark Blue": "#1e3a8a",
+  "Cyan / Light Blue": "#06b6d4",
+  "Green": "#16a34a",
+  "Olive Green": "#3f6212",
+  "Yellow": "#eab308",
+  "Orange": "#ea580c",
+  "Brown": "#78350f",
+  "Gold": "#d97706",
+  "Purple / Violet": "#9333ea"
+};
+
+export const COLOURS = Object.keys(DEFAULT_COLOUR_MAP);
+
 
 /** Best-effort make lookup from a bare model name (e.g. "Splendor" -> "Hero"), for quick manual entries that only capture the model. */
 export function inferMakeFromModel(model: string): string {
@@ -54,17 +81,17 @@ export const PHOTO_SLOTS: { slot: PhotoSlot; label: string; hint: string }[] = [
   { slot: "left", label: "Left side", hint: "Full left profile" },
   { slot: "right", label: "Right side", hint: "Full right profile" },
   { slot: "odometer", label: "Odometer", hint: "Close-up, reading visible" },
-  { slot: "chassis", label: "Chassis vs RC", hint: "Chassis no. next to the RC" },
 ];
 
 /** Document types required for vehicle acquisition. */
 export const DOCUMENT_TYPES: { type: DocumentType; label: string; required: boolean; hasExpiry: boolean }[] = [
-  { type: "rc_book", label: "RC Book", required: true, hasExpiry: false },
+  { type: "rc_book_front", label: "RC Book (Front)", required: true, hasExpiry: false },
+  { type: "rc_book_back", label: "RC Book (Back)", required: true, hasExpiry: false },
   { type: "insurance", label: "Insurance Certificate", required: true, hasExpiry: true },
   { type: "finance_noc", label: "Finance NOC", required: false, hasExpiry: true },
-  { type: "forms_2829", label: "Forms 28/29/30", required: true, hasExpiry: false },
+  { type: "forms_2829", label: "Forms 28/29/30", required: false, hasExpiry: false },
   { type: "seller_kyc", label: "Seller KYC", required: true, hasExpiry: false },
-  { type: "purchase_receipt", label: "Purchase Receipt", required: true, hasExpiry: false },
+  { type: "purchase_receipt", label: "Purchase Receipt", required: false, hasExpiry: false },
 ];
 
 export function documentLabel(type: DocumentType) {

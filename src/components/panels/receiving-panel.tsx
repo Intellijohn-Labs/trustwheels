@@ -30,6 +30,7 @@ export function receivedToday(v: Vehicle, now: number) {
 
 function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [reg, setReg] = useState("");
+  const [docsVerified, setDocsVerified] = useState(false);
   const [notes, setNotes] = useState("");
   const [received, setReceived] = useState<Vehicle>();
   const stockId = received?.stockId;
@@ -59,7 +60,7 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
             <Button size="lg" className="flex-1" onClick={onClose}>
               Cancel
             </Button>
-            <Button size="lg" type="submit" variant="success" className="flex-[2]" disabled={busy || !reg.trim()}>
+            <Button size="lg" type="submit" variant="success" className="flex-[2]" disabled={busy || !reg.trim() || !docsVerified}>
               <PackageCheck className="size-4" /> Confirm receipt
             </Button>
           </>
@@ -108,6 +109,53 @@ function ReceiveDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => 
               className={cn(inputClass(!!failure), "font-mono text-lg tracking-wide uppercase")}
             />
           </Field>
+          {(() => {
+            const rawNotes = d.notes || "";
+            const match = rawNotes.match(/\[Handover Docs: (.*?)\]/);
+            const docsList = match && match[1] && match[1] !== "None" ? match[1].split(", ") : [];
+            const userNotes = rawNotes.replace(/\[Handover Docs: .*?\]/, "").trim();
+
+            return (
+              <div className="space-y-3 rounded-xl border border-line bg-sunken/60 p-3.5">
+                {userNotes && (
+                  <div className="text-xs text-muted">
+                    <span className="font-semibold text-foreground">Handover Note:</span> {userNotes}
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Handover Documents ({docsList.length > 0 ? docsList.length : "None recorded"})
+                  </span>
+                  {docsList.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {docsList.map((doc, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center rounded-md bg-brand/10 border border-brand/20 px-2 py-1 text-xs font-medium text-brand"
+                        >
+                          ✓ {doc}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted">No physical documents recorded at dispatch.</p>
+                  )}
+                </div>
+
+                <label className="flex items-start gap-2.5 pt-2 border-t border-line/60 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={docsVerified}
+                    onChange={(e) => setDocsVerified(e.target.checked)}
+                    className="mt-0.5 size-4 rounded border-line text-brand accent-brand"
+                  />
+                  <span className="text-xs font-medium text-foreground">
+                    I have physically received, inspected, and verified that all handed-over documents & keys match.
+                  </span>
+                </label>
+              </div>
+            );
+          })()}
           <Field label="Notes" htmlFor="receive-notes" hint="Optional. Damage on arrival, missing keys or documents.">
             <textarea id="receive-notes" value={notes} onChange={(e) => setNotes(e.target.value)} className={textareaClass()} />
           </Field>

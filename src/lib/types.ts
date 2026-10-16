@@ -7,7 +7,7 @@ export type NocStatus = "pending" | "received";
 export type AccidentHistory = "none" | "minor" | "major";
 
 export type PhotoSlot = "front" | "rear" | "left" | "right" | "odometer" | "chassis";
-export type DocumentType = "rc_book" | "insurance" | "finance_noc" | "forms_2829" | "seller_kyc" | "purchase_receipt";
+export type DocumentType = "rc_book" | "rc_book_front" | "rc_book_back" | "rc_book_front" | "rc_book_back" | "insurance" | "finance_noc" | "forms_2829" | "seller_kyc" | "purchase_receipt";
 export type DocumentStatus = "received" | "pending" | "verified" | "expired";
 
 export interface Document {
@@ -46,6 +46,7 @@ export interface Vehicle {
   model: string;
   variant: string;
   year: number;
+  month?: number;
   engineCc: number;
   odometerKm: number;
   colour: string;
@@ -60,12 +61,19 @@ export interface Vehicle {
   financier?: string;
   nocStatus?: NocStatus;
 
+  hasChallan?: "yes" | "no";
+  challanAmountPaise?: number;
+  challanNotes?: string;
   conditionNotes: string;
+  frontTyrePercent?: number;
+  rearTyrePercent?: number;
+  paintPercent?: number;
+  batteryStatus?: "good" | "not_good";
   accidentHistory: AccidentHistory;
   knownDefects: string;
 
   agreedValuePaise: number;
-  seller: { name: string; phone: string };
+  seller: { name: string; phone: string; phoneAlt?: string };
 
   photos: Partial<Record<PhotoSlot, string>>; // data URLs until the file service exists
   documents: Document[]; // RC, insurance, NOC, forms, KYC, purchase receipt
@@ -140,6 +148,8 @@ export interface Recon {
   supervisor: string;
   /** Individual mechanic doing the work on this vehicle - distinct from `supervisor`, the fixed role holder who manages the workshop. */
   technicianName?: string;
+  reconStartDate?: string;
+  reconEndDate?: string;
   startedAt: string;
   items: JobItem[];
   photos: string[];

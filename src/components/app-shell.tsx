@@ -50,6 +50,7 @@ import { useNavBadges } from "@/lib/nav-badges";
 import { drain, useSyncStatus, type SyncStatus } from "@/lib/sync-queue";
 import { supabase } from "@/lib/supabase";
 import { isLoginFlowInProgress, isLogoutFlowInProgress } from "@/lib/login-flow";
+import { subscribeRole, hasActiveSession } from "@/lib/session";
 import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
@@ -250,11 +251,22 @@ const AUTH_FORM_PAGES = ["/login", "/signup"];
  */
 function useSessionGuard(pathname: string) {
   const router = useRouter();
-  const [authed, setAuthed] = useState<boolean | null>(DEV_NO_AUTH_GATE || !supabase ? true : null);
+  const [authed, setAuthed] = useState<boolean | null>(() => {
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("tw-role");
+    }
+    return null;
+  });
   const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
-    if (DEV_NO_AUTH_GATE || !supabase) return;
+    if (!supabase) {
+      setAuthed(hasActiveSession());
+      const unsub = subscribeRole(() => {
+        setAuthed(hasActiveSession());
+      });
+      return () => unsub();
+    }
     let active = true;
     supabase.auth.getSession().then(({ data }) => active && setAuthed(!!data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {

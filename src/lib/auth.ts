@@ -31,7 +31,24 @@ export async function resolveEmployeeForEmail(email: string): Promise<ResolvedAc
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<ResolvedAccount> {
-  if (!supabase) throw new Error("Sign-in isn't available - this deployment isn't connected to Supabase yet.");
+  if (!supabase) {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Login failed");
+    }
+    const resolved = data.resolved;
+    setRole(resolved.role);
+    try {
+      localStorage.setItem("tw-employee-id", resolved.employee.id);
+      localStorage.setItem("tw-employee-name", resolved.employee.name);
+    } catch {}
+    return resolved;
+  }
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(error.message);
   const resolved = await resolveEmployeeForEmail(data.user.email ?? email);
@@ -44,7 +61,19 @@ export async function signInWithPassword(email: string, password: string): Promi
 }
 
 export async function signUpWithPassword(email: string, password: string): Promise<{ resolved: ResolvedAccount; needsEmailConfirmation: boolean }> {
-  if (!supabase) throw new Error("Sign-up isn't available - this deployment isn't connected to Supabase yet.");
+  if (!supabase) {
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Sign-up failed");
+    }
+    const loginResolved = await signInWithPassword(email.trim(), password);
+    return { resolved: loginResolved, needsEmailConfirmation: false };
+  }
   // Checked up front too, not just after Supabase creates the account - no point minting an auth
   // account for an email the employee master doesn't recognise.
   const resolved = await resolveEmployeeForEmail(email);
@@ -68,5 +97,5 @@ export async function signOutAuth() {
   // Clear local role state first - it's synchronous, so the UI reflects "signed out" immediately
   // regardless of how long the network round trip to actually revoke the Supabase session takes.
   clearSession();
-  if (supabase) await supabase.auth.signOut();
+  if (supabase) { await supabase.auth.signOut({ scope: "global" }); }
 }

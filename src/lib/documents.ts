@@ -59,7 +59,18 @@ export function getLatestDocument(vehicle: Vehicle, type: DocumentType): Documen
  * actually under finance. A vehicle bought free and clear never needs one at all.
  */
 export function isDocumentRequiredFor(dt: { type: DocumentType; required: boolean }, vehicle: Vehicle): boolean {
-  if (dt.type === "finance_noc") return vehicle.financeStatus === "financed";
+  // 1. Finance NOC is ONLY required if vehicle is financed
+  if (dt.type === "finance_noc") {
+    return vehicle.financeStatus === "financed";
+  }
+  // 2. Insurance certificate is ONLY required if insurance validity date or policy no is provided
+  if (dt.type === "insurance") {
+    return Boolean(vehicle.insuranceValidTill || vehicle.insurancePolicyNo);
+  }
+  // 3. Purchase receipt is not required
+  if (dt.type === "purchase_receipt") {
+    return false;
+  }
   return dt.required;
 }
 

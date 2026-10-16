@@ -8,7 +8,7 @@ export function cn(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
 }
 
-export function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+export function Section({ title, description, children }: { title: React.ReactNode; description?: string; children: ReactNode }) {
   return (
     <section className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
       <header className="mb-4">
@@ -150,7 +150,7 @@ export function Button({
   );
 }
 
-export function PageHeader({ title, description, icon, actions, tone }: { title: string; description?: ReactNode; icon?: ReactNode; actions?: ReactNode; tone?: "danger" }) {
+export function PageHeader({ title, description, icon, actions, tone }: { title: React.ReactNode; description?: ReactNode; icon?: ReactNode; actions?: ReactNode; tone?: "danger" }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">

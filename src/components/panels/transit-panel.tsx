@@ -181,13 +181,35 @@ export function DispatchButton({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
+const HANDOVER_DOC_ITEMS = [
+  "RC Book (Original)",
+  "Vehicle Key (Primary)",
+  "Vehicle Key (Spare)",
+  "Insurance Copy",
+  "Forms 28/29/30 (Signed)",
+  "Seller KYC",
+  "Tax / PUC Receipt",
+];
+
 function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const [rider, setRider] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([
+    "RC Book (Original)",
+    "Vehicle Key (Primary)",
+  ]);
   const { submit: run, failure, busy } = useInlineAction();
 
+  const toggleDoc = (item: string) => {
+    setSelectedDocs((prev) =>
+      prev.includes(item) ? prev.filter((d) => d !== item) : [...prev, item]
+    );
+  };
+
   async function submit() {
-    if (await run(() => dispatchVehicle(vehicle.id, rider, notes), `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for Angamaly`)) onClose();
+    const docPayload = selectedDocs.length > 0 ? `[Handover Docs: ${selectedDocs.join(", ")}]` : "[Handover Docs: None]";
+    const combinedNotes = notes.trim() ? `${notes.trim()}\n\n${docPayload}` : docPayload;
+    if (await run(() => dispatchVehicle(vehicle.id, rider, combinedNotes), `${vehicle.make} ${vehicle.model} handed to ${rider.trim()} for Angamaly`)) onClose();
   }
 
   return (
@@ -201,7 +223,7 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
           <Button size="lg" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" type="submit" variant="primary" className="flex-[2]" disabled={busy}>
+          <Button size="lg" type="submit" variant="primary" className="flex-[2]" disabled={busy || !rider.trim()}>
             <Truck className="size-4" /> Hand over now
           </Button>
         </>
@@ -221,6 +243,39 @@ function DispatchDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
           />
         </Field>
       </div>
+
+      <div className="mt-4 space-y-2 rounded-xl border border-line bg-sunken/40 p-3.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Handover Documents & Items Checklist
+          </span>
+          <span className="text-xs text-brand font-medium">
+            {selectedDocs.length} selected
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          {HANDOVER_DOC_ITEMS.map((item) => {
+            const checked = selectedDocs.includes(item);
+            return (
+              <label
+                key={item}
+                className="flex items-center gap-2.5 rounded-lg border border-line/60 bg-panel px-3 py-2 text-sm cursor-pointer hover:border-brand/40 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleDoc(item)}
+                  className="size-4 rounded border-line text-brand accent-brand"
+                />
+                <span className={checked ? "text-foreground font-medium" : "text-muted"}>
+                  {item}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
       {failure && (
         <p role="alert" className="mt-3 text-sm font-medium text-danger">
           {failure}
