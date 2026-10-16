@@ -216,12 +216,12 @@ export const PANELS = [
   { key: "employees_access", label: "Employees & Access", group: "Overview", permission: "staff.manage" },
   { key: "activity_log", label: "Activity Log", group: "Overview", permission: "audit.view" },
   { key: "all_stock", label: "All Stock", group: "Stock & hub", permission: "stock.view" },
-  { key: "stock_deck", label: "Stock Deck", group: "Stock & hub", permission: "deck.view" },
   { key: "add_stock", label: "Add Stock", group: "Stock & hub", permission: "stock.create" },
   { key: "doc_verification", label: "Document Verification", group: "Stock & hub", permission: "stock.verify" },
   { key: "transit", label: "Transit", group: "Stock & hub", permission: "transit.view" },
   { key: "receiving", label: "Receiving", group: "Stock & hub", permission: "hub.receive" },
   { key: "reconditioning", label: "Reconditioning", group: "Stock & hub", permission: "recon.view" },
+  { key: "stock_deck", label: "Stock Deck", group: "Stock & hub", permission: "deck.view" },
   { key: "book_sell", label: "Book & Sell", group: "Sales & finance", permission: "sales.view" },
   { key: "enquiries", label: "Enquiries", group: "Sales & finance", permission: "leads.view" },
   { key: "deliveries", label: "Deliveries", group: "Sales & finance", permission: "delivery.view" },
@@ -292,6 +292,8 @@ export interface RouteDef {
   /** Hidden routes are guarded but not listed in the sidebar (e.g. detail pages). */
   hidden?: boolean;
   pattern?: RegExp;
+  /** Gives the sidebar item its own look (the Stock Deck has a purple identity) instead of the standard blue. */
+  accent?: "deck";
 }
 
 export const ROUTES: RouteDef[] = [
@@ -303,13 +305,13 @@ export const ROUTES: RouteDef[] = [
   { path: "/audit-logs", label: "Activity Log", group: "Overview", icon: "BookOpen", anyOf: ["audit.view"] },
 
   { path: "/stock", label: "All stock", group: "Stock & hub", icon: "LayoutList", anyOf: ["stock.view"] },
-  { path: "/stock/deck", label: "Stock Deck", group: "Stock & hub", icon: "Spade", anyOf: ["deck.view"] },
   { path: "/stock/new", label: "Add stock", group: "Stock & hub", icon: "Plus", anyOf: ["stock.create"] },
   { path: "/stock/[id]", label: "Vehicle", group: "Stock & hub", icon: "Bike", anyOf: ["stock.view", "recon.view"], hidden: true, pattern: /^\/stock\/(?!(?:new|deck)$)[^/]+$/ },
   { path: "/overdue", label: "Document Verification", group: "Stock & hub", icon: "TriangleAlert", anyOf: ["stock.verify"] },
   { path: "/transit", label: "Transit", group: "Stock & hub", icon: "Truck", anyOf: ["transit.view"] },
   { path: "/receiving", label: "Receiving", group: "Stock & hub", icon: "PackageCheck", anyOf: ["hub.receive"] },
   { path: "/recon", label: "Reconditioning", group: "Stock & hub", icon: "Wrench", anyOf: ["recon.view"] },
+  { path: "/stock/deck", label: "Stock Deck", group: "Stock & hub", icon: "Spade", anyOf: ["deck.view"], accent: "deck" },
 
   { path: "/verified", label: "Book & sell", group: "Sales", icon: "BadgeCheck", anyOf: ["sales.view"] },
   { path: "/enquiries", label: "Enquiries", group: "Sales", icon: "UserPlus", anyOf: ["leads.view"] },

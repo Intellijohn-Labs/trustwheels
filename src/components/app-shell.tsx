@@ -100,6 +100,7 @@ function Sidebar({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                 {items.map((r) => {
                   const isActive = active?.path === r.path || (r.path === "/stock" && active?.path === "/stock/[id]");
                   const badge = badges[r.path];
+                  const deck = r.accent === "deck";
                   return (
                     <li key={r.path}>
                       <Link
@@ -108,11 +109,20 @@ function Sidebar({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                         aria-current={isActive ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition",
-                          isActive ? "nav-active" : "text-muted hover:translate-x-0.5 hover:bg-sunken hover:text-ink",
+                          isActive
+                            ? deck
+                              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-purple-500/20"
+                              : "nav-active"
+                            : deck
+                              ? "text-muted hover:translate-x-0.5 hover:bg-purple-500/10 hover:text-ink"
+                              : "text-muted hover:translate-x-0.5 hover:bg-sunken hover:text-ink",
                         )}
                       >
-                        <RouteIcon name={r.icon} className="size-4 shrink-0" />
+                        <RouteIcon name={r.icon} className={cn("size-4 shrink-0", deck && !isActive && "text-purple-500")} />
                         <span className="flex-1 truncate">{r.label}</span>
+                        {deck && (
+                          <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold tracking-wider uppercase", isActive ? "bg-white/20 text-white" : "bg-purple-500/15 text-purple-500")}>Deck</span>
+                        )}
                         {badge ? (
                           <span
                             className={cn(
