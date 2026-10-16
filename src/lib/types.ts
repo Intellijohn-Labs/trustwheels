@@ -76,7 +76,7 @@ export interface Vehicle {
   seller: { name: string; phone: string; phoneAlt?: string };
 
   photos: Partial<Record<PhotoSlot, string>>; // data URLs until the file service exists
-  documents: Document[]; // RC, insurance, NOC, forms, KYC, purchase receipt
+  documents: Document[]; // RC, insurance, NOC, forms, KYC
 
   verified?: { by: string; at: string };
   sale?: Sale;

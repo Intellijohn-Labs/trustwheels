@@ -5,7 +5,7 @@ import { newId } from "./collections";
 
 /**
  * Vehicle document attachment & vault.
- * Tracks RC, insurance, NOC, forms, KYC, and purchase receipt with status and expiry.
+ * Tracks RC, insurance, NOC, forms, and KYC with status and expiry.
  * Prevents "On display" stage advancement until all required documents are verified.
  */
 
@@ -66,10 +66,6 @@ export function isDocumentRequiredFor(dt: { type: DocumentType; required: boolea
   // 2. Insurance certificate is ONLY required if insurance validity date or policy no is provided
   if (dt.type === "insurance") {
     return Boolean(vehicle.insuranceValidTill || vehicle.insurancePolicyNo);
-  }
-  // 3. Purchase receipt is not required
-  if (dt.type === "purchase_receipt") {
-    return false;
   }
   return dt.required;
 }

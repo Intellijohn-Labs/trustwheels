@@ -153,7 +153,7 @@ function PurchaseDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () =>
           <dd className="font-medium">{vehicle.seller.name}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">Agreed value</dt>
+          <dt className="text-xs text-muted">Purchased value</dt>
           <dd className="font-semibold tabular-nums">{formatPaise(vehicle.agreedValuePaise)}</dd>
         </div>
         {due && (
@@ -302,7 +302,7 @@ export function PurchaseEntryPanel({ limit }: { limit?: number }) {
         empty={ready ? "Every verified vehicle has its purchase value entered." : "Loading…"}
         columns={[
           vehicleCol(now),
-          { header: "Agreed", align: "right", cell: (v) => formatPaise(v.agreedValuePaise) },
+          { header: "Purchased", align: "right", cell: (v) => formatPaise(v.agreedValuePaise) },
           {
             header: "Net payable",
             align: "right",

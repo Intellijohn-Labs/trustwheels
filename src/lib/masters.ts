@@ -64,6 +64,30 @@ export const DEFAULT_COLOUR_MAP: Record<string, string> = {
 
 export const COLOURS = Object.keys(DEFAULT_COLOUR_MAP);
 
+/** Quick-pick swatches on the Add Stock form. Anything else is entered through "Other" as free text. */
+export const COLOUR_SWATCHES: ColourOption[] = [
+  { name: "White", hex: "#FFFFFF" },
+  { name: "Black", hex: "#18181B" },
+  { name: "Silver", hex: "#C7CCD4" },
+  { name: "Grey", hex: "#6B7280" },
+  { name: "Red", hex: "#DC2626" },
+  { name: "Blue", hex: "#2563EB" },
+  { name: "Brown", hex: "#78350F" },
+  { name: "Green", hex: "#16A34A" },
+  { name: "Gold", hex: "#D4A017" },
+  { name: "Beige", hex: "#E3D5B8" },
+];
+
+/** Display colour for a stored colour name, or undefined for a custom shade we can't draw. */
+export function colourHex(name: string): string | undefined {
+  const key = name.trim().toLowerCase();
+  if (!key) return undefined;
+  return (
+    COLOUR_SWATCHES.find((c) => c.name.toLowerCase() === key)?.hex ??
+    Object.entries(DEFAULT_COLOUR_MAP).find(([n]) => n.toLowerCase() === key)?.[1]
+  );
+}
+
 
 /** Best-effort make lookup from a bare model name (e.g. "Splendor" -> "Hero"), for quick manual entries that only capture the model. */
 export function inferMakeFromModel(model: string): string {
@@ -91,7 +115,6 @@ export const DOCUMENT_TYPES: { type: DocumentType; label: string; required: bool
   { type: "finance_noc", label: "Finance NOC", required: false, hasExpiry: true },
   { type: "forms_2829", label: "Forms 28/29/30", required: false, hasExpiry: false },
   { type: "seller_kyc", label: "Seller KYC", required: true, hasExpiry: false },
-  { type: "purchase_receipt", label: "Purchase Receipt", required: false, hasExpiry: false },
 ];
 
 export function documentLabel(type: DocumentType) {

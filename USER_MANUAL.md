@@ -251,7 +251,7 @@ You bring vehicles into the business: record every exchange or direct purchase, 
 4. **Photos**: tap each of the 6 boxes: **Front, Rear, Left side, Right side, Odometer, Chassis vs RC** (the chassis number photographed next to the RC). On a phone the camera opens directly. The counter must show **6/6**.
 5. **Insurance & finance**: enter the insurance date and policy number. Choose **Free (no loan)** or **Under finance**; if under finance, enter the **Financier** and the **NOC status**.
 6. **Condition**: choose the accident history, and note the condition and any known defects.
-7. **Seller & value**: enter the seller's name, 10-digit mobile, and the **Agreed value** in ₹.
+7. **Seller & value**: enter the seller's name, 10-digit mobile, and the **Purchased value** in ₹.
 8. Tap **Save vehicle**. You get a **Provisional ID**, and the **48-hour verification timer** starts.
 
 > 💡 If the bar at the bottom says *"3 fields need attention"*, scroll up. The fields with problems are outlined in red.
@@ -317,7 +317,7 @@ Open **Dashboard** and read the four tiles:
 **Step 2: Enter the purchase value**
 1. Open **Seller payments**. Under **Purchase value entry**, find the vehicle.
 2. Tap **Enter purchase**.
-3. Check the agreed value. Enter any **Deductions** (e.g. pending traffic fines) and a **Deduction note**. The **Net payable** is worked out for you.
+3. Check the purchased value. Enter any **Deductions** (e.g. pending traffic fines) and a **Deduction note**. The **Net payable** is worked out for you.
 4. Tap **Request payout**. The request goes to the Central Accountant for approval.
 5. Made a mistake? While the payout is still *Requested*, tap **Edit entry**.
 
@@ -334,7 +334,7 @@ The **Seller payment tracker** shows, for every vehicle, the due date, working d
 - The **7-working-day clock starts at verification**, not when you make the entry. Enter purchases the same day a vehicle is verified.
 - Sundays and public holidays are not counted.
 - After the Central Accountant approves a payout you **cannot edit it**. Ask them to reverse it if something is wrong.
-- Deductions must be less than the agreed value, and always need a note.
+- Deductions must be less than the purchased value, and always need a note.
 
 #### E. Checklist & troubleshooting
 

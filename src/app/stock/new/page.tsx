@@ -1,37 +1,23 @@
 "use client";
 
-const COLOUR_PALETTE: Record<string, string> = {
-  black: "#111111",
-  white: "#FFFFFF",
-  red: "#DC2626",
-  blue: "#2563EB",
-  grey: "#6B7280",
-  gray: "#6B7280",
-  silver: "#D1D5DB",
-  yellow: "#EAB308",
-  green: "#16A34A",
-  orange: "#EA580C",
-  brown: "#78350F",
-  matte_black: "#262626",
-};
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { createVehicle, useVehicles } from "@/lib/stock-store";
 import { isSold } from "@/lib/finance";
-import { BRANCHES, COLOURS, DOCUMENT_TYPES, MAKES, PHOTO_SLOTS, branchName } from "@/lib/masters";
+import { BRANCHES, DOCUMENT_TYPES, MAKES, PHOTO_SLOTS, branchName } from "@/lib/masters";
 import { useRole } from "@/lib/role-context";
 import { useToast } from "@/components/toast";
 import { couldBeReg, displayReg, formatIsoDate, groupIndian, isValidReg, normaliseReg } from "@/lib/format";
 import { newId } from "@/lib/collections";
 import type { AccidentHistory, Document, DocumentType, FinanceStatus, Fuel, NocStatus, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
+import { ColourPicker } from "@/components/colour-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
-// RC book, insurance, seller KYC and purchase receipt can be attached right at intake.
+// RC book, insurance, and seller KYC can be attached right at intake.
 // Forms 28/29/30 come later, during the ownership-transfer step (see the vehicle's Documents & vault panel).
 // Finance NOC is rendered separately below, gated on the "under finance" toggle - it doesn't apply
 // at all to a vehicle bought free and clear.
@@ -141,7 +127,7 @@ function validate(f: FormState): Errors {
   need("model");
   need("year");
   need("fuel");
-  need("colour");
+  if (!f.colour.trim()) e.colour = "Pick a colour or enter one under Other";
   const owners = Number(f.owners);
   if (f.owners.trim() === "") e.owners = "Required";
   else if (!Number.isInteger(owners) || owners < 1) e.owners = "Enter a whole number, 1 or more";
@@ -156,7 +142,7 @@ function validate(f: FormState): Errors {
     need("nocStatus");
   }
   need("accidentHistory");
-  if (!f.agreedValue || Number(f.agreedValue) <= 0) e.agreedValue = "Enter the agreed value";
+  if (!f.agreedValue || Number(f.agreedValue) <= 0) e.agreedValue = "Enter the purchased value";
   need("sellerName");
   if (!/^[6-9]\d{9}$/.test(f.sellerPhone)) e.sellerPhone = f.sellerPhone ? "Enter a 10-digit mobile number" : "Required";
   const missing = PHOTO_SLOTS.filter((p) => !f.photos[p.slot]);
@@ -165,21 +151,6 @@ function validate(f: FormState): Errors {
 }
 
 export default function NewVehiclePage() {
-  const [coloursList, setColoursList] = useState<Array<{ name: string; hex: string }>>([
-    { name: "Black", hex: "#111111" },
-    { name: "White", hex: "#FFFFFF" },
-    { name: "Red", hex: "#DC2626" },
-    { name: "Blue", hex: "#2563EB" },
-    { name: "Grey", hex: "#6B7280" },
-    { name: "Silver", hex: "#D1D5DB" },
-    { name: "Yellow", hex: "#EAB308" },
-    { name: "Green", hex: "#16A34A" },
-    { name: "Matte Black", hex: "#262626" },
-  ]);
-  const [showMixerModal, setShowMixerModal] = useState(false);
-  const [mixerHex, setMixerHex] = useState("#2563eb");
-  const [mixerName, setMixerName] = useState("");
-
   const router = useRouter();
   const { inScope, user } = useRole();
   const toast = useToast();
@@ -256,7 +227,7 @@ export default function NewVehiclePage() {
         year: Number(form.year),
         engineCc: Number(form.engineCc) || 0,
         odometerKm: Number(form.odometerKm),
-        colour: form.colour,
+        colour: form.colour.trim(),
         owners: Number(form.owners),
         fuel: form.fuel!,
         chassisNo: form.chassisNo,
@@ -457,131 +428,8 @@ export default function NewVehiclePage() {
           </div>
         </Field>
 
-        <Field label="Colour" htmlFor="colour" required error={show("colour")}>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              {/* Selected Colour Preview Box */}
-              <div
-                className="w-10 h-10 rounded-lg border border-neutral-300 dark:border-neutral-700 shadow-sm flex-shrink-0"
-                style={{
-                  backgroundColor:
-                    coloursList.find((c) => c.name.toLowerCase() === form.colour?.toLowerCase())?.hex ||
-                    (COLOUR_PALETTE && COLOUR_PALETTE[form.colour?.toLowerCase()?.trim()]) ||
-                    (form.colour && /^#[0-9A-F]{6}$/i.test(form.colour) ? form.colour : "#E5E7EB"),
-                }}
-                title={form.colour || "No colour selected"}
-              />
-
-              <div className="flex items-center gap-2 flex-1">
-                <select
-                  id="colour"
-                  value={form.colour}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "__add_new__") {
-                      setShowMixerModal(true);
-                    } else {
-                      set("colour", val);
-                    }
-                  }}
-                  onBlur={touch("colour")}
-                  className={inputClass(!!show("colour"))}
-                >
-                  <option value="">Select colour</option>
-                  {coloursList.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                  <option value="__add_new__">+ Add new colour...</option>
-                </select>
-
-                {/* Remove button for selected colour */}
-                {form.colour && (
-                  <button
-                    type="button"
-                    title="Remove selected colour from vehicle / delete from list"
-                    onClick={() => {
-                      const current = form.colour;
-                      set("colour", "");
-                      setColoursList((prev) => prev.filter((c) => c.name.toLowerCase() !== current.toLowerCase()));
-                    }}
-                    className="px-3 py-2 text-xs rounded-lg border border-red-300 text-red-500 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-950/30 flex-shrink-0"
-                  >
-                    ✕ Remove
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Colour Mixer Popup Modal */}
-            {showMixerModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div className="bg-white dark:bg-neutral-900 rounded-xl p-5 w-full max-w-sm shadow-xl border border-neutral-200 dark:border-neutral-800 space-y-4">
-                  <h3 className="text-base font-semibold">Create & Add New Colour</h3>
-                  
-                  <div className="flex items-center gap-3">
-                    <label className="relative w-12 h-12 rounded-lg border border-neutral-300 dark:border-neutral-700 shadow-sm cursor-pointer overflow-hidden flex-shrink-0" style={{ backgroundColor: mixerHex }}>
-                      <input
-                        type="color"
-                        value={mixerHex}
-                        onChange={(e) => setMixerHex(e.target.value)}
-                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                      />
-                    </label>
-                    <div className="text-xs text-neutral-500">
-                      <p className="font-mono uppercase">{mixerHex}</p>
-                      <p>Click box-il click cheythu colour mixer open cheyyam</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium block mb-1">Colour Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Pearl White, Cherry Red, Matte Blue"
-                      value={mixerName}
-                      onChange={(e) => setMixerName(e.target.value)}
-                      className={inputClass()}
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowMixerModal(false);
-                        setMixerName("");
-                      }}
-                      className="px-3 py-1.5 text-xs rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!mixerName.trim()}
-                      onClick={() => {
-                        const trimmed = mixerName.trim();
-                        if (!trimmed) return;
-                        setColoursList((prev) => {
-                          const exists = prev.some((c) => c.name.toLowerCase() === trimmed.toLowerCase());
-                          if (exists) return prev;
-                          return [...prev, { name: trimmed, hex: mixerHex }];
-                        });
-                        set("colour", trimmed);
-                        setShowMixerModal(false);
-                        setMixerName("");
-                      }}
-                      className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      Add to list & Select
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        <Field label="Colour" required error={show("colour")} wide>
+          <ColourPicker id="colour" value={form.colour} onChange={(v) => set("colour", v)} onBlur={touch("colour")} invalid={!!show("colour")} />
         </Field>
         <Field label="No. of owners" htmlFor="owners" required error={show("owners")}>
           <input
@@ -765,7 +613,7 @@ export default function NewVehiclePage() {
             />
           </div>
         </Field>
-        <Field label="Agreed value" htmlFor="value" required error={show("agreedValue")} hint="Seller KYC, bank details and deductions are captured in the acquisition step." wide>
+        <Field label="Purchased value" htmlFor="value" required error={show("agreedValue")} hint="Seller KYC, bank details and deductions are captured in the acquisition step." wide>
           <div className="relative">
             <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">₹</span>
             <input
