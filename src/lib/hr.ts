@@ -2,7 +2,7 @@
 
 import { defineCollection, newId } from "./collections";
 import { HOLIDAYS } from "./masters";
-import { can, ROLES, type PanelModule, type Role } from "./rbac";
+import { can, ROLES, type LegacyPanelModule, type PanelKey, type Role } from "./rbac";
 import { assertCan, currentRole, getActor } from "./session";
 import { logActivity } from "./activity-log";
 import type { Vehicle } from "./types";
@@ -29,8 +29,10 @@ export interface Employee {
   role: string;
   /** System login role, for the people who use this app. */
   rbacRole?: Role;
-  /** Per-employee override of which panels rbacRole's permissions actually grant. Unset = use the role's own defaults untouched. */
-  allowedPanels?: PanelModule[];
+  /** Per-employee panel access: the sidebar panels this person can open, picked from rbacRole's defaults. Unset = use the role's own defaults untouched. */
+  panelAccess?: PanelKey[];
+  /** Older, coarser version of `panelAccess` (five modules). Still honoured on records that have it; saving the form replaces it with `panelAccess`. */
+  allowedPanels?: LegacyPanelModule[];
   /** Home branch - attendance, rosters and payroll all key off this single id; keep setting it. */
   branchId: string;
   /** Every branch this employee is assigned to, for the Add/Edit form's multi-select. `branchId`
@@ -357,7 +359,7 @@ export async function updateEmployee(id: string, input: EmployeeInput) {
     // Defense in depth: even if a disabled control were bypassed, a protected-head record can
     // never end up with a restricted panel set - the form already locks this, this just makes
     // sure the store agrees no matter what reaches it.
-    const safeData = wasProtected ? { ...data, allowedPanels: undefined } : data;
+    const safeData = wasProtected ? { ...data, panelAccess: undefined, allowedPanels: undefined } : data;
     if (safeData.status === "active" && current?.status !== "active" && activeEmployeeCount(all) >= MAX_EMPLOYEES) {
       throw new Error(`Blocked: maximum employee limit reached (${MAX_EMPLOYEES}/${MAX_EMPLOYEES}). Deactivate or delete an existing employee first.`);
     }

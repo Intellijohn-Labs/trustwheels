@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
-import { ROLES, rolesFor, type RouteDef } from "@/lib/rbac";
+import { ROLES, ROUTES, rolesFor, type RouteDef } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 
 /** 403 shown in place of a page the current role may not open. */
 export function Forbidden({ route }: { route: RouteDef }) {
-  const { roleDef } = useRole();
+  const { roleDef, canOpenRoute } = useRole();
+  // Back to the dashboard, unless this person's Dashboard panel is switched off - then their first open panel.
+  const home = ROUTES.find((r) => !r.hidden && canOpenRoute(r)) ?? ROUTES[0];
   const allowed = rolesFor(route);
   return (
     <div className="mx-auto max-w-lg py-10 text-center" data-testid="forbidden">
@@ -20,8 +22,8 @@ export function Forbidden({ route }: { route: RouteDef }) {
         Signed in as <span className="font-medium text-ink">{roleDef.label}</span>. This page is available to:{" "}
         {allowed.map((r) => ROLES[r].label).join(", ")}.
       </p>
-      <Link href="/dashboard" className="mt-6 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-semibold text-surface hover:brightness-110">
-        Go to my dashboard
+      <Link href={home.path} className="mt-6 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-semibold text-surface hover:brightness-110">
+        {home.path === "/dashboard" ? "Go to my dashboard" : `Go to ${home.label}`}
       </Link>
     </div>
   );

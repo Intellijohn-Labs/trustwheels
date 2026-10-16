@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
-import { DEMO_USERS, ROLES, ROLE_ORDER, effectivePermissions, inScope, type Permission, type Role, type RouteDef } from "./rbac";
+import { DEMO_USERS, ROLES, ROLE_ORDER, effectivePermissions, inScope, resolvePanels, type Permission, type Role, type RouteDef } from "./rbac";
 import { DEFAULT_ROLE, currentRole, setRole, subscribeRole } from "./session";
 import { hydrateRoleNames, setRoleNames, useRoleNames } from "./user-names";
 import { employees } from "./hr";
@@ -45,8 +45,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   // Access - apply those (grant a module the role lacks, or withhold one it has) before
   // exposing can()/canOpenRoute(), so the sidebar and every route guard see the same picture.
   const { items: staff } = employees.useItems();
-  const allowedPanels = staff.find((e) => e.rbacRole === role && e.status !== "exited")?.allowedPanels;
-  const permissions = useMemo(() => effectivePermissions(role, allowedPanels), [role, allowedPanels]);
+  const holder = staff.find((e) => e.rbacRole === role && e.status !== "exited");
+  const panelAccess = holder?.panelAccess;
+  const legacyPanels = holder?.allowedPanels;
+  const permissions = useMemo(() => effectivePermissions(role, resolvePanels(role, panelAccess, legacyPanels)), [role, panelAccess, legacyPanels]);
   const value = useMemo<RoleContextValue>(
     () => ({
       role,

@@ -310,6 +310,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { role, canOpenRoute } = useRole();
   const [drawer, setDrawer] = useState(false);
   const { authed, recovery } = useSessionGuard(pathname);
+  const router = useRouter();
+
+  // Sign-in lands on /dashboard; for someone whose Dashboard panel is switched off, go to the first panel they can open instead of a 403.
+  useEffect(() => {
+    if (authed !== true || pathname !== "/dashboard") return;
+    const route = findRoute(pathname);
+    if (!route || canOpenRoute(route)) return;
+    const home = ROUTES.find((r) => !r.hidden && canOpenRoute(r));
+    if (home) router.replace(home.path);
+  }, [authed, pathname, canOpenRoute, router]);
 
   useEffect(() => {
     if (!drawer) return;

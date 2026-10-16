@@ -143,7 +143,7 @@ export default function EmployeeAccessPage() {
                 ),
               },
               { header: "Branch", cell: (e) => <span className="whitespace-nowrap">{branchName(e.branchId)}</span> },
-              { header: "Panel access", cell: (e) => <ModuleAccessChips role={e.rbacRole} allowedPanels={e.allowedPanels} /> },
+              { header: "Panel access", cell: (e) => <ModuleAccessChips role={e.rbacRole} panelAccess={e.panelAccess} allowedPanels={e.allowedPanels} /> },
               { header: "Status", cell: (e) => <EmployeeStatusPill status={e.status} /> },
               ...(manage
                 ? [

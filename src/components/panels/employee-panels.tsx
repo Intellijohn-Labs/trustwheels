@@ -6,7 +6,7 @@ import { Camera, Check, Building2, CalendarDays, Loader2, Mail, MessageCircle, P
 import { BRANCHES, branchName } from "@/lib/masters";
 import { formatIsoDate } from "@/lib/format";
 import { uploadEmployeePhoto } from "@/lib/employee-media";
-import { PANEL_MODULES, ROLE_ORDER, ROLES, effectivePermissions, roleDefaultPanels, type PanelModule, type Role } from "@/lib/rbac";
+import { PANELS, PANEL_GROUPS, ROLE_ORDER, ROLES, effectivePermissions, resolvePanels, roleDefaultPanels, type LegacyPanelModule, type PanelKey, type Role } from "@/lib/rbac";
 import { EMPLOYEE_STATUS_LABEL, addEmployee, employeeErrors, isManagingPartner, updateEmployee, type Employee, type EmployeeInput, type EmployeeStatus } from "@/lib/hr";
 import { Button, Field, cn, inputClass } from "../ui";
 import { Dialog, useInlineAction } from "./dialog";
@@ -91,25 +91,21 @@ function EmployeePhotoInput({ value, onChange }: { value?: string; onChange: (ur
   );
 }
 
-/** Read-only checklist of the modules a role (with this employee's own overrides, if any) actually unlocks - derived live from rbac.ts, so it can never drift from what the app really enforces. */
-export function ModuleAccessChips({ role, allowedPanels }: { role?: Role; allowedPanels?: PanelModule[] }) {
-  const permissions = role ? effectivePermissions(role, allowedPanels) : [];
+/** Read-only summary of the panels this person can actually open - derived live from rbac.ts (role defaults plus their own picks), so it can never drift from what the app enforces. */
+export function ModuleAccessChips({ role, panelAccess, allowedPanels }: { role?: Role; panelAccess?: PanelKey[]; allowedPanels?: LegacyPanelModule[] }) {
+  if (!role) return <span className="text-xs text-faint">No system login</span>;
+  const permissions = effectivePermissions(role, resolvePanels(role, panelAccess, allowedPanels));
+  const open = PANELS.filter((m) => permissions.includes(m.permission));
+  const shown = open.slice(0, 4);
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {PANEL_MODULES.map((m) => {
-        const allowed = permissions.includes(m.permission);
-        return (
-          <span
-            key={m.key}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium",
-              allowed ? "bg-ok-soft text-ok" : "bg-sunken text-faint line-through decoration-1",
-            )}
-          >
-            {m.label}
-          </span>
-        );
-      })}
+    <div className="flex max-w-xs flex-wrap gap-1.5" title={open.map((m) => m.label).join(", ") || "No panels"}>
+      {shown.map((m) => (
+        <span key={m.key} className="rounded-full bg-ok-soft px-2.5 py-1 text-xs font-medium whitespace-nowrap text-ok">
+          {m.label}
+        </span>
+      ))}
+      {open.length > shown.length && <span className="rounded-full bg-sunken px-2.5 py-1 text-xs font-medium text-muted">+{open.length - shown.length} more</span>}
+      {open.length === 0 && <span className="rounded-full bg-sunken px-2.5 py-1 text-xs font-medium text-faint">No panels</span>}
     </div>
   );
 }
@@ -145,32 +141,44 @@ function BranchMultiSelect({ selected, onChange, invalid }: { selected: string[]
 }
 
 /**
- * Interactive per-employee panel toggles for the Add/Edit form. Starts from the selected system
- * role's defaults and lets the admin flip any panel on or off from there - the result is saved as
- * this employee's explicit `allowedPanels` override, taking effect the moment they sign in.
+ * Interactive per-employee panel toggles for the Add/Edit form, grouped like the sidebar. Starts from
+ * the selected system role's defaults and lets the admin flip any panel on or off from there - the
+ * result is saved as this employee's `panelAccess`, taking effect the moment they sign in.
  */
-function ModuleAccessToggles({ selected, onChange, disabled }: { selected: PanelModule[]; onChange: (next: PanelModule[]) => void; disabled?: boolean }) {
-  const toggle = (key: PanelModule) => onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
+function ModuleAccessToggles({ selected, onChange, onReset, disabled }: { selected: PanelKey[]; onChange: (next: PanelKey[]) => void; onReset: () => void; disabled?: boolean }) {
+  const toggle = (key: PanelKey) => onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {PANEL_MODULES.map((m) => {
-        const on = selected.includes(m.key);
-        return (
-          <button
-            key={m.key}
-            type="button"
-            disabled={disabled}
-            aria-pressed={on}
-            onClick={() => toggle(m.key)}
-            className={cn(
-              "btn-tap inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60",
-              on ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
-            )}
-          >
-            {on && <Check className="size-3" />} {m.label}
-          </button>
-        );
-      })}
+    <div className="space-y-3">
+      {PANEL_GROUPS.map((group) => (
+        <div key={group}>
+          <p className="mb-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">{group}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PANELS.filter((m) => m.group === group).map((m) => {
+              const on = selected.includes(m.key);
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={on}
+                  onClick={() => toggle(m.key)}
+                  className={cn(
+                    "btn-tap inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60",
+                    on ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
+                  )}
+                >
+                  {on && <Check className="size-3" />} {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {!disabled && (
+        <button type="button" onClick={onReset} className="text-xs font-medium text-brand hover:underline">
+          Reset to this role&apos;s defaults
+        </button>
+      )}
     </div>
   );
 }
@@ -181,7 +189,13 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
   const { employees } = useEmployees();
   const [form, setForm] = useState<EmployeeInput>(() =>
     employee
-      ? { ...employee, branchIds: employee.branchIds ?? (employee.branchId ? [employee.branchId] : []), allowedPanels: employee.allowedPanels ?? roleDefaultPanels(employee.rbacRole) }
+      ? {
+          ...employee,
+          branchIds: employee.branchIds ?? (employee.branchId ? [employee.branchId] : []),
+          // Records from before per-panel access carry the five-module `allowedPanels`; carry that across here.
+          panelAccess: employee.rbacRole ? (resolvePanels(employee.rbacRole, employee.panelAccess, employee.allowedPanels) ?? roleDefaultPanels(employee.rbacRole)) : undefined,
+          allowedPanels: undefined,
+        }
       : blank(today),
   );
   const [submitted, setSubmitted] = useState(false);
@@ -269,7 +283,7 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
             disabled={isProtectedHead}
             onChange={(e) => {
               const rbacRole = (e.target.value || undefined) as Role | undefined;
-              setForm((f) => ({ ...f, rbacRole, allowedPanels: roleDefaultPanels(rbacRole) }));
+              setForm((f) => ({ ...f, rbacRole, panelAccess: rbacRole ? roleDefaultPanels(rbacRole) : undefined }));
             }}
             className={cn(inputClass(), isProtectedHead && "cursor-not-allowed opacity-60")}
           >
@@ -287,8 +301,15 @@ export function EmployeeFormDialog({ employee, onClose }: { employee?: Employee;
             <p className="text-xs text-muted">Managing Partner always has full access to every panel - this can&apos;t be restricted.</p>
           ) : (
             <>
-              <p className="mb-2 text-xs text-muted">Starts from the role&apos;s defaults above - toggle any panel on or off for this person specifically.</p>
-              <ModuleAccessToggles selected={form.allowedPanels ?? []} onChange={(allowedPanels) => set("allowedPanels", allowedPanels)} disabled={!form.rbacRole} />
+              <p className="mb-2 text-xs text-muted">
+                {form.rbacRole ? "Starts from the role's defaults above - switch any panel on or off for this person specifically." : "Choose a system login role first - its default panels are selected for you."}
+              </p>
+              <ModuleAccessToggles
+                selected={form.panelAccess ?? []}
+                onChange={(panelAccess) => set("panelAccess", panelAccess)}
+                onReset={() => set("panelAccess", roleDefaultPanels(form.rbacRole))}
+                disabled={!form.rbacRole}
+              />
             </>
           )}
         </div>

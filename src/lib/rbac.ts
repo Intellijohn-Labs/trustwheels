@@ -18,6 +18,7 @@ export type Role =
   | "hr";
 
 export const PERMISSIONS = [
+  "dashboard.view",
   "stock.view",
   "stock.create",
   "stock.verify",
@@ -84,37 +85,38 @@ export const ROLES: Record<Role, RoleDef> = {
   partner: {
     label: "Partner",
     description: "Branch admin / investor for the assigned branches.",
-    permissions: ["stock.view", "stock.create", "sales.view", "funds.view", "reports.view"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "sales.view", "funds.view", "reports.view"],
     scope: ["b1", "b2"],
   },
   branch_manager: {
     label: "Branch Manager",
     description: "Acquisition, documents, dispatch to Angamaly, transit tracking.",
-    permissions: ["stock.view", "stock.create", "stock.verify", "transit.view", "transit.dispatch"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "stock.verify", "transit.view", "transit.dispatch"],
     scope: ["b1", "b3"],
   },
   branch_accountant: {
     label: "Branch Accountant",
     description: "Purchase values, seller payments, amounts due from Angamaly.",
-    permissions: ["stock.view", "stock.create", "payments.view", "purchase.enter"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "payments.view", "purchase.enter"],
     scope: ["b1"],
   },
   hub_admin: {
     label: "Administration (Angamaly)",
     description: "Receives vehicles, checks identity against dispatch, books into stock.",
-    permissions: ["stock.view", "stock.create", "stock.verify", "transit.view", "hub.receive"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "stock.verify", "transit.view", "hub.receive"],
     scope: "all",
   },
   supervisor: {
     label: "Supervisor (Reconditioning)",
     description: "Job cards, costing, repair photos, completion sign-off, RED count.",
-    permissions: ["recon.view", "recon.manage"],
+    permissions: ["dashboard.view", "recon.view", "recon.manage"],
     scope: "all",
   },
   gate_manager: {
     label: "Manager (Angamaly Gatekeeper)",
     description: "Final delivery release, SLA and Code Red monitoring.",
     permissions: [
+      "dashboard.view",
       "stock.view",
       "stock.create",
       "stock.verify",
@@ -131,25 +133,25 @@ export const ROLES: Record<Role, RoleDef> = {
   sales_executive: {
     label: "Sales Executive",
     description: "Enquiries, Day 2/3/4 follow-ups, bookings and booking documents.",
-    permissions: ["stock.view", "stock.create", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "sales.view", "sale.book", "sale.docs", "delivery.view", "delivery.transfer", "delivery.handover", "leads.view", "leads.manage"],
     scope: "all",
   },
   telecaller: {
     label: "Telecaller",
     description: "Outbound call lists, dispositions, callbacks, campaigns.",
-    permissions: ["calls.view", "calls.manage"],
+    permissions: ["dashboard.view", "calls.view", "calls.manage"],
     scope: "all",
   },
   central_accountant: {
     label: "Central Accountant",
     description: "Seller payouts, RTO fees, and the customer-facing sales accounts ledger.",
-    permissions: ["stock.view", "stock.create", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
+    permissions: ["dashboard.view", "stock.view", "stock.create", "payments.view", "payout.approve", "fees.view", "fees.manage", "accounts.view", "accounts.manage"],
     scope: "all",
   },
   hr: {
     label: "HR / Admin",
     description: "Employees, attendance, leave, shift roster, payroll input.",
-    permissions: ["hr.view", "hr.manage", "settings.manage"],
+    permissions: ["dashboard.view", "hr.view", "hr.manage", "settings.manage"],
     scope: "all",
   },
 };
@@ -194,38 +196,81 @@ export function inScope(role: Role, branchId: string) {
 }
 
 /*
- * Per-employee panel overrides (Employee & Access page). Each module maps to the one permission
- * that gates its whole section - blocking that permission is enough to hide the section from the
- * sidebar and refuse the route, without having to enumerate every finer-grained action permission
- * the role also holds for that area (e.g. stock.create, recon.manage stay with the role).
+ * Per-employee panel access (Employees & Access). One entry per sidebar panel; each maps to the
+ * one permission that gates it, so withholding that permission is enough to hide the panel from
+ * the sidebar and refuse its route, without enumerating the finer-grained action permissions the
+ * role also holds for that area (e.g. recon.manage stays with the role). Panels share no
+ * permission, so each can be toggled on its own.
  */
-export const PANEL_MODULES = [
-  { key: "stock", label: "Stock", permission: "stock.view" },
-  { key: "recon", label: "Reconditioning", permission: "recon.view" },
-  { key: "sales", label: "Sales", permission: "sales.view" },
-  { key: "accounts", label: "Accounts", permission: "accounts.view" },
-  { key: "attendance", label: "Attendance", permission: "attendance.view" },
-] as const satisfies { key: string; label: string; permission: Permission }[];
+export type PanelGroup = "Overview" | "Stock & hub" | "Sales & finance";
 
-export type PanelModule = (typeof PANEL_MODULES)[number]["key"];
+export const PANEL_GROUPS: PanelGroup[] = ["Overview", "Stock & hub", "Sales & finance"];
 
-/** Which of the 5 panel modules a role gets by default, i.e. before any per-employee override. */
-export function roleDefaultPanels(role?: Role): PanelModule[] {
+export const PANELS = [
+  { key: "dashboard", label: "Dashboard", group: "Overview", permission: "dashboard.view" },
+  { key: "escalations", label: "Escalations", group: "Overview", permission: "escalations.view" },
+  { key: "reports", label: "Reports", group: "Overview", permission: "reports.view" },
+  { key: "attendance_log", label: "Attendance Log", group: "Overview", permission: "attendance.view" },
+  { key: "employees_access", label: "Employees & Access", group: "Overview", permission: "staff.manage" },
+  { key: "activity_log", label: "Activity Log", group: "Overview", permission: "audit.view" },
+  { key: "all_stock", label: "All Stock", group: "Stock & hub", permission: "stock.view" },
+  { key: "add_stock", label: "Add Stock", group: "Stock & hub", permission: "stock.create" },
+  { key: "doc_verification", label: "Document Verification", group: "Stock & hub", permission: "stock.verify" },
+  { key: "transit", label: "Transit", group: "Stock & hub", permission: "transit.view" },
+  { key: "receiving", label: "Receiving", group: "Stock & hub", permission: "hub.receive" },
+  { key: "reconditioning", label: "Reconditioning", group: "Stock & hub", permission: "recon.view" },
+  { key: "book_sell", label: "Book & Sell", group: "Sales & finance", permission: "sales.view" },
+  { key: "enquiries", label: "Enquiries", group: "Sales & finance", permission: "leads.view" },
+  { key: "deliveries", label: "Deliveries", group: "Sales & finance", permission: "delivery.view" },
+  { key: "customer_accounts", label: "Accounts", group: "Sales & finance", permission: "accounts.view" },
+] as const satisfies { key: string; label: string; group: PanelGroup; permission: Permission }[];
+
+export type PanelKey = (typeof PANELS)[number]["key"];
+
+/** Which panels a role gets by default, i.e. before any per-employee override. */
+export function roleDefaultPanels(role?: Role): PanelKey[] {
   if (!role) return [];
-  return PANEL_MODULES.filter((m) => can(role, m.permission)).map((m) => m.key);
+  return PANELS.filter((m) => can(role, m.permission)).map((m) => m.key);
+}
+
+/**
+ * The first version of this override covered five coarse modules, stored as `allowedPanels`.
+ * Records that still carry it keep working: each old module maps onto the panel that carried the
+ * same permission, and everything else stays as the role has it.
+ */
+export type LegacyPanelModule = "stock" | "recon" | "sales" | "accounts" | "attendance";
+
+const LEGACY_PANELS: [LegacyPanelModule, PanelKey][] = [
+  ["stock", "all_stock"],
+  ["recon", "reconditioning"],
+  ["sales", "book_sell"],
+  ["accounts", "customer_accounts"],
+  ["attendance", "attendance_log"],
+];
+
+/** An employee's explicit panel set: their `panelAccess`, else their old `allowedPanels` carried across, else undefined (never customized). */
+export function resolvePanels(role: Role, panelAccess?: PanelKey[], legacy?: LegacyPanelModule[]): PanelKey[] | undefined {
+  if (panelAccess) return panelAccess;
+  if (!legacy) return undefined;
+  const panels = new Set<PanelKey>(roleDefaultPanels(role));
+  for (const [oldKey, newKey] of LEGACY_PANELS) {
+    if (legacy.includes(oldKey)) panels.add(newKey);
+    else panels.delete(newKey);
+  }
+  return [...panels];
 }
 
 /**
  * A role's permissions, overridden by an employee's explicit panel picks when they have any:
- * a module they toggled ON is granted even if their base role never had it, and a module they
+ * a panel they toggled ON is granted even if their base role never had it, and a panel they
  * toggled OFF is withheld even if the role normally includes it. `undefined` (never customized)
  * falls back to the role's own permission set untouched.
  */
-export function effectivePermissions(role: Role, allowedPanels?: PanelModule[]): readonly Permission[] {
+export function effectivePermissions(role: Role, panels?: PanelKey[]): readonly Permission[] {
   const base = ROLES[role].permissions;
-  if (!allowedPanels) return base;
-  const blocked = new Set<Permission>(PANEL_MODULES.filter((m) => !allowedPanels.includes(m.key)).map((m) => m.permission));
-  const granted = PANEL_MODULES.filter((m) => allowedPanels.includes(m.key)).map((m) => m.permission);
+  if (!panels) return base;
+  const blocked = new Set<Permission>(PANELS.filter((m) => !panels.includes(m.key)).map((m) => m.permission));
+  const granted = PANELS.filter((m) => panels.includes(m.key)).map((m) => m.permission);
   return [...new Set([...base.filter((p) => !blocked.has(p)), ...granted])];
 }
 
@@ -247,7 +292,7 @@ export interface RouteDef {
 }
 
 export const ROUTES: RouteDef[] = [
-  { path: "/dashboard", label: "Dashboard", group: "Overview", icon: "LayoutDashboard", anyOf: [] },
+  { path: "/dashboard", label: "Dashboard", group: "Overview", icon: "LayoutDashboard", anyOf: ["dashboard.view"] },
   { path: "/escalations", label: "Escalations", group: "Overview", icon: "Siren", anyOf: ["escalations.view"] },
   { path: "/reports", label: "Reports", group: "Overview", icon: "ChartColumn", anyOf: ["reports.view"] },
   { path: "/attendance-log", label: "Attendance Log", group: "Overview", icon: "MapPin", anyOf: ["attendance.view"] },
