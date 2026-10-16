@@ -7,7 +7,9 @@ import { ROLES } from "@/lib/rbac";
 import { useRole } from "@/lib/role-context";
 import { activeEmployeeCount, deleteEmployee, deleteEmployees, isManagingPartner, EMPLOYEE_STATUS_LABEL, MAX_EMPLOYEES, type Employee, type EmployeeStatus } from "@/lib/hr";
 import { DataTable } from "@/components/data-table";
-import { Button, PageHeader, Panel, Pill, Segmented, cn, inputClass } from "@/components/ui";
+import { EmployeeIdCard } from "@/components/employees/employee-id-card";
+import { useEmployeeView, type EmployeeView } from "@/lib/use-employee-view";
+import { Button, EmptyState, PageHeader, Panel, Pill, Segmented, cn, inputClass } from "@/components/ui";
 import { BranchSelect, EmployeeCell, EmployeeStatusPill, useEmployees } from "@/components/panels/hr-bits";
 import { EmployeeFormDialog, ModuleAccessChips } from "@/components/panels/employee-panels";
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
@@ -31,6 +33,7 @@ export default function EmployeeAccessPage() {
   const [branch, setBranch] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("active");
   const [editing, setEditing] = useState<Employee | "new">();
+  const [view, setView] = useEmployeeView();
   const label = (e: Employee) => `${e.name} · ${e.role}`;
 
   const q = query.trim().toLowerCase();
@@ -89,13 +92,26 @@ export default function EmployeeAccessPage() {
         </div>
         <BranchSelect value={branch} onChange={setBranch} />
       </div>
-      <div className="overflow-x-auto sm:max-w-xl">
-        <Segmented<StatusFilter>
-          name="Employee status"
-          value={status}
-          onChange={setStatus}
-          options={(["active", "on_notice", "exited", "all"] as StatusFilter[]).map((s) => ({ value: s, label: `${s === "all" ? "All" : s === "on_notice" ? "Notice" : EMPLOYEE_STATUS_LABEL[s]} ${count(s)}` }))}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-full overflow-x-auto sm:w-[36rem]">
+          <Segmented<StatusFilter>
+            name="Employee status"
+            value={status}
+            onChange={setStatus}
+            options={(["active", "on_notice", "exited", "all"] as StatusFilter[]).map((s) => ({ value: s, label: `${s === "all" ? "All" : s === "on_notice" ? "Notice" : EMPLOYEE_STATUS_LABEL[s]} ${count(s)}` }))}
+          />
+        </div>
+        <div className="w-full sm:w-72">
+          <Segmented<EmployeeView>
+            name="View"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "table", label: "Table view" },
+              { value: "cards", label: "ID cards view" },
+            ]}
+          />
+        </div>
       </div>
 
       {manage && selection.count > 0 && (
@@ -112,6 +128,31 @@ export default function EmployeeAccessPage() {
         />
       )}
 
+      {view === "cards" && (
+        ready &&
+        (rows.length === 0 ? (
+          <Panel flush>
+            <EmptyState>No employees match these filters.</EmptyState>
+          </Panel>
+        ) : (
+          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {rows.map((e) => (
+              <li key={e.id}>
+                <EmployeeIdCard
+                  employee={e}
+                  manage={manage}
+                  selected={selection.isSelected(e.id)}
+                  onSelect={() => selection.toggle(e.id)}
+                  onEdit={() => setEditing(e)}
+                  onDelete={() => setConfirmDelete({ ids: [e.id], labels: [label(e)] })}
+                />
+              </li>
+            ))}
+          </ul>
+        ))
+      )}
+
+      {view === "table" && (
       <Panel flush>
         {ready && (
           <DataTable
@@ -174,6 +215,7 @@ export default function EmployeeAccessPage() {
           />
         )}
       </Panel>
+      )}
 
       {editing && <EmployeeFormDialog employee={editing === "new" ? undefined : editing} onClose={() => setEditing(undefined)} />}
       {confirmDelete && (

@@ -892,3 +892,79 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
     display: none;
   }
 }
+
+/* ---- Employee ID badges (components/employees/employee-id-card.tsx) ---------------------------
+   Light: a clean white card with a gradient trim in the person's role colour and a soft shadow.
+   Dark: a glass badge (translucent slate over a blur) with a role-coloured edge and glow. The role
+   colour is set inline as --emp / --emp-2. */
+.emp-badge {
+  --emp: #2563eb;
+  --emp-2: #60a5fa;
+  position: relative;
+  border-radius: 1.5rem;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(145deg, var(--emp), var(--emp-2)) border-box;
+  box-shadow:
+    0 14px 34px -16px rgb(15 23 42 / 0.28),
+    0 2px 8px rgb(15 23 42 / 0.07);
+  transition:
+    transform 300ms ease-in-out,
+    box-shadow 300ms ease-in-out;
+}
+.emp-badge:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 22px 44px -16px color-mix(in srgb, var(--emp) 45%, rgb(15 23 42 / 0.3)),
+    0 3px 10px rgb(15 23 42 / 0.09);
+}
+.emp-top {
+  height: 0.4rem;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: linear-gradient(90deg, var(--emp), var(--emp-2));
+}
+.emp-hole {
+  background: var(--page);
+  box-shadow:
+    inset 0 1px 3px rgb(15 23 42 / 0.35),
+    0 1px 0 rgb(255 255 255 / 0.6);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .emp-badge {
+    background: rgb(15 23 42 / 0.8);
+    border: 1px solid color-mix(in srgb, var(--emp) 38%, rgb(30 41 59));
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 0 28px -10px color-mix(in srgb, var(--emp) 45%, transparent),
+      0 10px 30px -14px rgb(0 0 0 / 0.6);
+  }
+  :root:not([data-theme="light"]) .emp-badge:hover {
+    box-shadow:
+      0 0 38px -8px color-mix(in srgb, var(--emp) 65%, transparent),
+      0 16px 36px -14px rgb(0 0 0 / 0.65);
+  }
+  :root:not([data-theme="light"]) .emp-hole {
+    background: #020617;
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.7);
+  }
+}
+:root[data-theme="dark"] .emp-badge {
+  background: rgb(15 23 42 / 0.8);
+  border: 1px solid color-mix(in srgb, var(--emp) 38%, rgb(30 41 59));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 28px -10px color-mix(in srgb, var(--emp) 45%, transparent),
+    0 10px 30px -14px rgb(0 0 0 / 0.6);
+}
+:root[data-theme="dark"] .emp-badge:hover {
+  box-shadow:
+    0 0 38px -8px color-mix(in srgb, var(--emp) 65%, transparent),
+    0 16px 36px -14px rgb(0 0 0 / 0.65);
+}
+:root[data-theme="dark"] .emp-hole {
+  background: #020617;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.7);
+}
