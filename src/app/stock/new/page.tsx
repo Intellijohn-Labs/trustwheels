@@ -126,6 +126,7 @@ function validate(f: FormState): Errors {
   else if (owners > MAX_OWNERS) e.owners = `Can't be more than ${MAX_OWNERS}`;
   if (!f.odometerKm) e.odometerKm = "Required";
   if (f.fuel === "petrol" && !f.engineCc) e.engineCc = "Required";
+  else if (f.engineCc && !(Number.isFinite(Number(f.engineCc)) && Number(f.engineCc) > 0)) e.engineCc = "Enter a number greater than 0";
   if (f.chassisNo.length < 6) e.chassisNo = f.chassisNo ? "Too short" : "Required";
   if (f.engineNo.length < 5) e.engineNo = f.engineNo ? "Too short" : "Required";
   need("financeStatus");
@@ -386,9 +387,12 @@ export default function NewVehiclePage() {
         <Field label={form.fuel === "electric" ? "Motor (W)" : "Engine CC"} htmlFor="cc" required={form.fuel !== "electric"} error={show("engineCc")}>
           <input
             id="cc"
-            inputMode="numeric"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
             value={form.engineCc}
-            onChange={(e) => set("engineCc", digits(e.target.value, 5))}
+            onChange={(e) => set("engineCc", e.target.value)}
             onBlur={touch("engineCc")}
             placeholder={form.fuel === "electric" ? "e.g. 3300" : "e.g. 125"}
             className={inputClass(!!show("engineCc"))}
