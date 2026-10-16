@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState, type TouchEvent } from "react";
-import { CalendarDays, MapPin, Minus, Plus, RotateCcw, Search, Spade, X } from "lucide-react";
+import { CalendarDays, ChevronDown, Layers, MapPin, Minus, Plus, RotateCcw, Search, X } from "lucide-react";
 import { DeckCard } from "@/components/deck/deck-card";
 import { DossierDialog } from "@/components/deck/dossier-dialog";
-import { EmptyState, PageHeader, Segmented, cn, inputClass } from "@/components/ui";
+import { EmptyState, PageHeader, Segmented, cn } from "@/components/ui";
 import { DECK_STATUS_ORDER, DECK_THEMES, deckStatus, type DeckStatus } from "@/lib/deck";
 import { displayReg } from "@/lib/format";
 import { BRANCHES } from "@/lib/masters";
@@ -16,6 +16,9 @@ import { currentBranchId } from "@/lib/workflow";
 import type { Vehicle } from "@/lib/types";
 
 const PAGE_SIZE = 24;
+
+/** The filter toolbar's shared look: one 40px height for the search, both selects and the date inputs. */
+const FILTER = "h-10 w-full rounded-xl border border-line-strong bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 type DatePreset = "all" | "today" | "yesterday" | "week" | "month" | "custom";
 
@@ -135,16 +138,15 @@ export default function StockDeckPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        icon={<Spade className="size-6 text-brand" />}
+        icon={<Layers className="size-6 text-brand" />}
         title="Stock Deck"
         description="Every vehicle as a playing card. Click a card to flip it for its status and specs, click again for the full dossier and files."
       />
 
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_minmax(0,14rem)]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+        <div className="flex w-full flex-wrap items-center gap-3">
+          <div className="relative max-sm:w-full min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
             <input
               type="search"
               aria-label="Search the deck"
@@ -152,12 +154,12 @@ export default function StockDeckPage() {
               onChange={(e) => changed(setQuery)(e.target.value)}
               placeholder="Search by name, registration or stock ID"
               autoComplete="off"
-              className={cn(inputClass(), "pl-10")}
+              className={cn(FILTER, "pr-3 pl-10")}
             />
           </div>
-          <div className="relative">
-            <MapPin className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-            <select aria-label="Hub or branch" value={branch} onChange={(e) => changed(setBranch)(e.target.value)} className={cn(inputClass(), "pl-10")}>
+          <div className="relative w-auto min-w-[180px] max-sm:w-full">
+            <MapPin className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+            <select aria-label="Hub or branch" value={branch} onChange={(e) => changed(setBranch)(e.target.value)} className={cn(FILTER, "cursor-pointer appearance-none pr-9 pl-10")}>
               <option value="all">All hubs / branches</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -165,9 +167,10 @@ export default function StockDeckPage() {
                 </option>
               ))}
             </select>
+            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
           </div>
-          <div className="relative">
-            <CalendarDays className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+          <div className="relative w-auto min-w-[150px] max-sm:w-full">
+            <CalendarDays className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
             <select
               aria-label="Stock added date"
               value={preset}
@@ -180,7 +183,7 @@ export default function StockDeckPage() {
                 }
                 setShown(PAGE_SIZE);
               }}
-              className={cn(inputClass(), "pl-10")}
+              className={cn(FILTER, "cursor-pointer appearance-none pr-9 pl-10")}
             >
               {DATE_PRESETS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -189,55 +192,55 @@ export default function StockDeckPage() {
                 </option>
               ))}
             </select>
+            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
           </div>
-        </div>
 
-        <div className="ml-auto flex items-center gap-2 max-sm:w-full" role="group" aria-label="Card size">
-          <div className="hidden items-center gap-1 rounded-xl border border-line-strong bg-surface p-1 sm:flex">
-            <button
-              type="button"
-              onClick={() => stepZoom(-1)}
-              disabled={zoomIdx === 0}
-              aria-label="Zoom out: smaller cards, more per row"
-              title="Zoom out"
-              className="btn-tap grid size-9 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
-            >
-              <Minus className="size-4" />
-            </button>
-            <span className="min-w-20 text-center text-xs font-semibold text-muted" aria-live="polite">
-              {ZOOM_LABEL[zoom]}
-            </span>
-            <button
-              type="button"
-              onClick={() => stepZoom(1)}
-              disabled={zoomIdx === ZOOM_LEVELS.length - 1}
-              aria-label="Zoom in: larger cards, fewer per row"
-              title="Zoom in"
-              className="btn-tap grid size-9 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
-            >
-              <Plus className="size-4" />
-            </button>
-            {zoom !== "normal" && (
-              <button type="button" onClick={() => setZoom("normal")} aria-label="Reset card size" title="Reset" className="btn-tap grid size-9 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-ink">
-                <RotateCcw className="size-4" />
+          <div className="flex shrink-0 items-center gap-2 max-sm:w-full" role="group" aria-label="Card size">
+            <div className="hidden h-10 items-center gap-1 rounded-xl border border-line-strong bg-surface p-1 sm:flex">
+              <button
+                type="button"
+                onClick={() => stepZoom(-1)}
+                disabled={zoomIdx === 0}
+                aria-label="Zoom out: smaller cards, more per row"
+                title="Zoom out"
+                className="btn-tap grid size-8 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
+              >
+                <Minus className="size-4" />
               </button>
-            )}
+              <span className="min-w-[4.5rem] text-center text-xs font-semibold text-muted" aria-live="polite">
+                {ZOOM_LABEL[zoom]}
+              </span>
+              <button
+                type="button"
+                onClick={() => stepZoom(1)}
+                disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+                aria-label="Zoom in: larger cards, fewer per row"
+                title="Zoom in"
+                className="btn-tap grid size-8 place-items-center rounded-lg text-ink hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent"
+              >
+                <Plus className="size-4" />
+              </button>
+              {zoom !== "normal" && (
+                <button type="button" onClick={() => setZoom("normal")} aria-label="Reset card size" title="Reset" className="btn-tap grid size-8 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-ink">
+                  <RotateCcw className="size-4" />
+                </button>
+              )}
+            </div>
+            <div className="w-full sm:hidden">
+              <Segmented<DeckZoom> name="Card size" value={zoom} onChange={setZoom} options={ZOOM_LEVELS.map((z) => ({ value: z, label: ZOOM_LABEL[z] }))} />
+            </div>
           </div>
-          <div className="w-full sm:hidden">
-            <Segmented<DeckZoom> name="Card size" value={zoom} onChange={setZoom} options={ZOOM_LEVELS.map((z) => ({ value: z, label: ZOOM_LABEL[z] }))} />
-          </div>
-        </div>
         </div>
 
         {preset === "custom" && (
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               From
-              <input type="date" value={from} max={to || undefined} onChange={(e) => changed(setFrom)(e.target.value)} className={cn(inputClass(), "w-44")} />
+              <input type="date" value={from} max={to || undefined} onChange={(e) => changed(setFrom)(e.target.value)} className={cn(FILTER, "w-44 px-3")} />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-muted">
               To
-              <input type="date" value={to} min={from || undefined} onChange={(e) => changed(setTo)(e.target.value)} className={cn(inputClass(), "w-44")} />
+              <input type="date" value={to} min={from || undefined} onChange={(e) => changed(setTo)(e.target.value)} className={cn(FILTER, "w-44 px-3")} />
             </label>
           </div>
         )}

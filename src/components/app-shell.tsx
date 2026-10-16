@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   KeyRound,
   Landmark,
+  Layers,
   LayoutDashboard,
   LayoutList,
   Megaphone,
@@ -28,7 +29,6 @@ import {
   Settings,
   ShieldCheck,
   Siren,
-  Spade,
   TriangleAlert,
   Truck,
   UserCog,
@@ -71,7 +71,7 @@ const SETTINGS_PATHS = ["/settings", "/team", "/branches"];
 // later (parent effects fire after child effects) and would win, undoing it.
 const BARE = ["/", "/login", "/signup", "/forgot-password", "/reset-password"];
 
-const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, Spade, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
+const ICONS: Record<string, LucideIcon> = { ArrowLeftRight, BadgeCheck, Bike, BookOpen, Building2, CalendarCheck, CalendarRange, ChartColumn, FileSpreadsheet, KeyRound, Landmark, Layers, LayoutDashboard, LayoutList, MapPin, Megaphone, PackageCheck, PhoneCall, PiggyBank, Plane, Plus, ShieldCheck, Siren, TriangleAlert, Truck, UserCog, UserPlus, Users, Wallet, Wrench };
 
 function RouteIcon({ name, className }: { name: string; className?: string }) {
   const Icon = ICONS[name] ?? Circle;

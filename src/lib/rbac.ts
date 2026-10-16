@@ -311,7 +311,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/transit", label: "Transit", group: "Stock & hub", icon: "Truck", anyOf: ["transit.view"] },
   { path: "/receiving", label: "Receiving", group: "Stock & hub", icon: "PackageCheck", anyOf: ["hub.receive"] },
   { path: "/recon", label: "Reconditioning", group: "Stock & hub", icon: "Wrench", anyOf: ["recon.view"] },
-  { path: "/stock/deck", label: "Stock Deck", group: "Stock & hub", icon: "Spade", anyOf: ["deck.view"], accent: "deck" },
+  { path: "/stock/deck", label: "Stock Deck", group: "Stock & hub", icon: "Layers", anyOf: ["deck.view"], accent: "deck" },
 
   { path: "/verified", label: "Book & sell", group: "Sales", icon: "BadgeCheck", anyOf: ["sales.view"] },
   { path: "/enquiries", label: "Enquiries", group: "Sales", icon: "UserPlus", anyOf: ["leads.view"] },
