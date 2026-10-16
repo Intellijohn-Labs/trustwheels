@@ -18,12 +18,13 @@ import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
-// RC book and seller KYC can be attached right at intake (insurance is not collected here).
+// RC book and seller KYC can be attached right at intake. Insurance has its own section below.
 // Forms 28/29/30 come later, during the ownership-transfer step (see the vehicle's Documents & vault panel).
 // Finance NOC is rendered separately below, gated on the "under finance" toggle - it doesn't apply
 // at all to a vehicle bought free and clear.
 const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "forms_2829" && d.type !== "finance_noc" && d.type !== "insurance");
 const FINANCE_NOC = DOCUMENT_TYPES.find((d) => d.type === "finance_noc")!;
+const INSURANCE_DOC = DOCUMENT_TYPES.find((d) => d.type === "insurance")!;
 
 interface FormState {
   branchId: string;
@@ -45,6 +46,8 @@ interface FormState {
   financier: string;
   nocSeal?: "yes" | "no";
   nocSign?: "yes" | "no";
+  hasInsurance?: "yes" | "no";
+  insuranceValidTill: string;
   rcKycMismatch: "yes" | "no";
   mismatchRemarks: string;
   rcPhoneWorking: "yes" | "no";
@@ -86,6 +89,7 @@ const EMPTY: FormState = {
   financier: "",
   frontTyrePercent: "",
   rearTyrePercent: "",
+  insuranceValidTill: "",
   rcKycMismatch: "no",
   mismatchRemarks: "",
   rcPhoneWorking: "yes",
@@ -149,6 +153,8 @@ function validate(f: FormState): Errors {
     need("nocSign", "Select Yes or No");
   }
   if (f.rcPhoneWorking === "no" && f.rcCurrentPhone && !MOBILE_RE.test(f.rcCurrentPhone)) e.rcCurrentPhone = "Enter a valid 10-digit mobile number";
+  need("hasInsurance", "Select Yes or No");
+  if (f.hasInsurance === "yes" && !f.insuranceValidTill) e.insuranceValidTill = "Select the insurance expiry date";
   need("hasChallan", "Select Yes or No");
   if (f.hasChallan === "yes") {
     if (!f.challanAmount || Number(f.challanAmount) <= 0) e.challanAmount = "Enter the challan amount";
@@ -202,6 +208,15 @@ export default function NewVehiclePage() {
   const setHasChallan = (v: "yes" | "no") =>
     setForm((f) => (v === "yes" ? { ...f, hasChallan: v } : { ...f, hasChallan: v, challanAmount: "", challanReceived: undefined }));
 
+  // "No" drops the expiry date and any insurance copy already uploaded.
+  const setHasInsurance = (v: "yes" | "no") =>
+    setForm((f) => {
+      if (v === "yes") return { ...f, hasInsurance: v };
+      const documents = { ...f.documents };
+      delete documents.insurance;
+      return { ...f, hasInsurance: v, insuranceValidTill: "", documents };
+    });
+
   const setMismatch = (v: "yes" | "no") => setForm((f) => ({ ...f, rcKycMismatch: v, mismatchRemarks: v === "yes" ? f.mismatchRemarks : "" }));
 
   const setRcPhoneWorking = (v: "yes" | "no") => setForm((f) => ({ ...f, rcPhoneWorking: v, rcCurrentPhone: v === "no" ? f.rcCurrentPhone : "" }));
@@ -251,7 +266,8 @@ export default function NewVehiclePage() {
         fileName: d.fileName,
         uploadedAt: new Date().toISOString(),
         uploadedBy: user.name,
-        expiresAt: d.expiresAt,
+        // The insurance expiry comes from the "Valid till" field, so the vault can flag it once it lapses.
+        expiresAt: type === "insurance" ? form.insuranceValidTill || undefined : d.expiresAt,
       }));
       vehicle = await createVehicle({
         // The Source field was removed from this form, but createVehicle's `source` is still
@@ -279,6 +295,8 @@ export default function NewVehiclePage() {
         nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
         nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
+        hasInsurance: form.hasInsurance!,
+        insuranceValidTill: form.hasInsurance === "yes" && form.insuranceValidTill ? form.insuranceValidTill : undefined,
         rcKycMismatch: form.rcKycMismatch,
         mismatchRemarks: form.rcKycMismatch === "yes" && form.mismatchRemarks.trim() ? form.mismatchRemarks.trim() : undefined,
         rcPhoneWorking: form.rcPhoneWorking,
@@ -675,6 +693,39 @@ export default function NewVehiclePage() {
           )}
         </div>
       </section>
+
+      <Section title="Insurance">
+        <Field label="Insurance available?" required error={show("hasInsurance")} wide>
+          <Segmented
+            name="Insurance available"
+            value={form.hasInsurance}
+            onChange={setHasInsurance}
+            options={[
+              { value: "no", label: "No" },
+              { value: "yes", label: "Yes" },
+            ]}
+          />
+        </Field>
+        {form.hasInsurance === "yes" && (
+          <>
+            <Field label="Insurance valid till" htmlFor="ins-date" required error={show("insuranceValidTill")}>
+              <input
+                id="ins-date"
+                type="date"
+                value={form.insuranceValidTill}
+                onChange={(e) => set("insuranceValidTill", e.target.value)}
+                onBlur={touch("insuranceValidTill")}
+                className={inputClass(!!show("insuranceValidTill"))}
+              />
+            </Field>
+            <DocumentUploadSlot
+              label={INSURANCE_DOC.label}
+              value={form.documents.insurance}
+              onChange={(value) => setForm((f) => ({ ...f, documents: { ...f.documents, insurance: value } }))}
+            />
+          </>
+        )}
+      </Section>
 
       <Section title="Challan">
         <Field label="Challan pending / amount pending?" required error={show("hasChallan")} wide>

@@ -158,6 +158,7 @@ function VehicleDetail() {
         <Card title="Insurance & finance">
           <Specs
             rows={[
+              ["Insurance", v.hasInsurance === "yes" ? "Yes" : v.hasInsurance === "no" ? "No" : "—"],
               ["Insurance till", v.insuranceValidTill ? formatIsoDate(v.insuranceValidTill) : "—"],
               ["Policy no.", v.insurancePolicyNo || "—"],
               ["Finance", v.financeStatus === "financed" ? `Under finance · ${v.financier}` : "Free"],

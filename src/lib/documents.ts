@@ -63,9 +63,9 @@ export function isDocumentRequiredFor(dt: { type: DocumentType; required: boolea
   if (dt.type === "finance_noc") {
     return vehicle.financeStatus === "financed";
   }
-  // 2. Insurance certificate is ONLY required if insurance validity date or policy no is provided
+  // 2. Insurance certificate is ONLY required if the vehicle has insurance (or a validity date / policy no is on file)
   if (dt.type === "insurance") {
-    return Boolean(vehicle.insuranceValidTill || vehicle.insurancePolicyNo);
+    return vehicle.hasInsurance === "yes" || Boolean(vehicle.insuranceValidTill || vehicle.insurancePolicyNo);
   }
   return dt.required;
 }

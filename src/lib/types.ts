@@ -55,6 +55,7 @@ export interface Vehicle {
   chassisNo: string;
   engineNo: string;
 
+  hasInsurance?: "yes" | "no";
   insuranceValidTill?: string; // YYYY-MM-DD
   insurancePolicyNo?: string; // no longer asked at intake; kept for older records
   financeStatus: FinanceStatus;
