@@ -6,10 +6,8 @@ import { Dialog } from "./dialog";
 import { Button, Field, cn, inputClass, textareaClass } from "../ui";
 import { useAction } from "../toast";
 import { BRANCHES } from "@/lib/masters";
-import { displayReg, formatDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { useRole } from "@/lib/role-context";
-import { salesExecutives } from "@/lib/user-names";
-import { useScopedVehicles } from "@/lib/scoped";
 import {
   FOLLOW_UP_OUTCOMES,
   LEAD_SOURCES,
@@ -32,31 +30,27 @@ const PHONE = /^[6-9]\d{9}$/;
 /** New enquiry: walk-in, phone, website or social. */
 export function EnquiryDialog({ onClose }: { onClose: () => void }) {
   const { inScope, user } = useRole();
-  const { vehicles } = useScopedVehicles();
-  const onDisplay = vehicles.filter((v) => v.stage === 10 && !v.sale);
   const branches = BRANCHES.filter((b) => inScope(b.id));
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [source, setSource] = useState<LeadSource>("walk_in");
   const [branchId, setBranchId] = useState<string>(branches.find((b) => b.id === user.base)?.id ?? branches[0]?.id ?? "ang");
-  const [vehicleId, setVehicleId] = useState("");
   const [interest, setInterest] = useState("");
-  const [assignedTo, setAssignedTo] = useState(salesExecutives().includes(user.name) ? user.name : salesExecutives()[0]);
   const [submitted, setSubmitted] = useState(false);
   const { run, busy } = useAction();
 
   const errors = {
     name: name.trim() ? undefined : "Required",
     phone: PHONE.test(phone) ? undefined : phone ? "Enter a 10-digit mobile number" : "Required",
-    interest: vehicleId || interest.trim() ? undefined : "Pick a vehicle or describe what they want",
+    interest: interest.trim() ? undefined : "Required",
   };
   const show = (k: keyof typeof errors) => (submitted ? errors[k] : undefined);
 
   async function submit() {
     setSubmitted(true);
     if (Object.values(errors).some(Boolean)) return;
-    const ok = await run(() => addLead({ name, phone, source, branchId, vehicleId: vehicleId || undefined, interest, assignedTo }), `Enquiry added · day 2 call due tomorrow`);
+    const ok = await run(() => addLead({ name, phone, source, branchId, interest }), `Enquiry added · day 2 call due tomorrow`);
     if (ok) onClose();
   }
 
@@ -114,31 +108,16 @@ export function EnquiryDialog({ onClose }: { onClose: () => void }) {
             </select>
           </Field>
         </div>
-        <Field label="Vehicle of interest" htmlFor="lead-vehicle" hint="Vehicles on display, not yet booked">
-          <select id="lead-vehicle" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className={inputClass()}>
-            <option value="">Not a specific vehicle</option>
-            {onDisplay.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.make} {v.model} {v.year} · {displayReg(v.registrationNo)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={vehicleId ? "Notes (budget, exchange…)" : "Looking for"} htmlFor="lead-interest" required={!vehicleId} error={show("interest")}>
+        <Field label="Vehicle interested" htmlFor="lead-interest" required error={show("interest")}>
           <input
             id="lead-interest"
+            type="text"
             value={interest}
             onChange={(e) => setInterest(e.target.value)}
-            placeholder="e.g. 125cc scooter under ₹70,000"
+            autoComplete="off"
+            placeholder="e.g. Pulsar 150, Activa..."
             className={inputClass(!!show("interest"))}
           />
-        </Field>
-        <Field label="Assigned to" htmlFor="lead-exec">
-          <select id="lead-exec" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={inputClass()}>
-            {salesExecutives().map((n) => (
-              <option key={n}>{n}</option>
-            ))}
-          </select>
         </Field>
       </div>
     </Dialog>

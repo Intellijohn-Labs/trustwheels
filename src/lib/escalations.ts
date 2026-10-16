@@ -152,7 +152,7 @@ export function followUpEscalations(overdue: { lead: Lead; day: number; closesAt
     kind: "follow_up" as const,
     severity: "critical" as const,
     title: `Day ${day} call missed · ${lead.name}`,
-    detail: `${lead.interest || "Enquiry"} · assigned to ${lead.assignedTo}; window closed ${formatDuration(now - closesAt)} ago`,
+    detail: `${lead.interest || "Enquiry"}${lead.assignedTo ? ` · assigned to ${lead.assignedTo}` : ""}; window closed ${formatDuration(now - closesAt)} ago`,
     href: "/enquiries",
     overdueMs: now - closesAt,
     owner: lead.assignedTo,

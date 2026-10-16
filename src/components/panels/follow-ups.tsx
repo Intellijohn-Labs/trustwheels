@@ -103,7 +103,7 @@ export function FollowUpsTable({ kind, limit, title }: { kind: "due" | "overdue"
         </span>
       ),
     },
-    { header: "Assigned to", cell: (r) => <span className="whitespace-nowrap">{r.lead.assignedTo}</span> },
+    { header: "Assigned to", cell: (r) => <span className="whitespace-nowrap">{r.lead.assignedTo || "Unassigned"}</span> },
   ];
   if (can("leads.manage"))
     columns.push({

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChartColumn, Clock, Plus, Siren, Trash2, UserPlus } from "lucide-react";
 import { DataTable, type Column } from "@/components/data-table";
-import { Button, PageHeader, Panel, Pill, Segmented } from "@/components/ui";
+import { Button, PageHeader, Panel, Pill } from "@/components/ui";
 import { EnquiryDialog, LogCallDialog, StageDialog } from "@/components/panels/lead-dialogs";
 import { FollowUpChips, FollowUpsTable, LeadCell, nextCallText } from "@/components/panels/follow-ups";
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
@@ -11,31 +11,20 @@ import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "
 import { formatDateTime } from "@/lib/format";
 import { useRole } from "@/lib/role-context";
 import { useNow } from "@/lib/use-now";
-import { conversionBy, deleteLead, deleteLeads, isOpenLead, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead } from "@/lib/leads";
-
-type Filter = "open" | "booked" | "lost" | "all";
-
-const FILTERS: { value: Filter; label: string; test: (l: Lead) => boolean }[] = [
-  { value: "open", label: "Open", test: isOpenLead },
-  { value: "booked", label: "Booked", test: (l) => l.stage === "booked" },
-  { value: "lost", label: "Lost", test: (l) => l.stage === "lost" },
-  { value: "all", label: "All", test: () => true },
-];
+import { conversionBy, deleteLead, deleteLeads, stageLabel, useScopedLeads, type ConversionRow, type FollowUpDay, type Lead } from "@/lib/leads";
 
 export default function EnquiriesPage() {
   const { can } = useRole();
   const { leads, ready } = useScopedLeads();
   const now = useNow(30_000);
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<Filter>("open");
   const [logging, setLogging] = useState<{ lead: Lead; day: FollowUpDay }>();
   const [staging, setStaging] = useState<Lead>();
   const manage = can("leads.manage");
   const canDelete = can("leads.delete");
   const label = (l: Lead) => `${l.name} · ${l.phone}`;
 
-  const current = FILTERS.find((f) => f.value === filter)!;
-  const rows = leads.filter(current.test).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const rows = [...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const selection = useSelection(rows, (l) => l.id);
   const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; labels: string[] } | null>(null);
 
@@ -76,7 +65,7 @@ export default function EnquiriesPage() {
         );
       },
     },
-    { header: "Assigned to", cell: (l) => <span className="whitespace-nowrap">{l.assignedTo}</span> },
+    { header: "Assigned to", cell: (l) => <span className="whitespace-nowrap">{l.assignedTo || "Unassigned"}</span> },
   ];
   if (manage || canDelete)
     columns.push({
@@ -153,9 +142,6 @@ export default function EnquiriesPage() {
           </span>
         }
       >
-        <div className="border-b border-line p-3 sm:max-w-md">
-          <Segmented name="Filter enquiries" value={filter} onChange={setFilter} options={FILTERS.map((f) => ({ value: f.value, label: `${f.label} ${leads.filter(f.test).length}` }))} />
-        </div>
         <DataTable columns={columns} rows={rows} rowKey={(l) => l.id} empty={ready ? "No enquiries here." : "Loading…"} />
       </Panel>
 

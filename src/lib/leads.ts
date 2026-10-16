@@ -164,7 +164,7 @@ export function conversionBy(leads: Lead[], keyOf: (l: Lead) => string): Convers
   return [...groups.entries()]
     .map(([key, ls]) => {
       const booked = ls.filter((l) => l.stage === "booked").length;
-      return { key, label: key, leads: ls.length, booked, rate: ls.length ? booked / ls.length : 0 };
+      return { key, label: key || "Unassigned", leads: ls.length, booked, rate: ls.length ? booked / ls.length : 0 };
     })
     .sort((a, b) => b.leads - a.leads);
 }
@@ -219,7 +219,8 @@ async function createLead(input: NewLead) {
     branchId: input.branchId,
     vehicleId: input.vehicleId || undefined,
     interest: input.interest.trim(),
-    assignedTo: input.assignedTo ?? (salesExecutives().includes(actor.name) ? actor.name : salesExecutives()[0]),
+    // Enquiries are no longer assigned on the form: the creator owns it if they are a sales executive, else the first one (blank if none exist).
+    assignedTo: input.assignedTo ?? (salesExecutives().includes(actor.name) ? actor.name : (salesExecutives()[0] ?? "")),
     createdAt: new Date().toISOString(),
     stage: "new",
     followUps: [],
