@@ -12,23 +12,27 @@ export type DeckStatus = "verification_pending" | "in_stock" | "in_transit" | "r
 
 export interface DeckTheme {
   label: string;
-  /** The status colour at its most vivid (chips, dots), a light tint of it for glows and highlights, then the card body's gradient from top (bg1) to bottom (bg2). White type sits on the body, so the shades are chosen to keep it readable. */
+  /** The status colour at its most vivid (chips, dots), a light tint of it, then the light-mode card body's gradient from top (bg1) to bottom (bg2). White type sits on the body, so the shades are chosen to keep it readable. */
   accent: string;
   accent2: string;
   bg1: string;
   bg2: string;
+  /** Dark mode: a very dark tint of the status colour (the card surface), its neon accent (border, glow, dot) and a mid-dark tint for the stat tiles. */
+  darkFrom: string;
+  darkAccent: string;
+  darkTile: string;
 }
 
 export const DECK_THEMES: Record<DeckStatus, DeckTheme> = {
-  verification_pending: { label: "Verification pending", accent: "#d97706", accent2: "#fde68a", bg1: "#c9660a", bg2: "#9a4509" },
-  in_stock: { label: "Verified · at branch", accent: "#2563eb", accent2: "#bfdbfe", bg1: "#2563eb", bg2: "#1d4ed8" },
-  in_transit: { label: "In transit", accent: "#0891b2", accent2: "#a5f3fc", bg1: "#0b86a8", bg2: "#075985" },
-  receiving: { label: "Receiving", accent: "#4f46e5", accent2: "#c7d2fe", bg1: "#4f46e5", bg2: "#4338ca" },
-  reconditioning: { label: "In reconditioning", accent: "#7c3aed", accent2: "#ddd6fe", bg1: "#7c3aed", bg2: "#6d28d9" },
-  evaluation: { label: "Sale review", accent: "#ea580c", accent2: "#fed7aa", bg1: "#dc4f0b", bg2: "#b53a0a" },
-  ready_for_sale: { label: "Ready for sale", accent: "#059669", accent2: "#a7f3d0", bg1: "#059669", bg2: "#047857" },
-  rejected: { label: "Rejected stock", accent: "#475569", accent2: "#cbd5e1", bg1: "#475569", bg2: "#334155" },
-  sold: { label: "Booked / sold", accent: "#dc2626", accent2: "#fecaca", bg1: "#dc2626", bg2: "#b91c1c" },
+  verification_pending: { label: "Verification pending", accent: "#d97706", accent2: "#fde68a", bg1: "#c9660a", bg2: "#9a4509", darkFrom: "#451a03", darkAccent: "#f59e0b", darkTile: "#78350f" },
+  in_stock: { label: "Verified · at branch", accent: "#2563eb", accent2: "#bfdbfe", bg1: "#2563eb", bg2: "#1d4ed8", darkFrom: "#172554", darkAccent: "#3b82f6", darkTile: "#1e3a8a" },
+  in_transit: { label: "In transit", accent: "#0891b2", accent2: "#a5f3fc", bg1: "#0b86a8", bg2: "#075985", darkFrom: "#083344", darkAccent: "#06b6d4", darkTile: "#164e63" },
+  receiving: { label: "Receiving", accent: "#4f46e5", accent2: "#c7d2fe", bg1: "#4f46e5", bg2: "#4338ca", darkFrom: "#1e1b4b", darkAccent: "#6366f1", darkTile: "#312e81" },
+  reconditioning: { label: "In reconditioning", accent: "#7c3aed", accent2: "#ddd6fe", bg1: "#7c3aed", bg2: "#6d28d9", darkFrom: "#3b0764", darkAccent: "#a855f7", darkTile: "#581c87" },
+  evaluation: { label: "Sale review", accent: "#ea580c", accent2: "#fed7aa", bg1: "#dc4f0b", bg2: "#b53a0a", darkFrom: "#431407", darkAccent: "#f97316", darkTile: "#7c2d12" },
+  ready_for_sale: { label: "Ready for sale", accent: "#059669", accent2: "#a7f3d0", bg1: "#059669", bg2: "#047857", darkFrom: "#022c22", darkAccent: "#10b981", darkTile: "#064e3b" },
+  rejected: { label: "Rejected stock", accent: "#475569", accent2: "#cbd5e1", bg1: "#475569", bg2: "#334155", darkFrom: "#0f172a", darkAccent: "#64748b", darkTile: "#1e293b" },
+  sold: { label: "Booked / sold", accent: "#dc2626", accent2: "#fecaca", bg1: "#dc2626", bg2: "#b91c1c", darkFrom: "#450a0a", darkAccent: "#ef4444", darkTile: "#7f1d1d" },
 };
 
 /** Display order for the filter chips (roughly the vehicle's journey). */

@@ -18,7 +18,7 @@ const addedOn = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day
 function Bike() {
   return (
     <div className="relative grid place-items-center">
-      <div className="absolute rounded-full blur-2xl" style={{ width: "58cqw", height: "58cqw", background: "radial-gradient(circle, rgb(255 255 255 / 0.4), transparent 70%)" }} aria-hidden />
+      <div className="absolute rounded-full blur-2xl" style={{ width: "58cqw", height: "58cqw", background: "radial-gradient(circle, var(--deck-halo), transparent 70%)" }} aria-hidden />
       <svg
         viewBox="0 0 200 120"
         fill="none"
@@ -26,7 +26,7 @@ function Bike() {
         strokeLinecap="round"
         strokeLinejoin="round"
         className="relative"
-        style={{ width: "62cqw", filter: "drop-shadow(0 0 1.4cqw rgb(255 255 255 / 0.55))" }}
+        style={{ width: "62cqw", filter: "drop-shadow(0 0 1.4cqw var(--deck-bike-glow))" }}
         aria-hidden
       >
         {[45, 155].map((cx) => (
@@ -75,7 +75,7 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
   const transit = status === "in_transit" && d && !v.receipt;
   const left = transit ? transitRemainingMs(v, now) : 0;
 
-  const style = { "--deck": theme.accent, "--deck-2": theme.accent2, "--deck-bg1": theme.bg1, "--deck-bg2": theme.bg2 } as CSSProperties;
+  const style = { "--deck": theme.accent, "--deck-2": theme.accent2, "--deck-bg1": theme.bg1, "--deck-bg2": theme.bg2, "--deck-d-from": theme.darkFrom, "--deck-d-accent": theme.darkAccent, "--deck-d-tile": theme.darkTile } as CSSProperties;
 
   return (
     <div className="deck-scene" style={style}>
@@ -84,7 +84,7 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
           {/* FRONT */}
           <div className="deck-face deck-front" aria-hidden={flipped}>
             <span className="deck-pill pointer-events-none absolute top-[7cqw] left-1/2 inline-flex -translate-x-1/2 items-center gap-[1.6cqw] rounded-full px-[3.4cqw] py-[1.3cqw] font-bold tracking-wider whitespace-nowrap uppercase" style={cq(3.9)}>
-              <span className="rounded-full" style={{ width: "2.2cqw", height: "2.2cqw", background: "#fff", boxShadow: "0 0 1.6cqw rgb(255 255 255 / 0.9)" }} />
+              <span className="rounded-full" style={{ width: "2.2cqw", height: "2.2cqw", background: "var(--deck-dot)", boxShadow: "0 0 1.6cqw var(--deck-dot-glow)" }} />
               {deckStatusLabel(v, status)}
             </span>
 
@@ -98,7 +98,7 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
                   {v.variant || "Standard"}
                 </p>
               </div>
-              <span className="rounded-full border border-white/20 bg-black/40 px-[4cqw] py-[1.2cqw] font-mono font-bold tracking-wider text-white" style={cq(5.4)}>
+              <span className="deck-plate rounded-full px-[4cqw] py-[1.2cqw] font-mono font-bold tracking-wider text-white" style={cq(5.4)}>
                 {displayReg(v.registrationNo) || "NO REG"}
               </span>
               <p className="deck-added font-medium text-white/85" style={cq(4.6)}>
@@ -125,7 +125,7 @@ export function DeckCard({ vehicle: v, now, onOpen }: { vehicle: Vehicle; now: n
               <div className="flex items-start justify-between gap-[2cqw]">
                 <div className="min-w-0">
                   <span className="deck-pill inline-flex items-center gap-[1.6cqw] rounded-full px-[3.4cqw] py-[1.3cqw] font-bold tracking-wider uppercase" style={cq(4.2)}>
-                    <span className="rounded-full" style={{ width: "2.2cqw", height: "2.2cqw", background: "#fff", boxShadow: "0 0 1.6cqw rgb(255 255 255 / 0.9)" }} />
+                    <span className="rounded-full" style={{ width: "2.2cqw", height: "2.2cqw", background: "var(--deck-dot)", boxShadow: "0 0 1.6cqw var(--deck-dot-glow)" }} />
                     {deckStatusLabel(v, status)}
                   </span>
                   <p className="mt-[2.6cqw] truncate font-extrabold" style={cq(6.8)}>

@@ -692,12 +692,39 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
    Same 3D rules as the Ace Card: both faces are hidden when turned away (backface-visibility plus
    the -webkit- prefix), every wrapper preserves 3D, the back is pre-rotated 180deg, and the faces
    carry no overflow or backdrop-filter. Sizes use container units (cqw), so a card's type scales
-   with its own width. The back's colour comes from --deck* variables set per status. */
+   with its own width.
+   Looks come from variables, one set per theme, so the front and back always share a palette and a
+   flip can't change it. The per-status colours are set inline on the card: --deck-bg1/2 (light
+   mode's vivid gradient) and --deck-d-from/accent/tile (dark mode's tinted surface and neon). */
 .deck-scene {
   --deck: #34d399;
   --deck-2: #6ee7b7;
   --deck-bg1: #04382b;
   --deck-bg2: #02130f;
+  --deck-d-from: #022c22;
+  --deck-d-accent: #10b981;
+  --deck-d-tile: #064e3b;
+
+  /* Light: a vivid status-coloured card, lit from the top, with a soft coloured shadow. */
+  --deck-face-bg:
+    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.22), transparent 60%),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.045) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
+    linear-gradient(165deg, var(--deck-bg1) 0%, var(--deck-bg2) 100%);
+  --deck-face-border: rgb(255 255 255 / 0.4);
+  --deck-face-inner: rgb(255 255 255 / 0.35);
+  --deck-face-shadow: 0 1.4cqw 3.4cqw color-mix(in srgb, var(--deck-bg2) 55%, transparent), 0 0.3cqw 0.7cqw rgb(0 0 0 / 0.22);
+  --deck-face-shadow-hover: 0 2.6cqw 5cqw color-mix(in srgb, var(--deck-bg2) 65%, transparent), 0 0.4cqw 0.9cqw rgb(0 0 0 / 0.25);
+  --deck-tile-bg: linear-gradient(180deg, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.13));
+  --deck-tile-border: rgb(0 0 0 / 0.14);
+  --deck-pill-bg: rgb(0 0 0 / 0.25);
+  --deck-pill-border: rgb(255 255 255 / 0.35);
+  --deck-plate-bg: #0f172a;
+  --deck-plate-border: rgb(255 255 255 / 0.18);
+  --deck-dot: #fff;
+  --deck-dot-glow: rgb(255 255 255 / 0.9);
+  --deck-halo: rgb(255 255 255 / 0.4);
+  --deck-bike-glow: rgb(255 255 255 / 0.55);
+
   container-type: inline-size;
   aspect-ratio: 5 / 7;
   perspective: 1400px;
@@ -705,6 +732,49 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   cursor: pointer;
   border-radius: 5cqw;
   outline: none;
+}
+/* Dark: a deep tinted surface over slate-950, with a neon border and a status glow. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .deck-scene {
+    --deck-face-bg:
+      radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--deck-d-accent) 14%, transparent), transparent 60%),
+      linear-gradient(to bottom, color-mix(in srgb, var(--deck-d-from) 80%, transparent), rgb(2 6 23 / 0.95)),
+      #020617;
+    --deck-face-border: color-mix(in srgb, var(--deck-d-accent) 50%, transparent);
+    --deck-face-inner: color-mix(in srgb, var(--deck-d-accent) 22%, transparent);
+    --deck-face-shadow: 0 0 10cqw -2cqw color-mix(in srgb, var(--deck-d-accent) 30%, transparent), 0 1.4cqw 3cqw rgb(0 0 0 / 0.5);
+    --deck-face-shadow-hover: 0 0 14cqw -1cqw color-mix(in srgb, var(--deck-d-accent) 55%, transparent), 0 2cqw 4cqw rgb(0 0 0 / 0.55);
+    --deck-tile-bg: color-mix(in srgb, var(--deck-d-tile) 30%, transparent);
+    --deck-tile-border: color-mix(in srgb, var(--deck-d-accent) 20%, transparent);
+    --deck-pill-bg: color-mix(in srgb, var(--deck-d-tile) 50%, transparent);
+    --deck-pill-border: color-mix(in srgb, var(--deck-d-accent) 45%, transparent);
+    --deck-plate-bg: rgb(2 6 23 / 0.8);
+    --deck-plate-border: color-mix(in srgb, var(--deck-d-accent) 35%, transparent);
+    --deck-dot: var(--deck-d-accent);
+    --deck-dot-glow: var(--deck-d-accent);
+    --deck-halo: color-mix(in srgb, var(--deck-d-accent) 38%, transparent);
+    --deck-bike-glow: color-mix(in srgb, var(--deck-d-accent) 70%, transparent);
+  }
+}
+:root[data-theme="dark"] .deck-scene {
+  --deck-face-bg:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--deck-d-accent) 14%, transparent), transparent 60%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--deck-d-from) 80%, transparent), rgb(2 6 23 / 0.95)),
+    #020617;
+  --deck-face-border: color-mix(in srgb, var(--deck-d-accent) 50%, transparent);
+  --deck-face-inner: color-mix(in srgb, var(--deck-d-accent) 22%, transparent);
+  --deck-face-shadow: 0 0 10cqw -2cqw color-mix(in srgb, var(--deck-d-accent) 30%, transparent), 0 1.4cqw 3cqw rgb(0 0 0 / 0.5);
+  --deck-face-shadow-hover: 0 0 14cqw -1cqw color-mix(in srgb, var(--deck-d-accent) 55%, transparent), 0 2cqw 4cqw rgb(0 0 0 / 0.55);
+  --deck-tile-bg: color-mix(in srgb, var(--deck-d-tile) 30%, transparent);
+  --deck-tile-border: color-mix(in srgb, var(--deck-d-accent) 20%, transparent);
+  --deck-pill-bg: color-mix(in srgb, var(--deck-d-tile) 50%, transparent);
+  --deck-pill-border: color-mix(in srgb, var(--deck-d-accent) 45%, transparent);
+  --deck-plate-bg: rgb(2 6 23 / 0.8);
+  --deck-plate-border: color-mix(in srgb, var(--deck-d-accent) 35%, transparent);
+  --deck-dot: var(--deck-d-accent);
+  --deck-dot-glow: var(--deck-d-accent);
+  --deck-halo: color-mix(in srgb, var(--deck-d-accent) 38%, transparent);
+  --deck-bike-glow: color-mix(in srgb, var(--deck-d-accent) 70%, transparent);
 }
 .deck-scene:focus-visible {
   box-shadow: 0 0 0 0.9cqw var(--brand);
@@ -715,11 +785,11 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   height: 100%;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
-  transition: transform 300ms ease-out;
+  transition: transform 300ms ease-in-out;
 }
 .deck-scene:hover .deck-tilt,
 .deck-scene:focus-visible .deck-tilt {
-  transform: translateY(-1.6cqw) rotateX(2.5deg) rotateZ(-0.4deg);
+  transform: translateY(-2.4cqw) rotateX(2.5deg) rotateZ(-0.4deg);
 }
 .deck-card {
   position: relative;
@@ -738,9 +808,15 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   border-radius: 5cqw;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  box-shadow:
-    0 1.4cqw 3.4cqw color-mix(in srgb, var(--deck-bg2) 60%, transparent),
-    0 0.3cqw 0.7cqw rgb(0 0 0 / 0.25);
+  color: #fff;
+  background: var(--deck-face-bg);
+  border: 0.5cqw solid var(--deck-face-border);
+  box-shadow: var(--deck-face-shadow);
+  transition: box-shadow 300ms ease-in-out;
+}
+.deck-scene:hover .deck-face,
+.deck-scene:focus-visible .deck-face {
+  box-shadow: var(--deck-face-shadow-hover);
 }
 .deck-face::before {
   content: "";
@@ -748,41 +824,28 @@ a:hover > .logo-hover .tw-tread { animation: tw-spin-once 1s cubic-bezier(0.4, 0
   inset: 2.6cqw;
   border-radius: 3.2cqw;
   pointer-events: none;
+  border: 0.35cqw solid var(--deck-face-inner);
 }
 .deck-front {
   transform: rotateY(0deg);
-  color: #fff;
-  border: 0.5cqw solid rgb(255 255 255 / 0.4);
-  background:
-    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.2), transparent 60%),
-    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.045) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
-    linear-gradient(165deg, var(--deck-bg1) 0%, var(--deck-bg2) 100%);
-}
-.deck-front::before {
-  border: 0.35cqw solid rgb(255 255 255 / 0.35);
 }
 .deck-back {
   transform: rotateY(180deg);
-  color: #fff;
-  border: 0.5cqw solid rgb(255 255 255 / 0.4);
-  background:
-    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.2), transparent 60%),
-    repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.045) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
-    linear-gradient(165deg, var(--deck-bg1) 0%, var(--deck-bg2) 100%);
-}
-.deck-back::before {
-  border: 0.35cqw solid rgb(255 255 255 / 0.35);
 }
 .deck-pill {
-  border: 0.3cqw solid rgb(255 255 255 / 0.35);
-  background: rgb(0 0 0 / 0.28);
+  border: 0.3cqw solid var(--deck-pill-border);
+  background: var(--deck-pill-bg);
   color: #fff;
+}
+.deck-plate {
+  border: 0.3cqw solid var(--deck-plate-border);
+  background: var(--deck-plate-bg);
 }
 .deck-tile {
   border-radius: 2.4cqw;
   padding: 1.8cqw 2.4cqw;
-  border: 0.3cqw solid rgb(255 255 255 / 0.2);
-  background: linear-gradient(180deg, rgb(0 0 0 / 0.26), rgb(0 0 0 / 0.16));
+  border: 0.3cqw solid var(--deck-tile-border);
+  background: var(--deck-tile-bg);
 }
 
 /* ---- Stock Deck density (page: app/stock/deck) --------------------------------------------------
