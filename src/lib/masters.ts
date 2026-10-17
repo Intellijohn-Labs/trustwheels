@@ -60,7 +60,8 @@ export const DOCUMENT_TYPES: { type: DocumentType; label: string; required: bool
   { type: "rc_book_back", label: "RC Book (Back)", required: false, hasExpiry: false },
   { type: "insurance", label: "Insurance Certificate", required: true, hasExpiry: true },
   { type: "finance_noc", label: "Finance NOC", required: false, hasExpiry: true },
-  { type: "seller_kyc", label: "Seller KYC", required: true, hasExpiry: false },
+  // Stored as "seller_kyc" (what existing uploads use); it is shown as the seller's E-Aadhar.
+  { type: "seller_kyc", label: "E-Aadhar", required: true, hasExpiry: false },
 ];
 
 export function documentLabel(type: DocumentType) {

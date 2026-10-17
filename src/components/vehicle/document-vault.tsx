@@ -15,7 +15,7 @@ import type { Document, DocumentStatus, DocumentType, Vehicle } from "@/lib/type
 
 /*
  * Module 3: Document Attachment & Vault. Every mandatory document (RC, insurance,
- * seller KYC) must be uploaded and verified — not expired. This panel is where the branch team
+ * the seller's E-Aadhar) must be uploaded and verified — not expired. This panel is where the branch team
  * gets the checklist to zero out.
  */
 

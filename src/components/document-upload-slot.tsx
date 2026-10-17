@@ -16,6 +16,7 @@ export function DocumentUploadSlot({
   label,
   required,
   hasExpiry,
+  note,
   value,
   invalid,
   onChange,
@@ -23,6 +24,8 @@ export function DocumentUploadSlot({
   label: string;
   required?: boolean;
   hasExpiry?: boolean;
+  /** A short helper line under the label (e.g. why the document is compulsory). */
+  note?: string;
   value?: DocumentDraft;
   invalid?: boolean;
   onChange: (value: DocumentDraft | undefined) => void;
@@ -54,6 +57,7 @@ export function DocumentUploadSlot({
           <p className="text-sm font-medium">
             {label} {required && <span className="text-xs text-danger">*</span>}
           </p>
+          {note && <p className="text-[11px] leading-snug font-medium text-muted">{note}</p>}
           <p className="truncate text-xs text-muted">{value ? value.fileName : (error ?? "Not attached")}</p>
         </div>
       </div>

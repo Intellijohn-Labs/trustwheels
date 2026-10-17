@@ -172,7 +172,7 @@ export function dossierSections(v: Vehicle): DossierSection[] {
         "Challan",
         v.hasChallan === "yes" ? `Pending ${formatPaise(v.challanAmountPaise ?? 0)} · amount ${v.challanReceived === "yes" ? "received" : "not received"}` : v.hasChallan === "no" ? "None" : "—",
       ],
-      ["RC / KYC mismatch", v.rcKycMismatch === "yes" ? `Yes${v.mismatchRemarks ? ` · ${v.mismatchRemarks}` : ""}` : yesNo(v.rcKycMismatch)],
+      ["RC / E-Aadhar mismatch", v.rcKycMismatch === "yes" ? `Yes${v.mismatchRemarks ? ` · ${v.mismatchRemarks}` : ""}` : yesNo(v.rcKycMismatch)],
       ["RC phone working", v.rcPhoneWorking === "no" ? `No${v.rcCurrentPhone ? ` · now ${formatPhone(v.rcCurrentPhone)}` : ""}` : yesNo(v.rcPhoneWorking)],
     ],
   };

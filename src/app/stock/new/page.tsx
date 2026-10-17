@@ -17,7 +17,7 @@ import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
-// RC book and seller KYC can be attached right at intake. Insurance has its own section below.
+// RC book and the seller's E-Aadhar can be attached right at intake. Insurance has its own section below.
 // Finance NOC is rendered separately below, gated on the "under finance" toggle - it doesn't apply
 // at all to a vehicle bought free and clear.
 const INTAKE_DOCUMENT_TYPES = DOCUMENT_TYPES.filter((d) => d.type !== "finance_noc" && d.type !== "insurance");
@@ -623,6 +623,7 @@ export default function NewVehiclePage() {
               label={d.label}
               required={d.required}
               hasExpiry={d.hasExpiry}
+              note={d.type === "seller_kyc" ? "e-Aadhar is compulsory" : undefined}
               value={form.documents[d.type]}
               onChange={(value) => setForm((f) => ({ ...f, documents: { ...f.documents, [d.type]: value } }))}
             />
@@ -630,9 +631,9 @@ export default function NewVehiclePage() {
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
-          <Field label="Mismatch between RC Book & Seller KYC details?" wide>
+          <Field label="Mismatch between RC Book & E-Aadhar (especially name and address)?" wide>
             <Segmented
-              name="RC and KYC mismatch"
+              name="RC and E-Aadhar mismatch"
               value={form.rcKycMismatch}
               onChange={setMismatch}
               options={[
@@ -918,7 +919,7 @@ export default function NewVehiclePage() {
             />
           </div>
         </Field>
-        <Field label="Purchased value" htmlFor="value" required error={show("agreedValue")} hint="Seller KYC, bank details and deductions are captured in the acquisition step." wide>
+        <Field label="Purchased value" htmlFor="value" required error={show("agreedValue")} hint="E-Aadhar, bank details and deductions are captured in the acquisition step." wide>
           <div className="relative">
             <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">₹</span>
             <input
