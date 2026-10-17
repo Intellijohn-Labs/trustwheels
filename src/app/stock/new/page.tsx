@@ -15,6 +15,7 @@ import type { Document, DocumentType, FinanceStatus, Fuel, PhotoSlot } from "@/l
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
+import { DamagedSparesInput } from "@/components/damaged-spares-input";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
 
 // RC book and the seller's E-Aadhar can be attached right at intake. Insurance has its own section below.
@@ -51,6 +52,8 @@ interface FormState {
   hasChallan?: "yes" | "no";
   challanAmount: string; // whole rupees, digits only
   challanReceived?: "yes" | "no";
+  spareCondition: string;
+  damagedSparePhotos: string[];
   conditionNotes: string;
   frontTyrePercent: string;
   rearTyrePercent: string;
@@ -89,6 +92,8 @@ const EMPTY: FormState = {
   rcKycMismatch: "no",
   rcRegisteredPhone: "",
   challanAmount: "",
+  spareCondition: "",
+  damagedSparePhotos: [],
   conditionNotes: "",
   knownDefects: "",
   agreedValue: "",
@@ -339,6 +344,8 @@ export default function NewVehiclePage() {
         nocSeal: form.financeStatus === "financed" ? form.nocSeal : undefined,
         nocSign: form.financeStatus === "financed" ? form.nocSign : undefined,
         conditionNotes: form.conditionNotes.trim(),
+        spareCondition: form.spareCondition.trim() || undefined,
+        damagedSparePhotos: form.damagedSparePhotos.length ? form.damagedSparePhotos : undefined,
         hasInsurance: form.hasInsurance!,
         insuranceValidTill: form.hasInsurance === "yes" && form.insuranceValidTill ? form.insuranceValidTill : undefined,
         rcKycMismatch: form.rcKycMismatch,
@@ -840,6 +847,18 @@ export default function NewVehiclePage() {
               { value: "not_good", label: "Bad" },
             ]}
           />
+        </Field>
+        <Field label="Spare condition" htmlFor="spareCondition" wide>
+          <textarea
+            id="spareCondition"
+            value={form.spareCondition}
+            onChange={(e) => set("spareCondition", e.target.value)}
+            placeholder="Details of spare parts, condition, or missing accessories"
+            className={textareaClass()}
+          />
+        </Field>
+        <Field label="Damaged / Broken Spare Photos (Optional - Max 4)" wide>
+          <DamagedSparesInput value={form.damagedSparePhotos} onChange={(urls) => set("damagedSparePhotos", urls)} />
         </Field>
         <Field label="Condition notes" htmlFor="notes">
           <textarea id="notes" value={form.conditionNotes} onChange={(e) => set("conditionNotes", e.target.value)} placeholder="Paint, body, anything else worth noting…" className={textareaClass()} />

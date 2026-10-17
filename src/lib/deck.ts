@@ -85,6 +85,7 @@ export function dossierFiles(v: Vehicle): DossierFile[] {
     const url = v.photos[p.slot];
     if (url) files.push({ kind: "photo", group: "Intake photos", label: p.label, url, base: `Intake - ${p.label}` });
   }
+  (v.damagedSparePhotos ?? []).forEach((url, i) => files.push({ kind: "photo", group: "Damaged spare photos", label: `Damaged spare ${i + 1}`, url, base: `Damaged spare ${i + 1}` }));
   (v.recon?.photos ?? []).forEach((url, i) => files.push({ kind: "photo", group: "Reconditioning photos", label: `Recon photo ${i + 1}`, url, base: `Recon photo ${i + 1}` }));
 
   // Latest upload per type: known types in their usual order first, then any other type on record (e.g. retired ones).
@@ -192,6 +193,7 @@ export function dossierSections(v: Vehicle): DossierSection[] {
       ["Front tyre", v.frontTyrePercent != null ? `${v.frontTyrePercent}%` : "—"],
       ["Rear tyre", v.rearTyrePercent != null ? `${v.rearTyrePercent}%` : "—"],
       ["Battery", v.batteryStatus === "not_good" ? "Bad" : v.batteryStatus ? "Good" : "—"],
+      ["Spare condition", v.spareCondition || "—"],
       ["Condition notes", v.conditionNotes || "—"],
       ["Known defects", v.knownDefects || "—"],
     ],

@@ -66,7 +66,7 @@ export function DossierDialog({ vehicle: v, onClose }: { vehicle: Vehicle; onClo
   const status = deckStatus(v);
   const theme = DECK_THEMES[status];
   const files = dossierFiles(v);
-  const photoGroups = ["Intake photos", "Reconditioning photos"].map((g) => ({ g, items: files.filter((f) => f.group === g) })).filter((x) => x.items.length);
+  const photoGroups = ["Intake photos", "Damaged spare photos", "Reconditioning photos"].map((g) => ({ g, items: files.filter((f) => f.group === g) })).filter((x) => x.items.length);
   const documents = files.filter((f) => f.kind === "document");
   const downloadable = files.filter((f) => f.url);
   const [pack, setPack] = useState<{ done: number; total: number } | null>(null);

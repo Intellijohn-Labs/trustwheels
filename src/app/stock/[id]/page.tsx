@@ -187,6 +187,22 @@ function VehicleDetail() {
               ["Front tyre", v.frontTyrePercent != null ? `${v.frontTyrePercent}%` : "—"],
               ["Rear tyre", v.rearTyrePercent != null ? `${v.rearTyrePercent}%` : "—"],
               ["Battery", v.batteryStatus ? (v.batteryStatus === "good" ? "Good" : "Bad") : "—"],
+              ["Spare condition", v.spareCondition || "—"],
+              ...(v.damagedSparePhotos?.length
+                ? ([
+                    [
+                      "Damaged spares",
+                      <span key="dmg" className="flex flex-wrap gap-2">
+                        {v.damagedSparePhotos.map((src, i) => (
+                          <a key={i} href={src} target="_blank" rel="noreferrer" aria-label={`Open damaged spare photo ${i + 1}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element -- hosted or data-URL photo */}
+                            <img src={src} alt={`Damaged spare ${i + 1}`} className="size-14 rounded-lg border border-line object-cover" />
+                          </a>
+                        ))}
+                      </span>,
+                    ],
+                  ] as [string, React.ReactNode][])
+                : []),
               ["Notes", v.conditionNotes || "—"],
               ["Known defects", v.knownDefects || "—"],
             ]}

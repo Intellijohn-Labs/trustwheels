@@ -78,6 +78,10 @@ export interface Vehicle {
   rearTyrePercent?: number;
   paintPercent?: number;
   batteryStatus?: "good" | "not_good";
+  /** Free-text state of the spares (what is there, its condition, accessories missing). */
+  spareCondition?: string;
+  /** Up to 4 photos of damaged or broken spares. */
+  damagedSparePhotos?: string[];
   accidentHistory?: AccidentHistory; // no longer asked at intake; kept for older records
   knownDefects: string;
 
