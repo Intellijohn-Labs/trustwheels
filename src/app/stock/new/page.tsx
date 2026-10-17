@@ -13,7 +13,6 @@ import { couldBeReg, displayReg, formatIsoDate, groupIndian, isValidReg, normali
 import { newId } from "@/lib/collections";
 import type { Document, DocumentType, FinanceStatus, Fuel, PhotoSlot } from "@/lib/types";
 import { Field, Section, Segmented, inputClass, textareaClass } from "@/components/ui";
-import { ColourPicker } from "@/components/colour-picker";
 import { MonthPicker } from "@/components/month-picker";
 import { PhotoSlotInput } from "@/components/photo-slot";
 import { DocumentUploadSlot, type DocumentDraft } from "@/components/document-upload-slot";
@@ -170,7 +169,7 @@ function validate(f: FormState): Errors {
   else if (f.mfgMonth > THIS_MONTH) e.mfgMonth = "Can't be in the future";
   else if (f.mfgMonth < EARLIEST_MONTH) e.mfgMonth = `Can't be before ${EARLIEST_YEAR}`;
   need("fuel");
-  if (!f.colour.trim()) e.colour = "Pick a colour, or choose Other and type its name";
+  if (!f.colour.trim()) e.colour = REQUIRED;
   const owners = Number(f.owners);
   if (f.owners.trim() === "") e.owners = REQUIRED;
   else if (!Number.isInteger(owners) || owners < 1) e.owners = "Enter a whole number, 1 or more";
@@ -278,8 +277,7 @@ export default function NewVehiclePage() {
     const first = document.querySelector<HTMLElement>("[data-field-error]");
     if (!first) return;
     first.scrollIntoView({ behavior: "smooth", block: "center" });
-    // A field can mark the control that needs fixing (the custom-colour box), else the first control inside it.
-    (first.querySelector<HTMLElement>("[data-error-focus]") ?? first.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])"))?.focus({ preventScroll: true });
+    first.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button:not([disabled])")?.focus({ preventScroll: true });
   }, [attempt]);
 
   async function onSubmit(e: FormEvent) {
@@ -526,12 +524,10 @@ export default function NewVehiclePage() {
           />
         </Field>
         <Field label="Keys" htmlFor="keys">
-          <div className="grid grid-cols-4 gap-2 pt-0.5">
+          <div className="grid grid-cols-2 gap-2 pt-0.5">
             {[
-              { val: "0", display: "0" },
               { val: "1", display: "1" },
               { val: "2", display: "2" },
-              { val: "3", display: "3" },
             ].map((k) => {
               const active = form.keyCount === k.val;
               return (
@@ -549,7 +545,16 @@ export default function NewVehiclePage() {
         </Field>
 
         <Field label="Colour" htmlFor="colour" required error={show("colour")}>
-          <ColourPicker id="colour" value={form.colour} onChange={(v) => set("colour", v)} onBlur={touch("colour")} invalid={!!show("colour")} />
+          <input
+            id="colour"
+            type="text"
+            value={form.colour}
+            onChange={(e) => set("colour", e.target.value.slice(0, 40))}
+            onBlur={touch("colour")}
+            autoComplete="off"
+            placeholder="e.g. Matte Olive Green, Pearl White, Black"
+            className={inputClass(!!show("colour"))}
+          />
         </Field>
         <Field label="No. of owners" htmlFor="owners" required error={show("owners")}>
           <input

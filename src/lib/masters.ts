@@ -36,23 +36,6 @@ export const MAKES: Record<string, string[]> = {
   Ola: ["S1 Pro", "S1 Air"],
 };
 
-/** Common colour names offered on the Add Stock form. Anything else is typed in under "Other". */
-export const COLOUR_NAMES = [
-  "White",
-  "Black",
-  "Silver",
-  "Grey",
-  "Red",
-  "Blue",
-  "Brown",
-  "Green",
-  "Yellow",
-  "Orange",
-  "Maroon",
-  "Gold",
-  "Beige",
-];
-
 /** Best-effort make lookup from a bare model name (e.g. "Splendor" -> "Hero"), for quick manual entries that only capture the model. */
 export function inferMakeFromModel(model: string): string {
   const q = model.trim().toLowerCase();
