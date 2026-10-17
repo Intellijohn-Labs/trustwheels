@@ -47,7 +47,6 @@ interface FormState {
   hasInsurance?: "yes" | "no";
   insuranceValidTill: string;
   rcKycMismatch: "yes" | "no";
-  mismatchRemarks: string;
   rcPhoneWorking: "yes" | "no";
   rcCurrentPhone: string;
   hasChallan?: "yes" | "no";
@@ -89,7 +88,6 @@ const EMPTY: FormState = {
   rearTyrePercent: "",
   insuranceValidTill: "",
   rcKycMismatch: "no",
-  mismatchRemarks: "",
   rcPhoneWorking: "yes",
   rcCurrentPhone: "",
   challanAmount: "",
@@ -249,8 +247,6 @@ export default function NewVehiclePage() {
       return { ...f, hasInsurance: v, insuranceValidTill: "", documents };
     });
 
-  const setMismatch = (v: "yes" | "no") => setForm((f) => ({ ...f, rcKycMismatch: v, mismatchRemarks: v === "yes" ? f.mismatchRemarks : "" }));
-
   const setRcPhoneWorking = (v: "yes" | "no") => setForm((f) => ({ ...f, rcPhoneWorking: v, rcCurrentPhone: v === "no" ? f.rcCurrentPhone : "" }));
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -345,7 +341,6 @@ export default function NewVehiclePage() {
         hasInsurance: form.hasInsurance!,
         insuranceValidTill: form.hasInsurance === "yes" && form.insuranceValidTill ? form.insuranceValidTill : undefined,
         rcKycMismatch: form.rcKycMismatch,
-        mismatchRemarks: form.rcKycMismatch === "yes" && form.mismatchRemarks.trim() ? form.mismatchRemarks.trim() : undefined,
         rcPhoneWorking: form.rcPhoneWorking,
         rcCurrentPhone: form.rcPhoneWorking === "no" && form.rcCurrentPhone ? form.rcCurrentPhone : undefined,
         hasChallan: form.hasChallan!,
@@ -635,27 +630,13 @@ export default function NewVehiclePage() {
             <Segmented
               name="RC and E-Aadhar mismatch"
               value={form.rcKycMismatch}
-              onChange={setMismatch}
+              onChange={(v) => set("rcKycMismatch", v)}
               options={[
                 { value: "no", label: "No" },
                 { value: "yes", label: "Yes" },
               ]}
             />
           </Field>
-          {form.rcKycMismatch === "yes" && (
-            <div className="mt-3">
-              <Field label="Mismatch reason / remarks" htmlFor="mismatchRemarks" hint="Optional - briefly say what differs, e.g. name spelling or address.">
-                <textarea
-                  id="mismatchRemarks"
-                  value={form.mismatchRemarks}
-                  onChange={(e) => set("mismatchRemarks", e.target.value.slice(0, 300))}
-                  maxLength={300}
-                  placeholder="e.g. RC shows the previous owner's name"
-                  className={textareaClass()}
-                />
-              </Field>
-            </div>
-          )}
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
