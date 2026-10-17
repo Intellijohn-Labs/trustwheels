@@ -200,12 +200,14 @@ function VehicleDetail() {
               ["Branch", branchName(v.branchId)],
               ["Seller", v.seller.name],
               [
-                "RC phone working",
-                v.rcPhoneWorking === "no"
-                  ? `No${v.rcCurrentPhone ? ` · now +91 ${v.rcCurrentPhone.slice(0, 5)} ${v.rcCurrentPhone.slice(5)}` : ""}`
-                  : v.rcPhoneWorking === "yes"
-                    ? "Yes"
-                    : "—",
+                "RC registered phone",
+                v.rcRegisteredPhone
+                  ? formatPhone(v.rcRegisteredPhone)
+                  : v.rcPhoneWorking === "no" // older records
+                    ? `Not active${v.rcCurrentPhone ? ` · now ${formatPhone(v.rcCurrentPhone)}` : ""}`
+                    : v.rcPhoneWorking === "yes"
+                      ? "Active"
+                      : "—",
               ],
               ["RC / E-Aadhar mismatch", v.rcKycMismatch === "yes" ? `Yes${v.mismatchRemarks ? ` · ${v.mismatchRemarks}` : ""}` : v.rcKycMismatch === "no" ? "No" : "—"],
               ["Mobile", `+91 ${v.seller.phone.slice(0, 5)} ${v.seller.phone.slice(5)}`],

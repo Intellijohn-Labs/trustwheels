@@ -47,8 +47,7 @@ interface FormState {
   hasInsurance?: "yes" | "no";
   insuranceValidTill: string;
   rcKycMismatch: "yes" | "no";
-  rcPhoneWorking: "yes" | "no";
-  rcCurrentPhone: string;
+  rcRegisteredPhone: string;
   hasChallan?: "yes" | "no";
   challanAmount: string; // whole rupees, digits only
   challanReceived?: "yes" | "no";
@@ -88,8 +87,7 @@ const EMPTY: FormState = {
   rearTyrePercent: "",
   insuranceValidTill: "",
   rcKycMismatch: "no",
-  rcPhoneWorking: "yes",
-  rcCurrentPhone: "",
+  rcRegisteredPhone: "",
   challanAmount: "",
   conditionNotes: "",
   knownDefects: "",
@@ -133,7 +131,7 @@ const FIELD_LABELS: [keyof Errors, string][] = [
   ["colour", "Colour"],
   ["owners", "No. of owners"],
   ["photos", "Photos"],
-  ["rcCurrentPhone", "Current working mobile"],
+  ["rcRegisteredPhone", "RC registered phone"],
   ["financier", "Financier name"],
   ["nocSeal", "NOC seal"],
   ["nocSign", "NOC sign"],
@@ -180,7 +178,7 @@ function validate(f: FormState): Errors {
     need("nocSeal", "Select Yes or No");
     need("nocSign", "Select Yes or No");
   }
-  if (f.rcPhoneWorking === "no" && f.rcCurrentPhone && !MOBILE_RE.test(f.rcCurrentPhone)) e.rcCurrentPhone = "Enter a valid 10-digit mobile number";
+  if (f.rcRegisteredPhone && !MOBILE_RE.test(f.rcRegisteredPhone)) e.rcRegisteredPhone = "Enter a valid 10-digit mobile number";
   need("hasInsurance", "Select Yes or No");
   if (f.hasInsurance === "yes" && !f.insuranceValidTill) e.insuranceValidTill = "Select the insurance expiry date";
   need("hasChallan", "Select Yes or No");
@@ -246,8 +244,6 @@ export default function NewVehiclePage() {
       delete documents.insurance;
       return { ...f, hasInsurance: v, insuranceValidTill: "", documents };
     });
-
-  const setRcPhoneWorking = (v: "yes" | "no") => setForm((f) => ({ ...f, rcPhoneWorking: v, rcCurrentPhone: v === "no" ? f.rcCurrentPhone : "" }));
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const touch = (k: keyof FormState) => () => setTouched((t) => ({ ...t, [k]: true }));
@@ -341,8 +337,7 @@ export default function NewVehiclePage() {
         hasInsurance: form.hasInsurance!,
         insuranceValidTill: form.hasInsurance === "yes" && form.insuranceValidTill ? form.insuranceValidTill : undefined,
         rcKycMismatch: form.rcKycMismatch,
-        rcPhoneWorking: form.rcPhoneWorking,
-        rcCurrentPhone: form.rcPhoneWorking === "no" && form.rcCurrentPhone ? form.rcCurrentPhone : undefined,
+        rcRegisteredPhone: form.rcRegisteredPhone || undefined,
         hasChallan: form.hasChallan!,
         challanAmountPaise: form.hasChallan === "yes" ? Number(form.challanAmount) * 100 : undefined,
         challanReceived: form.hasChallan === "yes" ? form.challanReceived : undefined,
@@ -640,37 +635,22 @@ export default function NewVehiclePage() {
         </div>
 
         <div className="mt-4 border-t border-line pt-4">
-          <Field label="Is RC registered phone number active / working?" wide>
-            <Segmented
-              name="RC phone working"
-              value={form.rcPhoneWorking}
-              onChange={setRcPhoneWorking}
-              options={[
-                { value: "yes", label: "Yes" },
-                { value: "no", label: "No" },
-              ]}
-            />
-          </Field>
-          {form.rcPhoneWorking === "no" && (
-            <div className="mt-3">
-              <Field label="Current working mobile number" htmlFor="rcCurrentPhone" error={show("rcCurrentPhone")} hint="Optional - if different from the seller mobile.">
-                <div className="relative">
-                  <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
-                  <input
-                    id="rcCurrentPhone"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    value={form.rcCurrentPhone}
-                    onChange={(e) => set("rcCurrentPhone", digits(e.target.value, 10))}
-                    onBlur={touch("rcCurrentPhone")}
-                    placeholder="98470 12345"
-                    className={`${inputClass(!!show("rcCurrentPhone"))} pl-12 tabular-nums`}
-                  />
-                </div>
-              </Field>
+          <Field label="Registered phone number" htmlFor="rcPhone" error={show("rcRegisteredPhone")} hint="Enter the phone number registered on the RC book" wide>
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
+              <input
+                id="rcPhone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="off"
+                value={form.rcRegisteredPhone}
+                onChange={(e) => set("rcRegisteredPhone", digits(e.target.value, 10))}
+                onBlur={touch("rcRegisteredPhone")}
+                placeholder="e.g. 98470 12345"
+                className={`${inputClass(!!show("rcRegisteredPhone"))} pl-12 tabular-nums`}
+              />
             </div>
-          )}
+          </Field>
         </div>
 
         <div className="mt-4 border-t border-line pt-4">

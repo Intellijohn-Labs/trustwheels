@@ -69,8 +69,9 @@ export interface Vehicle {
   challanReceived?: "yes" | "no"; // whether the pending challan amount has been received
   rcKycMismatch?: "yes" | "no"; // name/address on the RC Book differ from the seller's E-Aadhar
   mismatchRemarks?: string; // no longer asked at intake; older records may still carry one
-  rcPhoneWorking?: "yes" | "no"; // the mobile number registered on the RC is active
-  rcCurrentPhone?: string; // working number to use when the RC number isn't
+  rcRegisteredPhone?: string; // the mobile number registered on the RC book
+  rcPhoneWorking?: "yes" | "no"; // older records: whether that number was active (replaced by rcRegisteredPhone)
+  rcCurrentPhone?: string; // older records: the working number given when it wasn't
   challanNotes?: string;
   conditionNotes: string;
   frontTyrePercent?: number;
