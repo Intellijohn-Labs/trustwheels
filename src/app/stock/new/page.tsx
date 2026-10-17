@@ -391,10 +391,10 @@ export default function NewVehiclePage() {
             ))}
           </select>
         </Field>
-        <Field label="Intake employee / Added by" htmlFor="intakeBy">
+        <Field label="Sales Executive / Added by" htmlFor="intakeBy">
           <input
             id="intakeBy"
-            placeholder="e.g. Employee name or Staff ID"
+            placeholder="e.g. Sales Executive name or Staff ID"
             value={form.intakeBy}
             onChange={(e) => set("intakeBy", e.target.value)}
             className={inputClass()}
