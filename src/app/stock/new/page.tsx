@@ -117,6 +117,7 @@ function modelsFor(make: string): string[] {
 }
 
 const REQUIRED = "This field is required";
+const SAME_PHONES = "Alternate mobile number must be different from primary seller mobile number";
 
 /** Field names for the "needs attention" list, in the order they appear on the form. */
 const FIELD_LABELS: [keyof Errors, string][] = [
@@ -198,7 +199,7 @@ function validate(f: FormState): Errors {
   else if (!MOBILE_RE.test(f.sellerPhone)) e.sellerPhone = "Enter a valid 10-digit mobile number";
   if (!f.sellerPhoneAlt) e.sellerPhoneAlt = "Enter an alternate mobile number";
   else if (!MOBILE_RE.test(f.sellerPhoneAlt)) e.sellerPhoneAlt = "Enter a valid 10-digit mobile number";
-  else if (f.sellerPhoneAlt === f.sellerPhone) e.sellerPhoneAlt = "Must be different from the seller mobile";
+  else if (f.sellerPhoneAlt === f.sellerPhone) e.sellerPhoneAlt = SAME_PHONES;
   const missing = PHOTO_SLOTS.filter((p) => !f.photos[p.slot]);
   if (missing.length) e.photos = `Add ${missing.map((m) => m.label.toLowerCase()).join(", ")}`;
   return e;
@@ -262,6 +263,9 @@ export default function NewVehiclePage() {
   const photoCount = PHOTO_SLOTS.filter((p) => form.photos[p.slot]).length;
   const errorCount = Object.keys(errors).length;
   const missingNames = FIELD_LABELS.filter(([k]) => errors[k]).map(([, label]) => label);
+  // Two identical numbers are flagged as soon as both are complete, not only after the field is left or on Save.
+  const samePhones = form.sellerPhone.length === 10 && form.sellerPhoneAlt === form.sellerPhone;
+  const altPhoneError = samePhones ? errors.sellerPhoneAlt : show("sellerPhoneAlt");
 
   useEffect(() => {
     if (!attempt) return;
@@ -276,6 +280,7 @@ export default function NewVehiclePage() {
     e.preventDefault();
     setSubmitted(true);
     if (errorCount) {
+      if (samePhones) toast("error", "Seller primary and alternate mobile numbers cannot be the same");
       setAttempt((n) => n + 1);
       return;
     }
@@ -864,7 +869,7 @@ export default function NewVehiclePage() {
             />
           </div>
         </Field>
-        <Field label="Seller alternate mobile number" htmlFor="phoneAlt" required error={show("sellerPhoneAlt")}>
+        <Field label="Seller alternate mobile number" htmlFor="phoneAlt" required error={altPhoneError}>
           <div className="relative">
             <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base text-muted">+91</span>
             <input
@@ -876,7 +881,7 @@ export default function NewVehiclePage() {
               onChange={(e) => set("sellerPhoneAlt", digits(e.target.value, 10))}
               onBlur={touch("sellerPhoneAlt")}
               placeholder="98470 12345"
-              className={`${inputClass(!!show("sellerPhoneAlt"))} pl-12 tabular-nums`}
+              className={`${inputClass(!!altPhoneError)} pl-12 tabular-nums`}
             />
           </div>
         </Field>
