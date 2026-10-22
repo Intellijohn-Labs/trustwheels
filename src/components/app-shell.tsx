@@ -56,6 +56,7 @@ import { SignOutButton } from "./sign-out-button";
 import { Forbidden } from "./forbidden";
 import { RoleSwitcher } from "./role-switcher";
 import { ThemeToggle } from "./theme-toggle";
+import { InstallAppButton } from "./InstallAppButton";
 import { Logo } from "./logo";
 import { cn } from "./ui";
 
@@ -398,6 +399,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Settings className="size-[18px] transition-transform duration-500 group-hover:rotate-90" />
             </Link>
+            <InstallAppButton />
             <ThemeToggle />
             <RoleSwitcher />
           </div>

@@ -117,8 +117,8 @@ export function InstallAppButton({ className }: { className?: string }) {
           aria-label="Install app on iPhone or iPad"
           className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-line-strong bg-surface p-3 text-sm text-ink shadow-lg"
         >
-          <p className="flex flex-wrap items-center gap-1.5">
-            Tap Share <Share className="inline size-4 shrink-0" aria-label="(square with an arrow)" /> then{" "}
+          <p>
+            Tap Share <Share className="mx-0.5 -mt-0.5 inline size-4" aria-label="(square with an arrow)" /> then{" "}
             <span className="font-medium">Add to Home Screen</span>.
           </p>
         </div>
