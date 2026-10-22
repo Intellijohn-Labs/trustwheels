@@ -12,6 +12,7 @@ import { allRequiredDocsVerified, missingDocuments } from "@/lib/documents";
 import { PHOTO_SLOTS } from "@/lib/masters";
 import { recordFinalLook, sendToReconditioning, setAskingPrice, setSaleReadiness } from "@/lib/stock-store";
 import { collapseThenRun } from "@/lib/exit-animation";
+import { canEnterRecon } from "@/lib/workflow";
 import type { PhotoSlot, Vehicle } from "@/lib/types";
 
 /** One stat in the Final Verification summary row. */
@@ -50,7 +51,10 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
   const finalLookDone = !!vehicle.finalLook;
   const finalCount = PHOTO_SLOTS.filter((p) => finalPhotos[p.slot]).length;
   const finalLookOk = finalLookDone || finalCount === PHOTO_SLOTS.length;
+  // Every vehicle has to be through reconditioning (a signed-off job card) before it can be Ready for Sale.
+  const needsRecon = !alreadyReady && !vehicle.recon?.completed;
   const issues = [
+    ...(needsRecon ? ["Send it through Reconditioning first - it has no signed-off job card"] : []),
     ...(priceOk ? [] : ["Set a selling price"]),
     ...(finalLookOk ? [] : [`Add the final look photo for every angle (${finalCount}/${PHOTO_SLOTS.length} added)`]),
   ];
@@ -116,6 +120,30 @@ export function MarkReadyForSaleDialog({ vehicle, onClose }: { vehicle: Vehicle;
         </div>
       }
     >
+      {needsRecon && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn-soft px-3.5 py-3 text-sm text-warn" data-fv-error="">
+          <TriangleAlert className="size-4 shrink-0" />
+          <p className="min-w-0 flex-1">
+            {canEnterRecon(vehicle)
+              ? "This vehicle hasn't been through reconditioning. Every vehicle needs a signed-off job card before it can be Ready for Sale."
+              : "This vehicle hasn't been received at the hub yet. It has to go through transit and receiving, then reconditioning, before it can be Ready for Sale."}
+          </p>
+          {canEnterRecon(vehicle) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              disabled={busy}
+              onClick={async () => {
+                if (await submit(() => sendToReconditioning(vehicle.id), "Sent to Reconditioning")) onClose();
+              }}
+            >
+              <Wrench className="size-3.5" /> Send to Reconditioning
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryStat label="Current asking price" value={vehicle.proposedPricePaise ? formatPaise(vehicle.proposedPricePaise) : "Not set"} />
         <SummaryStat

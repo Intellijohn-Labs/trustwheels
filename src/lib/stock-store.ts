@@ -8,7 +8,7 @@ import { tx } from "./db";
 import { assertCan, assertScope, getActor } from "./session";
 import { deleteRows, fetchTable, upsertRows } from "./api-sync";
 import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue";
-import { handoverBlockers, inRecon, isTrustWheelsHub, releaseBlockers, startsReconOnVerify } from "./workflow";
+import { canEnterRecon, handoverBlockers, inRecon, isTrustWheelsHub, releaseBlockers, startsReconOnVerify } from "./workflow";
 import { normaliseReg, displayReg, formatPaise, isValidMobile } from "./format";
 import { newId } from "./collections";
 import { verifyDocument } from "./documents";
@@ -391,6 +391,8 @@ export function setSaleReadiness(id: string, status: SaleReadinessStatus, reason
     assertScope(v.branchId);
     if (v.sale) fail("Blocked: this vehicle is already sold or booked - its sale readiness can't be changed");
     if (inRecon(v)) fail("Blocked: this vehicle is actively in reconditioning - decide readiness once the job card is signed off");
+    // Every vehicle from every branch goes through reconditioning before it can be Ready for Sale.
+    if (status === "ready_for_sale" && !v.recon?.completed) fail("Blocked: this vehicle hasn't been through reconditioning - send it to Reconditioning and sign off its job card first");
     return { ...v, saleReadiness: { status, reason: reason?.trim() || undefined, ...signed() } };
   }).then((updated) => {
     const reg = displayReg(updated.registrationNo);
@@ -416,6 +418,8 @@ export function sendToReconditioning(id: string) {
     assertScope(v.branchId);
     if (v.sale) fail("Blocked: this vehicle is already sold or booked");
     if (inRecon(v)) fail("Already in reconditioning");
+    // Other branches' stock can't skip the road: it has to have been received at the hub first.
+    if (!canEnterRecon(v)) fail("Blocked: this vehicle hasn't been received at the hub - it has to go through transit and receiving before reconditioning");
     const at = nowIso();
     // advance() only ever moves stage forward, so it can't be relied on here on its own - a
     // vehicle sitting at a stage past 8 (e.g. an old gate-approved/on-display record that later

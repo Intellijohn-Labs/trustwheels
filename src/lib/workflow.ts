@@ -65,6 +65,14 @@ export function startsReconOnVerify(v: Vehicle) {
   return isTrustWheelsHub(v.branchId) && !v.recon && !v.sale && !v.saleReadiness;
 }
 
+/**
+ * Can this vehicle be sent into reconditioning? The TrustWheels hub's own stock is already on site;
+ * every other branch's stock has to have been through transit and received at the hub first.
+ */
+export function canEnterRecon(v: Vehicle) {
+  return isTrustWheelsHub(v.branchId) || !!v.receipt;
+}
+
 export function inTransit(v: Vehicle) {
   return !!v.dispatch && !v.receipt;
 }
