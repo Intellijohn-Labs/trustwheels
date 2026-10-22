@@ -53,14 +53,14 @@ export function RoleSwitcher() {
         aria-haspopup={DEV_ROLE_SWITCHING ? "listbox" : "menu"}
         aria-expanded={open}
         aria-label={DEV_ROLE_SWITCHING ? `Switch role (current: ${roleDef.label})` : `Account menu (${roleDef.label})`}
-        className="flex items-center gap-2.5 rounded-xl border border-line-strong bg-surface py-1.5 pr-2.5 pl-1.5 text-left transition hover:bg-sunken"
+        className="flex items-center gap-1 rounded-xl border border-line-strong bg-surface p-1 text-left transition hover:bg-sunken min-[520px]:gap-2.5 min-[520px]:py-1.5 min-[520px]:pr-2.5 min-[520px]:pl-1.5"
       >
-        <span className="bg-brand-gradient grid size-8 shrink-0 place-items-center rounded-lg text-xs font-bold text-surface shadow-sm">{initials(user.name)}</span>
+        <span className="bg-brand-gradient grid size-6 shrink-0 min-[520px]:size-8 place-items-center rounded-lg text-xs font-bold text-surface shadow-sm">{initials(user.name)}</span>
         <span className="hidden min-w-0 leading-tight sm:block">
           <span className="block truncate text-sm font-medium">{user.name}</span>
           <span className="block truncate text-xs text-muted">{roleDef.label}</span>
         </span>
-        <ChevronDown className="size-4 text-muted" />
+        <ChevronDown className="size-3.5 text-muted min-[520px]:size-4" />
       </button>
 
       {open && (

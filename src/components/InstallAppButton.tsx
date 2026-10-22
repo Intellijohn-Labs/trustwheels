@@ -105,7 +105,7 @@ export function InstallAppButton({ className }: { className?: string }) {
         aria-haspopup={deferred ? undefined : "dialog"}
         aria-expanded={deferred ? undefined : tipOpen}
         title="Install app"
-        className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-surface px-3 text-sm font-medium text-muted transition hover:bg-sunken hover:text-ink"
+        className="inline-flex size-8 items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface text-sm font-medium text-muted transition hover:bg-sunken hover:text-ink min-[520px]:size-10 sm:h-10 sm:w-auto sm:px-3"
       >
         <Download className="size-[18px]" aria-hidden />
         <span className="hidden sm:inline">Install App</span>

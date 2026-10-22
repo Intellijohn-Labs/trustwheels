@@ -183,8 +183,8 @@ function SyncStatusPill() {
   const s = SYNC_STATUS[status];
   const Icon = s.icon;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2.5 py-1 text-xs font-medium" title={s.title}>
-      <span className={cn("size-2 shrink-0 rounded-full", s.dot)} />
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sunken px-2 py-1 text-xs font-medium sm:px-2.5" title={s.title}>
+      <span className={cn("hidden size-2 shrink-0 rounded-full sm:block", s.dot)} />
       <Icon className={cn("size-3 shrink-0 sm:hidden", s.text, status === "syncing" && "animate-spin")} />
       <span className={cn("hidden sm:inline", s.text)}>{s.label}</span>
     </span>
@@ -214,7 +214,7 @@ function RefreshButton() {
       onClick={refresh}
       aria-label="Refresh data"
       title="Refresh data from the cloud"
-      className="grid size-9 shrink-0 place-items-center rounded-xl border border-line-strong bg-surface text-muted transition hover:bg-sunken hover:text-ink"
+      className="grid size-8 shrink-0 place-items-center rounded-xl border border-line-strong bg-surface text-muted transition hover:bg-sunken hover:text-ink min-[520px]:size-9"
     >
       <RefreshCw className={cn("size-4", spinning && "animate-spin")} />
     </button>
@@ -377,14 +377,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
-        <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-          <button onClick={() => setDrawer(true)} aria-label="Open menu" className="grid size-10 place-items-center rounded-lg text-muted hover:bg-sunken lg:hidden">
+        <div className="flex h-16 items-center gap-1 px-2.5 min-[400px]:gap-1.5 min-[400px]:px-3 min-[520px]:gap-2 min-[520px]:px-4 sm:gap-3 sm:px-6">
+          <button onClick={() => setDrawer(true)} aria-label="Open menu" className="grid size-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunken min-[520px]:size-10 lg:hidden">
             <Menu className="size-5" />
           </button>
           <Link href="/dashboard" aria-label="Trust Wheels dashboard" className="flex items-center lg:hidden">
-            <Logo className="h-9 w-auto min-[400px]:h-10" />
+            <Logo className="h-6 w-auto min-[400px]:h-7 min-[520px]:h-10" />
           </Link>
-          <div className="ml-auto flex min-w-0 items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-1 min-[400px]:gap-1.5 min-[520px]:gap-2 sm:gap-3">
             <SyncStatusPill />
             <RefreshButton />
             <ScopeChip />
@@ -393,14 +393,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label="Settings"
               title="Settings"
               className={cn(
-                "group grid size-10 shrink-0 place-items-center rounded-xl border transition",
+                "group grid size-8 shrink-0 place-items-center rounded-xl border transition min-[520px]:size-10",
                 SETTINGS_PATHS.includes(pathname) ? "nav-active border-transparent" : "border-line-strong bg-surface text-muted hover:bg-sunken hover:text-ink",
               )}
             >
               <Settings className="size-[18px] transition-transform duration-500 group-hover:rotate-90" />
             </Link>
             <InstallAppButton />
-            <ThemeToggle />
+            <ThemeToggle className="max-sm:size-8 min-[520px]:max-sm:size-10" />
             <RoleSwitcher />
           </div>
         </div>
