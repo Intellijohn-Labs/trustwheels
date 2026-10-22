@@ -8,7 +8,7 @@ import { tx } from "./db";
 import { assertCan, assertScope, getActor } from "./session";
 import { deleteRows, fetchTable, upsertRows } from "./api-sync";
 import { beginSync, endSync, enqueueRetry, reportSyncResult } from "./sync-queue";
-import { handoverBlockers, inRecon, releaseBlockers } from "./workflow";
+import { handoverBlockers, inRecon, isTrustWheelsHub, releaseBlockers, startsReconOnVerify } from "./workflow";
 import { normaliseReg, displayReg, formatPaise, isValidMobile } from "./format";
 import { newId } from "./collections";
 import { verifyDocument } from "./documents";
@@ -274,9 +274,10 @@ export async function deleteVehicles(ids: string[]) {
 
 export function setVerified(id: string, verified: boolean) {
   assertCan("stock.verify");
+  let routed = false;
   return update(id, (v) => {
     assertScope(v.branchId);
-    return {
+    const next: Vehicle = {
       ...v,
       verified: verified ? signed() : undefined,
       ...(verified ? advance(v, 3) : {}),
@@ -284,6 +285,35 @@ export function setVerified(id: string, verified: boolean) {
       // verified vehicle. Leave a "Rejected Stock" tag alone; that flag doesn't depend on verification.
       saleReadiness: !verified && v.saleReadiness?.status === "ready_for_sale" ? undefined : v.saleReadiness,
     };
+    // Every other branch: exactly the result above.
+    if (!isTrustWheelsHub(v.branchId)) return next;
+
+    // TrustWheels hub only: the vehicle is already on site, so verification skips transit and
+    // receiving and opens its reconditioning job card straight away.
+    if (verified) {
+      if (!startsReconOnVerify(v)) return next;
+      routed = true;
+      const at = nowIso();
+      return {
+        ...next,
+        stage: 8,
+        stageHistory: [...next.stageHistory, { stage: 8, at }],
+        stockId: v.stockId ?? nextStockId(),
+        recon: { supervisor: roleName("supervisor"), startedAt: at, items: [], photos: [], sendBacks: [] },
+      };
+    }
+    // Un-verifying: an untouched job card is withdrawn; once work has started it stays.
+    if (v.recon) {
+      const r = v.recon;
+      if (r.completed || r.technicianName || r.serviceAdvisor || r.reconStartDate || r.items.length || r.photos.length) {
+        fail("Blocked: reconditioning has already started on this vehicle, so it can't be un-verified");
+      }
+      return { ...next, recon: undefined, stage: 3, stageHistory: next.stageHistory.filter((e) => e.stage <= 3) };
+    }
+    return next;
+  }).then((updated) => {
+    if (routed) logActivity("RECONDITIONING", displayReg(updated.registrationNo), `Verified ${displayReg(updated.registrationNo)} and sent it straight to Reconditioning (TrustWheels hub: no transit or receiving)`);
+    return updated;
   });
 }
 

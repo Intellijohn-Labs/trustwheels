@@ -48,6 +48,23 @@ export function isCodeRed(v: Vehicle, now: number) {
   return daysSinceSale(v, now) > SLA.codeRedDays;
 }
 
+/**
+ * The TrustWheels showroom / Angamaly hub (branch id "ang", locked as the head branch). Its own stock
+ * is already on site, so it has a shorter pipeline than every other branch: Add stock -> Document
+ * Verification -> Reconditioning -> All stock / Ready for sale, with no transit or receiving.
+ * Every other branch keeps the standard flow; anything hub-specific is gated on this check.
+ */
+export const TRUSTWHEELS_HUB_ID = "ang";
+
+export function isTrustWheelsHub(branchId: string) {
+  return branchId === TRUSTWHEELS_HUB_ID;
+}
+
+/** Verifying this vehicle also opens its reconditioning job card: a hub vehicle with no job card and no sale or sale decision yet. */
+export function startsReconOnVerify(v: Vehicle) {
+  return isTrustWheelsHub(v.branchId) && !v.recon && !v.sale && !v.saleReadiness;
+}
+
 export function inTransit(v: Vehicle) {
   return !!v.dispatch && !v.receipt;
 }
