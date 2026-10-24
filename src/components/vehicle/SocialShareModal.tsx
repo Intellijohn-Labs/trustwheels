@@ -30,20 +30,23 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
-const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: string; glow: string }[] = [
+/** Brand look per selection: the tab, photo ring, Publish button, loader and result cards all draw from this. */
+const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: string; glow: string; colors: [string, string] }[] = [
   {
     id: "instagram",
     label: "Instagram",
     icon: <InstagramIcon className="size-4" />,
-    gradient: "linear-gradient(135deg, #feda75 0%, #fa7e1e 25%, #d62976 55%, #962fbf 80%, #4f5bd5 100%)",
-    glow: "rgba(214, 41, 118, 0.45)",
+    gradient: "linear-gradient(135deg, #f58529 0%, #dd2a7b 45%, #8134af 80%, #515bd4 100%)",
+    glow: "rgba(221, 42, 123, 0.45)",
+    colors: ["#dd2a7b", "#8134af"],
   },
   {
     id: "facebook",
     label: "Facebook",
     icon: <FacebookIcon className="size-4" />,
-    gradient: "linear-gradient(135deg, #4aa3ff 0%, #1877f2 55%, #0c4fc2 100%)",
+    gradient: "linear-gradient(135deg, #3b8bff 0%, #1877f2 55%, #0f5fd1 100%)",
     glow: "rgba(24, 119, 242, 0.45)",
+    colors: ["#3b8bff", "#1877f2"],
   },
   {
     id: "both",
@@ -54,10 +57,13 @@ const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: strin
         <FacebookIcon className="size-4" />
       </span>
     ),
-    gradient: "linear-gradient(135deg, #a78bfa 0%, #6366f1 55%, #3b3fc4 100%)",
-    glow: "rgba(99, 102, 241, 0.45)",
+    gradient: "linear-gradient(100deg, #f58529 0%, #dd2a7b 28%, #8134af 48%, #1877f2 62%, #0f5fd1 100%)",
+    glow: "rgba(129, 52, 175, 0.45)",
+    colors: ["#dd2a7b", "#1877f2"],
   },
 ];
+
+const CAPTION_LIMIT = 2200;
 
 const PLATFORM_URL = { instagram: "https://www.instagram.com/", facebook: "https://www.facebook.com/" };
 
@@ -73,22 +79,30 @@ function defaultCaption(v: Vehicle) {
   ].join("\n");
 }
 
-/** Minimal in-flight state: a thin gradient ring with a softly pulsing core. */
-function PublishingLoader() {
+/** In-flight state: a thin ring and a softly pulsing core, tinted with the selected platform's colours. */
+function PublishingLoader({ colors }: { colors: [string, string] }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface px-4 py-4 shadow-sm" style={{ animation: "tw-rise 0.3s ease-out" }} role="status">
+    <div
+      className="flex items-center gap-4 rounded-2xl border border-white/40 bg-surface/70 px-4 py-4 shadow-lg backdrop-blur-md"
+      style={{ animation: "tw-rise 0.3s ease-out" }}
+      role="status"
+    >
       <div className="relative size-10 shrink-0">
         <span
           aria-hidden="true"
           className="absolute inset-0 animate-spin rounded-full"
           style={{
-            background: "conic-gradient(from 0deg, rgba(56,189,248,0) 0%, #38bdf8 55%, #2563eb 100%)",
+            background: `conic-gradient(from 0deg, transparent 0%, ${colors[0]} 55%, ${colors[1]} 100%)`,
             WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px))",
             mask: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px))",
             animationDuration: "1.1s",
           }}
         />
-        <span aria-hidden="true" className="absolute inset-0 m-auto size-2.5 animate-pulse rounded-full bg-[#2563eb]" style={{ boxShadow: "0 0 12px 3px rgba(56,189,248,0.6)" }} />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 m-auto size-2.5 animate-pulse rounded-full"
+          style={{ background: colors[1], boxShadow: `0 0 12px 3px ${colors[0]}88` }}
+        />
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold">Publishing to your socials...</p>
@@ -139,27 +153,28 @@ function ResultRow({
   const canRetry = r.status === "failed" ? !!r.retryable : r.status === "not_posted" && action === "post_single";
   const canManual = r.status === "failed" && action.includes("post_manually");
   const canCheck = pending || (!live && action === "check_status");
-  const pill = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-px active:scale-95 disabled:pointer-events-none disabled:opacity-50";
+  const pill = "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition hover:-translate-y-px active:scale-95 disabled:pointer-events-none disabled:opacity-50";
+  const outline = cn(pill, "border-line bg-surface/80 text-ink hover:border-accent");
 
   return (
     <li
       className={cn(
-        "flex items-start gap-3.5 rounded-2xl border bg-surface p-3.5 shadow-sm",
-        tone === "ok" && "border-ok/30",
-        tone === "warn" && "border-warn/30",
-        tone === "bad" && "border-danger/30",
+        "flex items-start gap-3.5 rounded-2xl border bg-gradient-to-br to-transparent p-3.5 shadow-lg backdrop-blur-md",
+        tone === "ok" && "border-ok/30 from-ok/10",
+        tone === "warn" && "border-warn/30 from-warn/10",
+        tone === "bad" && "border-danger/30 from-danger/10",
       )}
       style={{ animation: "tw-rise 0.35s ease-out" }}
     >
       <span
-        className="grid size-10 shrink-0 place-items-center rounded-xl text-white"
-        style={{ background: brand.gradient, boxShadow: `0 4px 12px -2px ${brand.glow}` }}
+        className="grid size-11 shrink-0 place-items-center rounded-xl text-white ring-2 ring-white/50"
+        style={{ background: brand.gradient, boxShadow: `0 6px 16px -3px ${brand.glow}` }}
         aria-hidden="true"
       >
         {platform === "instagram" ? <InstagramIcon className="size-5" /> : <FacebookIcon className="size-5" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-sm font-semibold">
+        <p className="flex items-center gap-1.5 text-sm font-bold tracking-tight">
           {title}
           {tone === "ok" && <CheckCircle2 className="size-4 text-ok" />}
           {tone === "warn" && <Clock className="size-4 text-warn" />}
@@ -169,22 +184,28 @@ function ResultRow({
         {(live && r.postUrl) || canCheck || canRetry || canManual ? (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {live && r.postUrl && (
-              <a href={r.postUrl} target="_blank" rel="noopener noreferrer" className={cn(pill, "border-line bg-surface text-ink hover:border-accent hover:text-accent")}>
-                View post <ExternalLink className="size-3.5" />
+              <a
+                href={r.postUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(pill, "border-white/40 text-white shadow-md")}
+                style={{ background: brand.gradient, boxShadow: `0 6px 14px -4px ${brand.glow}` }}
+              >
+                View on {name} <ExternalLink className="size-3.5" />
               </a>
             )}
             {canCheck && (
-              <button type="button" onClick={onCheck} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+              <button type="button" onClick={onCheck} disabled={busy} className={outline}>
                 <RefreshCw className="size-3.5" /> Check status
               </button>
             )}
             {canRetry && (
-              <button type="button" onClick={onRetry} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+              <button type="button" onClick={onRetry} disabled={busy} className={outline}>
                 {r.status === "not_posted" ? `Post to ${name} only` : "Try again"}
               </button>
             )}
             {canManual && (
-              <button type="button" onClick={onManual} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+              <button type="button" onClick={onManual} disabled={busy} className={outline}>
                 <Copy className="size-3.5" /> Copy caption &amp; open {name}
               </button>
             )}
@@ -210,6 +231,8 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
   const [response, setResponse] = useState<PublishResponse | null>(null);
 
   const targets: SocialPlatform[] = platform === "both" ? ["instagram", "facebook"] : [platform];
+  const brand = PLATFORMS.find((x) => x.id === platform)!;
+  const overLimit = caption.length > CAPTION_LIMIT;
 
   function toggle(slot: PhotoSlot) {
     setSelected((s) => {
@@ -272,7 +295,17 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
     <Dialog
       wide
       title="Share to Social Media"
-      subtitle={`${v.make} ${v.model} · ${displayReg(v.registrationNo)}`}
+      subtitle={
+        <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-ink">
+          <span className="flex shrink-0 -space-x-0.5">
+            <InstagramIcon className="size-3.5 text-[#dd2a7b]" />
+            <FacebookIcon className="size-3.5 text-[#1877f2]" />
+          </span>
+          <span className="truncate">
+            {v.make} {v.model} · {displayReg(v.registrationNo)}
+          </span>
+        </span>
+      }
       onClose={onClose}
       onSubmit={() => publish()}
       footer={
@@ -282,17 +315,17 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
           </Button>
           <button
             type="submit"
-            disabled={busy || !caption.trim() || selected.size === 0}
-            className="relative inline-flex flex-[2] cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-2.5 text-sm font-semibold tracking-wide text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+            disabled={busy || !caption.trim() || overLimit || selected.size === 0}
+            className="relative inline-flex flex-[2] cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-2.5 text-sm font-bold tracking-wide text-white transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100"
             style={{
-              background: "linear-gradient(135deg, rgba(56, 189, 248, 0.95) 0%, rgba(37, 99, 235, 1) 100%)",
-              boxShadow: "inset 0 2px 5px rgba(255, 255, 255, 0.85), inset 0 -3px 6px rgba(15, 23, 42, 0.45), 0 6px 18px -2px rgba(37, 99, 235, 0.5)",
-              border: "1px solid rgba(255, 255, 255, 0.55)",
+              background: brand.gradient,
+              boxShadow: `inset 0 2px 5px rgba(255, 255, 255, 0.6), inset 0 -3px 6px rgba(15, 23, 42, 0.35), 0 8px 20px -4px ${brand.glow}`,
+              border: "1px solid rgba(255, 255, 255, 0.45)",
             }}
           >
             {/* Upper specular gloss highlight */}
-            <span className="pointer-events-none absolute left-3 right-3 top-0.5 h-[45%] rounded-full bg-gradient-to-b from-white/80 to-transparent" />
-            <span className="relative z-10 flex items-center gap-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            <span className="pointer-events-none absolute left-3 right-3 top-0.5 h-[45%] rounded-full bg-gradient-to-b from-white/70 to-transparent" />
+            <span className="relative z-10 flex items-center gap-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {busy ? "Publishing…" : "Publish"}
             </span>
           </button>
@@ -300,6 +333,8 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
       }
     >
       <div className="space-y-5">
+        <div className="h-1 rounded-full transition-all duration-500" style={{ background: brand.gradient, boxShadow: `0 2px 10px -1px ${brand.glow}` }} aria-hidden="true" />
+
         <div role="radiogroup" aria-label="Platform" className="flex flex-wrap gap-2">
           {PLATFORMS.map((p) => (
             <button
@@ -318,7 +353,7 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
                   ? {
                       background: p.gradient,
                       border: "1px solid rgba(255, 255, 255, 0.4)",
-                      boxShadow: `inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -2px 5px rgba(15,23,42,0.35), 0 6px 16px -2px ${p.glow}`,
+                      boxShadow: `inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 5px rgba(15,23,42,0.3), 0 6px 16px -2px ${p.glow}`,
                     }
                   : undefined
               }
@@ -326,10 +361,10 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
               {platform === p.id && (
                 <span
                   className="pointer-events-none absolute left-2 right-2 top-0.5 h-1/2 rounded-full"
-                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.05) 100%)" }}
+                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.05) 100%)" }}
                 />
               )}
-              <span className={cn("relative z-10 flex items-center gap-2", platform === p.id && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]")}>
+              <span className={cn("relative z-10 flex items-center gap-2", platform === p.id && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]")}>
                 {p.icon}
                 {p.label}
               </span>
@@ -338,22 +373,36 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
         </div>
 
         <div>
-          <label htmlFor="social-caption" className="mb-1.5 block text-sm font-medium">
-            Caption
-          </label>
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <label htmlFor="social-caption" className="text-sm font-semibold">
+              Caption
+            </label>
+            <span className={cn("text-xs tabular-nums", overLimit ? "font-semibold text-danger" : "text-muted")} aria-live="polite">
+              {caption.length.toLocaleString("en-IN")} / {CAPTION_LIMIT.toLocaleString("en-IN")}
+            </span>
+          </div>
           <textarea
             id="social-caption"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             rows={7}
             disabled={busy}
-            className="w-full rounded-2xl border border-line bg-surface p-3 text-sm outline-none focus:border-accent"
+            placeholder="Write a caption for your post..."
+            aria-invalid={overLimit}
+            className={cn(
+              "w-full resize-y rounded-2xl border bg-accent/5 p-3.5 text-sm leading-relaxed outline-none transition placeholder:text-muted/70 focus:bg-surface focus:ring-2",
+              overLimit ? "border-danger focus:ring-danger/30" : "border-line focus:border-accent focus:ring-accent/25",
+            )}
           />
+          {overLimit && <p className="mt-1 text-xs text-danger">Captions can be at most {CAPTION_LIMIT.toLocaleString("en-IN")} characters.</p>}
         </div>
 
         <div>
-          <p className="mb-1.5 text-sm font-medium">
-            Photos in the post <span className="font-normal text-muted">({selected.size} of {slots.length} selected)</span>
+          <p className="mb-2 flex items-baseline justify-between gap-2 text-sm font-semibold">
+            Photos in the post
+            <span className="text-xs font-normal text-muted">
+              {selected.size} of {slots.length} selected
+            </span>
           </p>
           {slots.length === 0 ? (
             <p className="text-sm text-muted">No photos uploaded for this vehicle yet - use Edit photos first.</p>
@@ -366,15 +415,22 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
                     key={p.slot}
                     type="button"
                     aria-pressed={on}
+                    disabled={busy}
                     onClick={() => toggle(p.slot)}
-                    className={cn("relative overflow-hidden rounded-2xl border-2 transition", on ? "border-accent" : "border-line opacity-50")}
+                    className={cn("group relative rounded-xl p-0.5 text-left transition-all duration-200 active:scale-[0.97]", on ? "shadow-lg" : "bg-line opacity-70 hover:opacity-100")}
+                    style={on ? { background: brand.gradient, boxShadow: `0 8px 18px -6px ${brand.glow}` } : undefined}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={v.photos[p.slot]} alt={p.label} className="aspect-[4/3] w-full object-cover" />
-                    <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-left text-xs text-white">{p.label}</span>
+                    <span className="relative block overflow-hidden rounded-[10px] bg-surface">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={v.photos[p.slot]} alt={p.label} className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-1.5 pt-5 text-xs font-medium text-white">{p.label}</span>
+                    </span>
                     {on && (
-                      <span className="absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-accent text-white">
-                        <Check className="size-3" />
+                      <span
+                        className="absolute right-2 top-2 grid size-6 place-items-center rounded-full text-white shadow-md ring-2 ring-white"
+                        style={{ background: brand.gradient }}
+                      >
+                        <Check className="size-3.5" strokeWidth={3} />
                       </span>
                     )}
                   </button>
@@ -386,9 +442,9 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
 
         {(response || busy) && (
           <div aria-live="polite">
-            {busy && <PublishingLoader />}
+            {busy && <PublishingLoader colors={brand.colors} />}
             {!busy && response?.results && (
-              <ul className="space-y-2" style={{ animation: "tw-rise 0.35s ease-out" }}>
+              <ul className="space-y-2.5" style={{ animation: "tw-rise 0.35s ease-out" }}>
                 {(["instagram", "facebook"] as const).map((p) => {
                   const r = response.results?.[p];
                   return r ? (
@@ -398,11 +454,14 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
               </ul>
             )}
             {!busy && response && !response.results && (
-              <div className="flex items-start gap-3 rounded-2xl bg-danger-soft/60 p-3 text-sm text-danger" style={{ animation: "tw-rise 0.35s ease-out" }}>
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <div
+                className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-gradient-to-br from-danger/10 to-transparent p-3.5 text-sm shadow-lg backdrop-blur-md"
+                style={{ animation: "tw-rise 0.35s ease-out" }}
+              >
+                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" />
                 <div className="min-w-0 flex-1">
-                  <p className="break-words font-medium">{response.message ?? "Something went wrong. Try again in a minute."}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <p className="break-words font-semibold text-danger">{response.message ?? "Something went wrong. Try again in a minute."}</p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
                     {response.action === "check_status" && (
                       <Button size="sm" type="button" onClick={() => checkStatus()} disabled={busy}>
                         <RefreshCw className="size-3.5" /> Check status
