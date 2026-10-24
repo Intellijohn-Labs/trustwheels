@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink, Share2 } from "lucide-react";
 import { useToast } from "../toast";
 import { branchName, PHOTO_SLOTS } from "@/lib/masters";
@@ -12,10 +12,51 @@ import { Dialog } from "../panels/dialog";
 
 type Platform = "instagram" | "facebook" | "both";
 
-const PLATFORMS: { id: Platform; label: string }[] = [
-  { id: "instagram", label: "Instagram" },
-  { id: "facebook", label: "Facebook" },
-  { id: "both", label: "Both (Instagram & Facebook)" },
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.5V4.4c-.3 0-1.2-.1-2.2-.1-2.3 0-3.9 1.4-3.9 4v2.2H8V13.5h2.5V21h3z" />
+    </svg>
+  );
+}
+
+const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: string; glow: string }[] = [
+  {
+    id: "instagram",
+    label: "Instagram",
+    icon: <InstagramIcon className="size-4" />,
+    gradient: "linear-gradient(135deg, #feda75 0%, #fa7e1e 25%, #d62976 55%, #962fbf 80%, #4f5bd5 100%)",
+    glow: "rgba(214, 41, 118, 0.45)",
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    icon: <FacebookIcon className="size-4" />,
+    gradient: "linear-gradient(135deg, #4aa3ff 0%, #1877f2 55%, #0c4fc2 100%)",
+    glow: "rgba(24, 119, 242, 0.45)",
+  },
+  {
+    id: "both",
+    label: "Both (Instagram & Facebook)",
+    icon: (
+      <span className="flex -space-x-1">
+        <InstagramIcon className="size-4" />
+        <FacebookIcon className="size-4" />
+      </span>
+    ),
+    gradient: "linear-gradient(135deg, #a78bfa 0%, #6366f1 55%, #3b3fc4 100%)",
+    glow: "rgba(99, 102, 241, 0.45)",
+  },
 ];
 
 const PLATFORM_URL = { instagram: "https://www.instagram.com/", facebook: "https://www.facebook.com/" };
@@ -28,7 +69,7 @@ function defaultCaption(v: Vehicle) {
     `💰 Price: ${price}`,
     `📍 Available at: ${branchName(currentBranchId(v))}`,
     `⚡ Kilometers: ${formatNumber(v.odometerKm)} km | Fuel: ${v.fuel.charAt(0).toUpperCase()}${v.fuel.slice(1)}`,
-    `📞 Contact TrustWheels for bookings & test drives! #TrustWheels #UsedCars #KeralaCars`,
+    `📞 Contact TrustWheels for bookings & test drives!`,
   ].join("\n");
 }
 
@@ -91,11 +132,29 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
               aria-checked={platform === p.id}
               onClick={() => setPlatform(p.id)}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 text-sm font-medium transition",
-                platform === p.id ? "border-transparent bg-accent text-white" : "border-line bg-surface text-muted hover:text-ink",
+                "relative inline-flex select-none items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
+                platform === p.id ? "text-white hover:scale-105" : "border border-line bg-surface/60 text-muted backdrop-blur hover:border-accent hover:text-ink",
               )}
+              style={
+                platform === p.id
+                  ? {
+                      background: p.gradient,
+                      border: "1px solid rgba(255, 255, 255, 0.4)",
+                      boxShadow: `inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -2px 5px rgba(15,23,42,0.35), 0 6px 16px -2px ${p.glow}`,
+                    }
+                  : undefined
+              }
             >
-              {p.label}
+              {platform === p.id && (
+                <span
+                  className="pointer-events-none absolute left-2 right-2 top-0.5 h-1/2 rounded-full"
+                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.05) 100%)" }}
+                />
+              )}
+              <span className={cn("relative z-10 flex items-center gap-2", platform === p.id && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]")}>
+                {p.icon}
+                {p.label}
+              </span>
             </button>
           ))}
         </div>
