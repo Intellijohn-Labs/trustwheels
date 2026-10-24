@@ -214,51 +214,91 @@ export function SocialShareButton({ vehicle: v }: { vehicle: Vehicle }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="group relative inline-flex items-center">
-        {/* Molten jelly droplets underneath */}
+      <div className="relative inline-flex items-center justify-center px-1 py-2">
+        <style>{`
+          @keyframes jellyDripLeft {
+            0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.95; }
+            45% { transform: translateY(5px) scale(0.85, 1.35); opacity: 1; }
+            70% { transform: translateY(8px) scale(0.6, 1.4); opacity: 0.8; }
+            85% { transform: translateY(11px) scale(0.4, 0.4); opacity: 0; }
+            86% { transform: translateY(-2px) scale(0.9, 0.9); opacity: 0; }
+          }
+          @keyframes jellyDripRight {
+            0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.95; }
+            40% { transform: translateY(4px) scale(0.9, 1.25); opacity: 1; }
+            65% { transform: translateY(7px) scale(0.7, 1.35); opacity: 0.85; }
+            80% { transform: translateY(10px) scale(0.35, 0.35); opacity: 0; }
+            81% { transform: translateY(-2px) scale(0.9, 0.9); opacity: 0; }
+          }
+          @keyframes liquidWobble {
+            0%, 100% { border-radius: 9999px; transform: scale(1); }
+            33% { border-radius: 22px 26px 20px 24px / 24px 20px 26px 22px; transform: scale(1.02, 0.98); }
+            66% { border-radius: 26px 21px 25px 20px / 21px 25px 22px 26px; transform: scale(0.98, 1.02); }
+          }
+          @keyframes innerFluidFlow {
+            0% { transform: translateX(-40%) skewX(-15deg); }
+            50% { transform: translateX(40%) skewX(15deg); }
+            100% { transform: translateX(-40%) skewX(-15deg); }
+          }
+        `}</style>
+
+        {/* Dripping jelly teardrop 1 (left) */}
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-1.5 left-3 h-3.5 w-2.5 rounded-full blur-[0.5px] transition-all duration-300 group-hover:translate-y-1 group-hover:scale-110"
-          style={{ background: "radial-gradient(circle at 35% 35%, #38bdf8 0%, #1d4ed8 85%)", boxShadow: "0 2px 4px rgba(30, 64, 175, 0.4)" }}
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-2 right-4 h-4 w-3.5 rounded-full blur-[0.5px] transition-all duration-300 group-hover:translate-y-1.5 group-hover:scale-110"
-          style={{ background: "radial-gradient(circle at 35% 35%, #38bdf8 0%, #2563eb 85%)", boxShadow: "0 2px 5px rgba(30, 64, 175, 0.45)" }}
+          className="pointer-events-none absolute -bottom-1 left-3.5 h-3.5 w-3 rounded-full"
+          style={{
+            background: "radial-gradient(circle at 35% 30%, #38bdf8 0%, #1d4ed8 90%)",
+            boxShadow: "0 2px 5px rgba(37, 99, 235, 0.6)",
+            animation: "jellyDripLeft 2.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite",
+          }}
         />
 
-        {/* 3D liquid jelly pill button */}
+        {/* Dripping jelly teardrop 2 (right) */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-1.5 right-4 h-4 w-3.5 rounded-full"
+          style={{
+            background: "radial-gradient(circle at 35% 30%, #38bdf8 0%, #2563eb 90%)",
+            boxShadow: "0 2px 6px rgba(37, 99, 235, 0.6)",
+            animation: "jellyDripRight 2.3s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite 0.9s",
+          }}
+        />
+
+        {/* Main 3D jelly capsule button */}
         <button
           type="button"
           onClick={() => setOpen(true)}
           title="Share to Social Media"
           aria-label={`Share ${v.make} ${v.model} to social media`}
-          className="relative inline-flex cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 shadow-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-105 active:translate-y-0.5 active:scale-95"
+          className="relative inline-flex cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 transition-transform duration-200 hover:scale-105 active:scale-90"
           style={{
-            background: "linear-gradient(135deg, rgba(56, 189, 248, 0.95) 0%, rgba(37, 99, 235, 1) 100%)",
-            backdropFilter: "blur(8px)",
+            animation: "liquidWobble 4s ease-in-out infinite",
+            background: "linear-gradient(135deg, rgba(56, 189, 248, 0.92) 0%, rgba(37, 99, 235, 0.98) 100%)",
             boxShadow: `
-              inset 0 2px 5px rgba(255, 255, 255, 0.85),
+              inset 0 3px 5px rgba(255, 255, 255, 0.85),
               inset 0 -3px 6px rgba(15, 23, 42, 0.45),
-              0 6px 18px -2px rgba(37, 99, 235, 0.5)
+              0 6px 16px -2px rgba(37, 99, 235, 0.55)
             `,
-            border: "1px solid rgba(255, 255, 255, 0.55)",
+            border: "1px solid rgba(255, 255, 255, 0.6)",
           }}
         >
-          {/* Upper glass specular reflection highlight */}
+          {/* Inside moving liquid sheen */}
           <span
-            className="pointer-events-none absolute left-2 right-2 top-0.5 h-[45%] rounded-full"
-            style={{ background: "linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.1) 100%)" }}
+            className="pointer-events-none absolute inset-0 h-full w-[200%] opacity-40"
+            style={{
+              background: "radial-gradient(ellipse at center, rgba(255,255,255,0.7) 0%, transparent 70%)",
+              animation: "innerFluidFlow 3.5s ease-in-out infinite",
+            }}
           />
-          {/* Moving liquid shimmer wave */}
+          {/* Upper glass specular highlight */}
           <span
-            className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-1000 ease-in-out group-hover:translate-x-full"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent)" }}
+            className="pointer-events-none absolute left-2 right-2 top-0.5 h-[42%] rounded-full"
+            style={{ background: "linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.08) 100%)" }}
           />
-          <span className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+          <span className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
             <Share2 className="h-3.5 w-3.5" />
           </span>
-          <span className="relative z-10 text-xs font-semibold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">Share</span>
+          <span className="relative z-10 text-xs font-semibold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">Share</span>
         </button>
       </div>
       {open && <SocialShareModal vehicle={v} onClose={() => setOpen(false)} />}
