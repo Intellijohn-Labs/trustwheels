@@ -343,7 +343,6 @@ export default function StockPage() {
                           <PriceEditButton vehicle={v} />
                           <PhotosEditButton vehicle={v} />
                           <DocumentsButton vehicle={v} />
-                          <SocialShareButton vehicle={v} />
                         </>
                       )}
                       {canDelete && (
@@ -351,6 +350,7 @@ export default function StockPage() {
                           <Trash2 className="size-3.5" /> Delete
                         </Button>
                       )}
+                      {panel === "ready" && <SocialShareButton vehicle={v} />}
                     </>
                   ) : undefined
                 }

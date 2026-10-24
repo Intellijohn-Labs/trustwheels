@@ -214,32 +214,53 @@ export function SocialShareButton({ vehicle: v }: { vehicle: Vehicle }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Share to Social Media"
-        aria-label={`Share ${v.make} ${v.model} to social media`}
-        className="relative inline-flex h-9 w-9 cursor-pointer select-none items-center justify-center overflow-hidden rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-110 active:translate-y-0.5 active:scale-90"
-        style={{
-          background: "linear-gradient(135deg, rgba(56, 189, 248, 0.9) 0%, rgba(37, 99, 235, 0.95) 100%)",
-          backdropFilter: "blur(10px)",
-          boxShadow: `
-            inset 0 2px 4px rgba(255, 255, 255, 0.75),
-            inset 0 -2px 5px rgba(15, 23, 42, 0.35),
-            0 6px 16px -2px rgba(37, 99, 235, 0.45)
-          `,
-          border: "1px solid rgba(255, 255, 255, 0.4)",
-        }}
-      >
-        {/* Specular gloss reflection highlight */}
+      <div className="group relative inline-flex items-center">
+        {/* Molten jelly droplets underneath */}
         <span
-          className="pointer-events-none absolute left-1.5 right-1.5 top-0.5 h-1/2 rounded-full"
-          style={{ background: "linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.05) 100%)", opacity: 0.9 }}
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-1.5 left-3 h-3.5 w-2.5 rounded-full blur-[0.5px] transition-all duration-300 group-hover:translate-y-1 group-hover:scale-110"
+          style={{ background: "radial-gradient(circle at 35% 35%, #38bdf8 0%, #1d4ed8 85%)", boxShadow: "0 2px 4px rgba(30, 64, 175, 0.4)" }}
         />
-        <span className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-          <Share2 className="h-4 w-4" />
-        </span>
-      </button>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-2 right-4 h-4 w-3.5 rounded-full blur-[0.5px] transition-all duration-300 group-hover:translate-y-1.5 group-hover:scale-110"
+          style={{ background: "radial-gradient(circle at 35% 35%, #38bdf8 0%, #2563eb 85%)", boxShadow: "0 2px 5px rgba(30, 64, 175, 0.45)" }}
+        />
+
+        {/* 3D liquid jelly pill button */}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title="Share to Social Media"
+          aria-label={`Share ${v.make} ${v.model} to social media`}
+          className="relative inline-flex cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 shadow-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-105 active:translate-y-0.5 active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, rgba(56, 189, 248, 0.95) 0%, rgba(37, 99, 235, 1) 100%)",
+            backdropFilter: "blur(8px)",
+            boxShadow: `
+              inset 0 2px 5px rgba(255, 255, 255, 0.85),
+              inset 0 -3px 6px rgba(15, 23, 42, 0.45),
+              0 6px 18px -2px rgba(37, 99, 235, 0.5)
+            `,
+            border: "1px solid rgba(255, 255, 255, 0.55)",
+          }}
+        >
+          {/* Upper glass specular reflection highlight */}
+          <span
+            className="pointer-events-none absolute left-2 right-2 top-0.5 h-[45%] rounded-full"
+            style={{ background: "linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.1) 100%)" }}
+          />
+          {/* Moving liquid shimmer wave */}
+          <span
+            className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-1000 ease-in-out group-hover:translate-x-full"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent)" }}
+          />
+          <span className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            <Share2 className="h-3.5 w-3.5" />
+          </span>
+          <span className="relative z-10 text-xs font-semibold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">Share</span>
+        </button>
+      </div>
       {open && <SocialShareModal vehicle={v} onClose={() => setOpen(false)} />}
     </>
   );
