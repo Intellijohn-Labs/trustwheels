@@ -49,6 +49,18 @@ const NETWORK_DOWN: PublishResponse = {
   action: "retry_later",
 };
 
+/**
+ * We sent the request but never got the workflow's answer (gateway timeout, dropped connection). The post may well have
+ * gone out, so this is not a failure to report - the caller re-reads the saved state with fetchSocialStatus() instead.
+ */
+const UNKNOWN_OUTCOME: PublishResponse = {
+  ok: false,
+  code: "UNKNOWN_OUTCOME",
+  message: "No answer came back in time. Checking whether the post went through…",
+  retryable: false,
+  action: "check_status",
+};
+
 async function readJson(res: Response): Promise<PublishResponse | null> {
   try {
     const json = await res.json();
@@ -66,9 +78,10 @@ export async function publishToSocial(input: PublishInput): Promise<PublishRespo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, ...input }),
     });
-    return (await readJson(res)) ?? { ...NETWORK_DOWN, requestId, message: "Unexpected reply from the server. Try again in a minute." };
+    return (await readJson(res)) ?? { ...UNKNOWN_OUTCOME, requestId };
   } catch {
-    return { ...NETWORK_DOWN, requestId };
+    // The connection dropped mid-request (a proxy timeout, a flaky network): the workflow may still have posted.
+    return { ...UNKNOWN_OUTCOME, requestId };
   }
 }
 

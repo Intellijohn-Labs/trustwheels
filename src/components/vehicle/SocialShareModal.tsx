@@ -74,6 +74,63 @@ function defaultCaption(v: Vehicle) {
   ].join("\n");
 }
 
+/** Pure SVG/CSS scooter shown while the publish call is in flight: spinning wheels, a gentle bounce, exhaust puffs and a moving road. */
+function RidingLoader() {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl bg-accent/5 px-4 py-5 text-center" style={{ animation: "tw-rise 0.3s ease-out" }}>
+      <style>{`
+        @keyframes twScooterWheel { to { transform: rotate(360deg); } }
+        @keyframes twScooterBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+        @keyframes twScooterPuff {
+          0% { opacity: 0.75; transform: translate(0, 0) scale(0.4); }
+          100% { opacity: 0; transform: translate(-24px, -9px) scale(1.4); }
+        }
+        @keyframes twScooterRoad { to { stroke-dashoffset: -28; } }
+        @media (prefers-reduced-motion: reduce) {
+          .tw-scooter * { animation: none !important; }
+        }
+      `}</style>
+      <svg viewBox="0 0 130 70" className="tw-scooter h-20 w-36" role="img" aria-label="A scooter riding">
+        {/* road */}
+        <line x1="4" y1="60" x2="126" y2="60" strokeWidth="2" strokeLinecap="round" strokeDasharray="14 14" className="stroke-line-strong" style={{ animation: "twScooterRoad 0.5s linear infinite" }} />
+        {/* exhaust puffs, trailing behind the rear wheel */}
+        {[0, 0.4, 0.8].map((d) => (
+          <circle
+            key={d}
+            cx="16"
+            cy="50"
+            r="4"
+            className="fill-muted"
+            style={{ animation: `twScooterPuff 1.2s ease-out ${d}s infinite`, transformBox: "fill-box", transformOrigin: "center", opacity: 0 }}
+          />
+        ))}
+        {/* body bounces; wheels spin independently */}
+        <g style={{ animation: "twScooterBounce 0.5s ease-in-out infinite" }}>
+          <rect x="30" y="40" width="50" height="5" rx="2.5" className="fill-accent" />
+          <path d="M22 40 Q24 30 36 30 H52 V36 H34 Q30 36 30 42 Z" className="fill-accent" />
+          <rect x="30" y="27" width="24" height="5" rx="2.5" className="fill-ink" />
+          <line x1="82" y1="42" x2="78" y2="14" strokeWidth="4" strokeLinecap="round" className="stroke-accent" />
+          <line x1="72" y1="13" x2="86" y2="13" strokeWidth="3.5" strokeLinecap="round" className="stroke-ink" />
+          <line x1="82" y1="42" x2="92" y2="50" strokeWidth="3.5" strokeLinecap="round" className="stroke-accent" />
+          <circle cx="90" cy="22" r="3.5" className="fill-warn" />
+          <circle cx="62" cy="21" r="5.5" className="fill-ink" />
+          <path d="M62 27 L56 40" strokeWidth="4" strokeLinecap="round" className="stroke-ink" />
+          <path d="M62 27 L74 14" strokeWidth="3.5" strokeLinecap="round" className="stroke-ink" />
+        </g>
+        {[28, 92].map((cx) => (
+          <g key={cx} style={{ animation: "twScooterWheel 0.6s linear infinite", transformBox: "fill-box", transformOrigin: "center" }}>
+            <circle cx={cx} cy="50" r="9" strokeWidth="3.5" className="fill-surface stroke-ink" />
+            <line x1={cx - 6} y1="50" x2={cx + 6} y2="50" strokeWidth="1.5" className="stroke-ink" />
+            <line x1={cx} y1="44" x2={cx} y2="56" strokeWidth="1.5" className="stroke-ink" />
+          </g>
+        ))}
+      </svg>
+      <p className="text-sm font-semibold">Riding to your socials… ✨</p>
+      <p className="text-xs text-muted">Publishing post… 🛵💨 This can take up to a minute - please keep this window open.</p>
+    </div>
+  );
+}
+
 const PLATFORM_LABEL: Record<SocialPlatform, string> = { instagram: "Instagram", facebook: "Facebook" };
 
 /** One line per platform from the publish workflow, with whatever follow-up action its result allows. */
@@ -188,17 +245,32 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
       platforms,
       imageKeys: slots.map((p) => p.slot).filter((k) => selected.has(k)),
     });
+    // No answer to read (gateway timeout, dropped connection) or a "still publishing" refusal:
+    // the post may have gone out, so show what was saved instead of an error.
+    if (!res.results && res.action === "check_status") {
+      await checkStatus(platforms, true);
+      return;
+    }
     setResponse(res);
     setBusy(false);
     if (res.ok && !res.processing) toast("ok", "Posted successfully");
   }
 
-  async function checkStatus() {
-    if (busy) return;
+  async function checkStatus(only: SocialPlatform[] = targets, fromPublish = false) {
+    if (busy && !fromPublish) return;
     setBusy(true);
     const res = await fetchSocialStatus(v.id);
-    // Keep the rows already on screen for platforms the status call doesn't know about.
-    setResponse((prev) => (res.ok ? { ...res, results: { ...prev?.results, ...res.results } } : res));
+    if (!res.ok) {
+      setResponse(res);
+    } else {
+      // Only the platforms this post was for - older attempts for the other one aren't news.
+      const results = Object.fromEntries(Object.entries(res.results ?? {}).filter(([p]) => only.includes(p as SocialPlatform)));
+      setResponse(
+        Object.keys(results).length > 0
+          ? { ok: true, results }
+          : { ok: false, code: "SERVICE_DOWN", message: "Couldn't confirm the post. Check the platform before trying again, to avoid a duplicate.", retryable: true, action: "retry_later" },
+      );
+    }
     setBusy(false);
   }
 
@@ -330,29 +402,25 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
 
         {(response || busy) && (
           <div aria-live="polite">
-            {busy && (
-              <p className="flex items-center gap-2 text-sm text-muted">
-                <Loader2 className="size-4 animate-spin" /> Checking and publishing - this can take up to a minute. Please keep this window open.
-              </p>
-            )}
-            {response?.results && (
-              <ul className="space-y-2">
+            {busy && <RidingLoader />}
+            {!busy && response?.results && (
+              <ul className="space-y-2" style={{ animation: "tw-rise 0.35s ease-out" }}>
                 {(["instagram", "facebook"] as const).map((p) => {
                   const r = response.results?.[p];
                   return r ? (
-                    <ResultRow key={p} platform={p} r={r} busy={busy} onRetry={() => publish([p])} onCheck={checkStatus} onManual={() => postManually(p)} />
+                    <ResultRow key={p} platform={p} r={r} busy={busy} onRetry={() => publish([p])} onCheck={() => checkStatus([p])} onManual={() => postManually(p)} />
                   ) : null;
                 })}
               </ul>
             )}
-            {response && !response.results && (
-              <div className="flex items-start gap-3 rounded-2xl bg-danger-soft/60 p-3 text-sm text-danger">
+            {!busy && response && !response.results && (
+              <div className="flex items-start gap-3 rounded-2xl bg-danger-soft/60 p-3 text-sm text-danger" style={{ animation: "tw-rise 0.35s ease-out" }}>
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="break-words font-medium">{response.message ?? "Something went wrong. Try again in a minute."}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {response.action === "check_status" && (
-                      <Button size="sm" type="button" onClick={checkStatus} disabled={busy}>
+                      <Button size="sm" type="button" onClick={() => checkStatus()} disabled={busy}>
                         <RefreshCw className="size-3.5" /> Check status
                       </Button>
                     )}
