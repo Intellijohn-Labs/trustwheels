@@ -160,9 +160,26 @@ export function SocialShareButton({ vehicle: v }: { vehicle: Vehicle }) {
         onClick={() => setOpen(true)}
         title="Share to Social Media"
         aria-label={`Share ${v.make} ${v.model} to social media`}
-        className="grid size-8 place-items-center rounded-full border border-line bg-surface text-muted transition hover:border-accent hover:text-accent"
+        className="relative inline-flex h-9 w-9 cursor-pointer select-none items-center justify-center overflow-hidden rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-110 active:translate-y-0.5 active:scale-90"
+        style={{
+          background: "linear-gradient(135deg, rgba(56, 189, 248, 0.9) 0%, rgba(37, 99, 235, 0.95) 100%)",
+          backdropFilter: "blur(10px)",
+          boxShadow: `
+            inset 0 2px 4px rgba(255, 255, 255, 0.75),
+            inset 0 -2px 5px rgba(15, 23, 42, 0.35),
+            0 6px 16px -2px rgba(37, 99, 235, 0.45)
+          `,
+          border: "1px solid rgba(255, 255, 255, 0.4)",
+        }}
       >
-        <Share2 className="size-3.5" />
+        {/* Specular gloss reflection highlight */}
+        <span
+          className="pointer-events-none absolute left-1.5 right-1.5 top-0.5 h-1/2 rounded-full"
+          style={{ background: "linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.05) 100%)", opacity: 0.9 }}
+        />
+        <span className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+          <Share2 className="h-4 w-4" />
+        </span>
       </button>
       {open && <SocialShareModal vehicle={v} onClose={() => setOpen(false)} />}
     </>
