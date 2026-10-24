@@ -31,13 +31,14 @@ function FacebookIcon({ className }: { className?: string }) {
 }
 
 /** Brand look per selection: the tab, photo ring, Publish button, loader and result cards all draw from this. */
-const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: string; glow: string; colors: [string, string] }[] = [
+const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: string; glow: string; tabGlow: string; colors: [string, string] }[] = [
   {
     id: "instagram",
     label: "Instagram",
     icon: <InstagramIcon className="size-4" />,
     gradient: "linear-gradient(135deg, #f58529 0%, #dd2a7b 45%, #8134af 80%, #515bd4 100%)",
     glow: "rgba(221, 42, 123, 0.45)",
+    tabGlow: "rgba(225, 48, 108, 0.35)",
     colors: ["#dd2a7b", "#8134af"],
   },
   {
@@ -46,6 +47,7 @@ const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: strin
     icon: <FacebookIcon className="size-4" />,
     gradient: "linear-gradient(135deg, #3b8bff 0%, #1877f2 55%, #0f5fd1 100%)",
     glow: "rgba(24, 119, 242, 0.45)",
+    tabGlow: "rgba(24, 119, 242, 0.35)",
     colors: ["#3b8bff", "#1877f2"],
   },
   {
@@ -59,6 +61,7 @@ const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: strin
     ),
     gradient: "linear-gradient(100deg, #f58529 0%, #dd2a7b 28%, #8134af 48%, #1877f2 62%, #0f5fd1 100%)",
     glow: "rgba(129, 52, 175, 0.45)",
+    tabGlow: "rgba(129, 52, 175, 0.35)",
     colors: ["#dd2a7b", "#1877f2"],
   },
 ];
@@ -345,25 +348,22 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
               disabled={busy}
               onClick={() => setPlatform(p.id)}
               className={cn(
-                "relative inline-flex select-none items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-60",
-                platform === p.id ? "text-white hover:scale-105" : "border border-line bg-surface/60 text-muted backdrop-blur hover:border-accent hover:text-ink",
+                "relative inline-flex select-none items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold ease-[cubic-bezier(0.34,1.56,0.64,1)] transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-60",
+                platform === p.id
+                  ? "border border-white/50 text-white hover:scale-105"
+                  : "border border-surface/60 bg-surface/40 text-muted shadow-inner ring-1 ring-line/60 backdrop-blur-md hover:bg-surface/70 hover:text-ink",
               )}
               style={
                 platform === p.id
                   ? {
                       background: p.gradient,
-                      border: "1px solid rgba(255, 255, 255, 0.4)",
-                      boxShadow: `inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 5px rgba(15,23,42,0.3), 0 6px 16px -2px ${p.glow}`,
+                      boxShadow: `inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 5px rgba(15,23,42,0.25), 0 4px 12px ${p.tabGlow}`,
                     }
                   : undefined
               }
             >
-              {platform === p.id && (
-                <span
-                  className="pointer-events-none absolute left-2 right-2 top-0.5 h-1/2 rounded-full"
-                  style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.05) 100%)" }}
-                />
-              )}
+              {/* Top-down gloss reflection on the selected capsule */}
+              {platform === p.id && <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/30 to-transparent" />}
               <span className={cn("relative z-10 flex items-center gap-2", platform === p.id && "drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]")}>
                 {p.icon}
                 {p.label}
