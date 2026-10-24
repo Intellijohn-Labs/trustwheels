@@ -214,22 +214,8 @@ export function SocialShareButton({ vehicle: v }: { vehicle: Vehicle }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="relative inline-flex items-center justify-center px-1 py-2">
+      <div className="relative inline-flex items-center justify-center">
         <style>{`
-          @keyframes jellyDripLeft {
-            0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.95; }
-            45% { transform: translateY(5px) scale(0.85, 1.35); opacity: 1; }
-            70% { transform: translateY(8px) scale(0.6, 1.4); opacity: 0.8; }
-            85% { transform: translateY(11px) scale(0.4, 0.4); opacity: 0; }
-            86% { transform: translateY(-2px) scale(0.9, 0.9); opacity: 0; }
-          }
-          @keyframes jellyDripRight {
-            0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.95; }
-            40% { transform: translateY(4px) scale(0.9, 1.25); opacity: 1; }
-            65% { transform: translateY(7px) scale(0.7, 1.35); opacity: 0.85; }
-            80% { transform: translateY(10px) scale(0.35, 0.35); opacity: 0; }
-            81% { transform: translateY(-2px) scale(0.9, 0.9); opacity: 0; }
-          }
           @keyframes liquidWobble {
             0%, 100% { border-radius: 9999px; transform: scale(1); }
             33% { border-radius: 22px 26px 20px 24px / 24px 20px 26px 22px; transform: scale(1.02, 0.98); }
@@ -241,28 +227,6 @@ export function SocialShareButton({ vehicle: v }: { vehicle: Vehicle }) {
             100% { transform: translateX(-40%) skewX(-15deg); }
           }
         `}</style>
-
-        {/* Dripping jelly teardrop 1 (left) */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-1 left-3.5 h-3.5 w-3 rounded-full"
-          style={{
-            background: "radial-gradient(circle at 35% 30%, #38bdf8 0%, #1d4ed8 90%)",
-            boxShadow: "0 2px 5px rgba(37, 99, 235, 0.6)",
-            animation: "jellyDripLeft 2.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite",
-          }}
-        />
-
-        {/* Dripping jelly teardrop 2 (right) */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-1.5 right-4 h-4 w-3.5 rounded-full"
-          style={{
-            background: "radial-gradient(circle at 35% 30%, #38bdf8 0%, #2563eb 90%)",
-            boxShadow: "0 2px 6px rgba(37, 99, 235, 0.6)",
-            animation: "jellyDripRight 2.3s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite 0.9s",
-          }}
-        />
 
         {/* Main 3D jelly capsule button */}
         <button
