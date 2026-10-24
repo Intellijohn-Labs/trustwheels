@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Check, Copy, ExternalLink, Share2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Loader2, RefreshCw, Send, Share2 } from "lucide-react";
 import { useToast } from "../toast";
 import { branchName, PHOTO_SLOTS } from "@/lib/masters";
 import { currentBranchId } from "@/lib/workflow";
 import { displayReg, formatNumber, formatPaise } from "@/lib/format";
+import { fetchSocialStatus, publishToSocial, type PlatformResult, type PublishResponse, type SocialPlatform } from "@/lib/social-publish";
 import type { PhotoSlot, Vehicle } from "@/lib/types";
 import { Button, cn } from "../ui";
 import { Dialog } from "../panels/dialog";
@@ -73,9 +74,90 @@ function defaultCaption(v: Vehicle) {
   ].join("\n");
 }
 
+const PLATFORM_LABEL: Record<SocialPlatform, string> = { instagram: "Instagram", facebook: "Facebook" };
+
+/** One line per platform from the publish workflow, with whatever follow-up action its result allows. */
+function ResultRow({
+  platform,
+  r,
+  busy,
+  onRetry,
+  onCheck,
+  onManual,
+}: {
+  platform: SocialPlatform;
+  r: PlatformResult;
+  busy: boolean;
+  onRetry: () => void;
+  onCheck: () => void;
+  onManual: () => void;
+}) {
+  const name = PLATFORM_LABEL[platform];
+  const tone =
+    r.status === "success" ? "ok" : r.status === "processing" || r.status === "not_posted" || r.status === "already_posted" ? "warn" : "bad";
+  const action = r.action ?? "";
+  const canRetry = r.status === "failed" ? !!r.retryable : r.status === "not_posted" && action === "post_single";
+  const canManual = r.status === "failed" && action.includes("post_manually");
+  const canCheck = r.status === "processing" || action === "check_status";
+  const wait = r.retryAfterSeconds ? ` (about ${Math.ceil(r.retryAfterSeconds / 60)} min)` : "";
+  const Icon = tone === "ok" ? CheckCircle2 : tone === "warn" ? Clock : AlertTriangle;
+
+  return (
+    <li
+      className={cn(
+        "flex items-start gap-3 rounded-2xl p-3 text-sm",
+        tone === "ok" && "bg-ok-soft/60 text-ok",
+        tone === "warn" && "bg-warn-soft/60 text-warn",
+        tone === "bad" && "bg-danger-soft/60 text-danger",
+      )}
+    >
+      <Icon className="mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">
+          {name}
+          {r.status === "success" && " - posted"}
+          {r.status === "processing" && " - publishing"}
+          {r.status === "already_posted" && " - already posted"}
+          {r.status === "not_posted" && " - not posted yet"}
+          {r.status === "failed" && " - failed"}
+        </p>
+        {r.message && (
+          <p className="mt-0.5 break-words">
+            {r.message}
+            {r.status === "failed" && r.code === "RATE_LIMITED" ? wait : ""}
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap gap-2">
+          {r.status === "success" && r.postUrl && (
+            <a href={r.postUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline">
+              View post <ExternalLink className="size-3.5" />
+            </a>
+          )}
+          {canCheck && (
+            <Button size="sm" type="button" onClick={onCheck} disabled={busy}>
+              <RefreshCw className="size-3.5" /> Check status
+            </Button>
+          )}
+          {canRetry && (
+            <Button size="sm" type="button" onClick={onRetry} disabled={busy}>
+              {r.status === "not_posted" ? `Post to ${name} only` : "Try again"}
+            </Button>
+          )}
+          {canManual && (
+            <Button size="sm" type="button" onClick={onManual} disabled={busy}>
+              <Copy className="size-3.5" /> Copy caption &amp; open {name}
+            </Button>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 /**
- * Share a Ready for Sale vehicle to Instagram / Facebook. No Meta Graph API is configured, so
- * "Copy Caption & Open" copies the caption to the clipboard and opens the chosen platform(s) in a new tab.
+ * Publish a Ready for Sale vehicle to Instagram / Facebook through the Social Publish n8n workflow
+ * (via /api/social/*). The workflow checks the vehicle, photos and connected accounts, and replies
+ * per platform; those replies are shown here as-is, with a manual "copy caption & open" fallback.
  */
 export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => void }) {
   const toast = useToast();
@@ -83,6 +165,10 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
   const [caption, setCaption] = useState(() => defaultCaption(v));
   const slots = PHOTO_SLOTS.filter((p) => v.photos[p.slot]);
   const [selected, setSelected] = useState<Set<PhotoSlot>>(() => new Set(slots.map((p) => p.slot)));
+  const [busy, setBusy] = useState(false);
+  const [response, setResponse] = useState<PublishResponse | null>(null);
+
+  const targets: SocialPlatform[] = platform === "both" ? ["instagram", "facebook"] : [platform];
 
   function toggle(slot: PhotoSlot) {
     setSelected((s) => {
@@ -92,16 +178,38 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
     });
   }
 
-  async function share() {
+  async function publish(platforms: SocialPlatform[] = targets) {
+    if (busy) return;
+    setBusy(true);
+    setResponse(null);
+    const res = await publishToSocial({
+      vehicleId: v.id,
+      caption,
+      platforms,
+      imageKeys: slots.map((p) => p.slot).filter((k) => selected.has(k)),
+    });
+    setResponse(res);
+    setBusy(false);
+    if (res.ok && !res.processing) toast("ok", "Posted successfully");
+  }
+
+  async function checkStatus() {
+    if (busy) return;
+    setBusy(true);
+    const res = await fetchSocialStatus(v.id);
+    // Keep the rows already on screen for platforms the status call doesn't know about.
+    setResponse((prev) => (res.ok ? { ...res, results: { ...prev?.results, ...res.results } } : res));
+    setBusy(false);
+  }
+
+  async function postManually(p: SocialPlatform) {
     try {
       await navigator.clipboard.writeText(caption);
       toast("ok", "Caption copied - paste it into your post");
     } catch {
       toast("error", "Couldn't copy the caption automatically - select and copy it manually");
     }
-    const targets = platform === "both" ? (["instagram", "facebook"] as const) : ([platform] as const);
-    targets.forEach((t) => window.open(PLATFORM_URL[t], "_blank", "noopener,noreferrer"));
-    onClose();
+    window.open(PLATFORM_URL[p], "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -110,15 +218,15 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
       title="Share to Social Media"
       subtitle={`${v.make} ${v.model} · ${displayReg(v.registrationNo)}`}
       onClose={onClose}
-      onSubmit={share}
+      onSubmit={() => publish()}
       footer={
         <>
           <Button size="lg" className="flex-1" onClick={onClose}>
-            Cancel
+            {response ? "Close" : "Cancel"}
           </Button>
           <button
             type="submit"
-            disabled={!caption.trim()}
+            disabled={busy || !caption.trim() || selected.size === 0}
             className="relative inline-flex flex-[2] cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-2.5 text-sm font-semibold tracking-wide text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             style={{
               background: "linear-gradient(135deg, rgba(56, 189, 248, 0.95) 0%, rgba(37, 99, 235, 1) 100%)",
@@ -129,7 +237,7 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
             {/* Upper specular gloss highlight */}
             <span className="pointer-events-none absolute left-3 right-3 top-0.5 h-[45%] rounded-full bg-gradient-to-b from-white/80 to-transparent" />
             <span className="relative z-10 flex items-center gap-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-              <Copy className="size-4" /> Publish <ExternalLink className="size-4" />
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {busy ? "Publishing…" : "Publish"}
             </span>
           </button>
         </>
@@ -143,9 +251,10 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
               type="button"
               role="radio"
               aria-checked={platform === p.id}
+              disabled={busy}
               onClick={() => setPlatform(p.id)}
               className={cn(
-                "relative inline-flex select-none items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
+                "relative inline-flex select-none items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95 disabled:pointer-events-none disabled:opacity-60",
                 platform === p.id ? "text-white hover:scale-105" : "border border-line bg-surface/60 text-muted backdrop-blur hover:border-accent hover:text-ink",
               )}
               style={
@@ -181,6 +290,7 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             rows={7}
+            disabled={busy}
             className="w-full rounded-2xl border border-line bg-surface p-3 text-sm outline-none focus:border-accent"
           />
         </div>
@@ -217,6 +327,52 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
             </div>
           )}
         </div>
+
+        {(response || busy) && (
+          <div aria-live="polite">
+            {busy && (
+              <p className="flex items-center gap-2 text-sm text-muted">
+                <Loader2 className="size-4 animate-spin" /> Checking and publishing - this can take up to a minute. Please keep this window open.
+              </p>
+            )}
+            {response?.results && (
+              <ul className="space-y-2">
+                {(["instagram", "facebook"] as const).map((p) => {
+                  const r = response.results?.[p];
+                  return r ? (
+                    <ResultRow key={p} platform={p} r={r} busy={busy} onRetry={() => publish([p])} onCheck={checkStatus} onManual={() => postManually(p)} />
+                  ) : null;
+                })}
+              </ul>
+            )}
+            {response && !response.results && (
+              <div className="flex items-start gap-3 rounded-2xl bg-danger-soft/60 p-3 text-sm text-danger">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-medium">{response.message ?? "Something went wrong. Try again in a minute."}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {response.action === "check_status" && (
+                      <Button size="sm" type="button" onClick={checkStatus} disabled={busy}>
+                        <RefreshCw className="size-3.5" /> Check status
+                      </Button>
+                    )}
+                    {response.retryable && response.action !== "check_status" && (
+                      <Button size="sm" type="button" onClick={() => publish()} disabled={busy}>
+                        Try again
+                      </Button>
+                    )}
+                    {response.action?.includes("post_manually") &&
+                      targets.map((p) => (
+                        <Button key={p} size="sm" type="button" onClick={() => postManually(p)} disabled={busy}>
+                          <Copy className="size-3.5" /> Copy caption &amp; open {PLATFORM_LABEL[p]}
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Dialog>
   );
