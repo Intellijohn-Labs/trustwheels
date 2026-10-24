@@ -3,8 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Loader2, RefreshCw, Send, Share2 } from "lucide-react";
 import { useToast } from "../toast";
-import { branchName, PHOTO_SLOTS } from "@/lib/masters";
-import { currentBranchId } from "@/lib/workflow";
+import { PHOTO_SLOTS } from "@/lib/masters";
 import { displayReg, formatNumber, formatPaise } from "@/lib/format";
 import { fetchSocialStatus, publishToSocial, type PlatformResult, type PublishResponse, type SocialPlatform } from "@/lib/social-publish";
 import type { PhotoSlot, Vehicle } from "@/lib/types";
