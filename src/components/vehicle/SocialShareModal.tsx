@@ -74,66 +74,34 @@ function defaultCaption(v: Vehicle) {
   ].join("\n");
 }
 
-/** Pure SVG/CSS scooter shown while the publish call is in flight: spinning wheels, a gentle bounce, exhaust puffs and a moving road. */
-function RidingLoader() {
+/** Minimal in-flight state: a thin gradient ring with a softly pulsing core. */
+function PublishingLoader() {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl bg-accent/5 px-4 py-5 text-center" style={{ animation: "tw-rise 0.3s ease-out" }}>
-      <style>{`
-        @keyframes twScooterWheel { to { transform: rotate(360deg); } }
-        @keyframes twScooterBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-        @keyframes twScooterPuff {
-          0% { opacity: 0.75; transform: translate(0, 0) scale(0.4); }
-          100% { opacity: 0; transform: translate(-24px, -9px) scale(1.4); }
-        }
-        @keyframes twScooterRoad { to { stroke-dashoffset: -28; } }
-        @media (prefers-reduced-motion: reduce) {
-          .tw-scooter * { animation: none !important; }
-        }
-      `}</style>
-      <svg viewBox="0 0 130 70" className="tw-scooter h-20 w-36" role="img" aria-label="A scooter riding">
-        {/* road */}
-        <line x1="4" y1="60" x2="126" y2="60" strokeWidth="2" strokeLinecap="round" strokeDasharray="14 14" className="stroke-line-strong" style={{ animation: "twScooterRoad 0.5s linear infinite" }} />
-        {/* exhaust puffs, trailing behind the rear wheel */}
-        {[0, 0.4, 0.8].map((d) => (
-          <circle
-            key={d}
-            cx="16"
-            cy="50"
-            r="4"
-            className="fill-muted"
-            style={{ animation: `twScooterPuff 1.2s ease-out ${d}s infinite`, transformBox: "fill-box", transformOrigin: "center", opacity: 0 }}
-          />
-        ))}
-        {/* body bounces; wheels spin independently */}
-        <g style={{ animation: "twScooterBounce 0.5s ease-in-out infinite" }}>
-          <rect x="30" y="40" width="50" height="5" rx="2.5" className="fill-accent" />
-          <path d="M22 40 Q24 30 36 30 H52 V36 H34 Q30 36 30 42 Z" className="fill-accent" />
-          <rect x="30" y="27" width="24" height="5" rx="2.5" className="fill-ink" />
-          <line x1="82" y1="42" x2="78" y2="14" strokeWidth="4" strokeLinecap="round" className="stroke-accent" />
-          <line x1="72" y1="13" x2="86" y2="13" strokeWidth="3.5" strokeLinecap="round" className="stroke-ink" />
-          <line x1="82" y1="42" x2="92" y2="50" strokeWidth="3.5" strokeLinecap="round" className="stroke-accent" />
-          <circle cx="90" cy="22" r="3.5" className="fill-warn" />
-          <circle cx="62" cy="21" r="5.5" className="fill-ink" />
-          <path d="M62 27 L56 40" strokeWidth="4" strokeLinecap="round" className="stroke-ink" />
-          <path d="M62 27 L74 14" strokeWidth="3.5" strokeLinecap="round" className="stroke-ink" />
-        </g>
-        {[28, 92].map((cx) => (
-          <g key={cx} style={{ animation: "twScooterWheel 0.6s linear infinite", transformBox: "fill-box", transformOrigin: "center" }}>
-            <circle cx={cx} cy="50" r="9" strokeWidth="3.5" className="fill-surface stroke-ink" />
-            <line x1={cx - 6} y1="50" x2={cx + 6} y2="50" strokeWidth="1.5" className="stroke-ink" />
-            <line x1={cx} y1="44" x2={cx} y2="56" strokeWidth="1.5" className="stroke-ink" />
-          </g>
-        ))}
-      </svg>
-      <p className="text-sm font-semibold">Riding to your socials… ✨</p>
-      <p className="text-xs text-muted">Publishing post… 🛵💨 This can take up to a minute - please keep this window open.</p>
+    <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface px-4 py-4 shadow-sm" style={{ animation: "tw-rise 0.3s ease-out" }} role="status">
+      <div className="relative size-10 shrink-0">
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 animate-spin rounded-full"
+          style={{
+            background: "conic-gradient(from 0deg, rgba(56,189,248,0) 0%, #38bdf8 55%, #2563eb 100%)",
+            WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px))",
+            mask: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px))",
+            animationDuration: "1.1s",
+          }}
+        />
+        <span aria-hidden="true" className="absolute inset-0 m-auto size-2.5 animate-pulse rounded-full bg-[#2563eb]" style={{ boxShadow: "0 0 12px 3px rgba(56,189,248,0.6)" }} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Publishing to your socials...</p>
+        <p className="text-xs text-muted">This can take up to a minute - please keep this window open.</p>
+      </div>
     </div>
   );
 }
 
 const PLATFORM_LABEL: Record<SocialPlatform, string> = { instagram: "Instagram", facebook: "Facebook" };
 
-/** One line per platform from the publish workflow, with whatever follow-up action its result allows. */
+/** One card per platform from the publish workflow, with whatever follow-up action its result allows. */
 function ResultRow({
   platform,
   r,
@@ -150,62 +118,79 @@ function ResultRow({
   onManual: () => void;
 }) {
   const name = PLATFORM_LABEL[platform];
-  const tone =
-    r.status === "success" ? "ok" : r.status === "processing" || r.status === "not_posted" || r.status === "already_posted" ? "warn" : "bad";
+  const brand = PLATFORMS.find((x) => x.id === platform)!;
   const action = r.action ?? "";
+  // A link means it's live, whatever the status field still says.
+  const live = r.status === "success" || !!r.postUrl;
+  const pending = !live && r.status === "processing";
+  const tone = live ? "ok" : pending || r.status === "not_posted" || r.status === "already_posted" ? "warn" : "bad";
+
+  const title = live
+    ? `Published on ${name}`
+    : pending
+      ? `Publishing on ${name}...`
+      : r.status === "already_posted"
+        ? `Already posted to ${name}`
+        : r.status === "not_posted"
+          ? `Not posted to ${name} yet`
+          : `Couldn't post to ${name}`;
+  const wait = r.status === "failed" && r.code === "RATE_LIMITED" && r.retryAfterSeconds ? ` (about ${Math.ceil(r.retryAfterSeconds / 60)} min)` : "";
+  const subtitle = live ? "Your post is now live!" : pending ? "Publishing is in progress. Check again shortly." : `${r.message ?? ""}${wait}`;
+
   const canRetry = r.status === "failed" ? !!r.retryable : r.status === "not_posted" && action === "post_single";
   const canManual = r.status === "failed" && action.includes("post_manually");
-  const canCheck = r.status === "processing" || action === "check_status";
-  const wait = r.retryAfterSeconds ? ` (about ${Math.ceil(r.retryAfterSeconds / 60)} min)` : "";
-  const Icon = tone === "ok" ? CheckCircle2 : tone === "warn" ? Clock : AlertTriangle;
+  const canCheck = pending || (!live && action === "check_status");
+  const pill = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:-translate-y-px active:scale-95 disabled:pointer-events-none disabled:opacity-50";
 
   return (
     <li
       className={cn(
-        "flex items-start gap-3 rounded-2xl p-3 text-sm",
-        tone === "ok" && "bg-ok-soft/60 text-ok",
-        tone === "warn" && "bg-warn-soft/60 text-warn",
-        tone === "bad" && "bg-danger-soft/60 text-danger",
+        "flex items-start gap-3.5 rounded-2xl border bg-surface p-3.5 shadow-sm",
+        tone === "ok" && "border-ok/30",
+        tone === "warn" && "border-warn/30",
+        tone === "bad" && "border-danger/30",
       )}
+      style={{ animation: "tw-rise 0.35s ease-out" }}
     >
-      <Icon className="mt-0.5 size-4 shrink-0" />
+      <span
+        className="grid size-10 shrink-0 place-items-center rounded-xl text-white"
+        style={{ background: brand.gradient, boxShadow: `0 4px 12px -2px ${brand.glow}` }}
+        aria-hidden="true"
+      >
+        {platform === "instagram" ? <InstagramIcon className="size-5" /> : <FacebookIcon className="size-5" />}
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold">
-          {name}
-          {r.status === "success" && " - posted"}
-          {r.status === "processing" && " - publishing"}
-          {r.status === "already_posted" && " - already posted"}
-          {r.status === "not_posted" && " - not posted yet"}
-          {r.status === "failed" && " - failed"}
+        <p className="flex items-center gap-1.5 text-sm font-semibold">
+          {title}
+          {tone === "ok" && <CheckCircle2 className="size-4 text-ok" />}
+          {tone === "warn" && <Clock className="size-4 text-warn" />}
+          {tone === "bad" && <AlertTriangle className="size-4 text-danger" />}
         </p>
-        {r.message && (
-          <p className="mt-0.5 break-words">
-            {r.message}
-            {r.status === "failed" && r.code === "RATE_LIMITED" ? wait : ""}
-          </p>
-        )}
-        <div className="mt-2 flex flex-wrap gap-2">
-          {r.status === "success" && r.postUrl && (
-            <a href={r.postUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline">
-              View post <ExternalLink className="size-3.5" />
-            </a>
-          )}
-          {canCheck && (
-            <Button size="sm" type="button" onClick={onCheck} disabled={busy}>
-              <RefreshCw className="size-3.5" /> Check status
-            </Button>
-          )}
-          {canRetry && (
-            <Button size="sm" type="button" onClick={onRetry} disabled={busy}>
-              {r.status === "not_posted" ? `Post to ${name} only` : "Try again"}
-            </Button>
-          )}
-          {canManual && (
-            <Button size="sm" type="button" onClick={onManual} disabled={busy}>
-              <Copy className="size-3.5" /> Copy caption &amp; open {name}
-            </Button>
-          )}
-        </div>
+        {subtitle && <p className={cn("mt-0.5 break-words text-sm", tone === "bad" ? "text-danger" : "text-muted")}>{subtitle}</p>}
+        {(live && r.postUrl) || canCheck || canRetry || canManual ? (
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {live && r.postUrl && (
+              <a href={r.postUrl} target="_blank" rel="noopener noreferrer" className={cn(pill, "border-line bg-surface text-ink hover:border-accent hover:text-accent")}>
+                View post <ExternalLink className="size-3.5" />
+              </a>
+            )}
+            {canCheck && (
+              <button type="button" onClick={onCheck} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+                <RefreshCw className="size-3.5" /> Check status
+              </button>
+            )}
+            {canRetry && (
+              <button type="button" onClick={onRetry} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+                {r.status === "not_posted" ? `Post to ${name} only` : "Try again"}
+              </button>
+            )}
+            {canManual && (
+              <button type="button" onClick={onManual} disabled={busy} className={cn(pill, "border-line bg-surface text-ink hover:border-accent")}>
+                <Copy className="size-3.5" /> Copy caption &amp; open {name}
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
     </li>
   );
@@ -402,7 +387,7 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
 
         {(response || busy) && (
           <div aria-live="polite">
-            {busy && <RidingLoader />}
+            {busy && <PublishingLoader />}
             {!busy && response?.results && (
               <ul className="space-y-2" style={{ animation: "tw-rise 0.35s ease-out" }}>
                 {(["instagram", "facebook"] as const).map((p) => {
