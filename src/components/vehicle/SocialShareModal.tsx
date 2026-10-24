@@ -116,9 +116,22 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
           <Button size="lg" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" size="lg" variant="primary" className="flex-[2]" disabled={!caption.trim()}>
-            <Copy className="size-4" /> Copy Caption &amp; Open <ExternalLink className="size-4" />
-          </Button>
+          <button
+            type="submit"
+            disabled={!caption.trim()}
+            className="relative inline-flex flex-[2] cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-2.5 text-sm font-semibold tracking-wide text-white transition-transform duration-200 hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+            style={{
+              background: "linear-gradient(135deg, rgba(56, 189, 248, 0.95) 0%, rgba(37, 99, 235, 1) 100%)",
+              boxShadow: "inset 0 2px 5px rgba(255, 255, 255, 0.85), inset 0 -3px 6px rgba(15, 23, 42, 0.45), 0 6px 18px -2px rgba(37, 99, 235, 0.5)",
+              border: "1px solid rgba(255, 255, 255, 0.55)",
+            }}
+          >
+            {/* Upper specular gloss highlight */}
+            <span className="pointer-events-none absolute left-3 right-3 top-0.5 h-[45%] rounded-full bg-gradient-to-b from-white/80 to-transparent" />
+            <span className="relative z-10 flex items-center gap-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+              <Copy className="size-4" /> Publish <ExternalLink className="size-4" />
+            </span>
+          </button>
         </>
       }
     >
