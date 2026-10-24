@@ -16,6 +16,7 @@ import { RowCheckbox, SelectAllCheckbox, SelectionToolbar, useSelection } from "
 import { ConfirmDeleteDialog } from "@/components/panels/confirm-delete-dialog";
 import { MarkReadyForSaleDialog, RejectStockDialog, SendToReconDialog } from "@/components/panels/sale-readiness-dialog";
 import { DocumentsButton, PhotosEditButton, PriceEditButton } from "@/components/vehicle/quick-actions";
+import { SocialShareButton } from "@/components/vehicle/SocialShareModal";
 import type { Vehicle } from "@/lib/types";
 
 // "Sold" isn't a bucket here - it's excluded from every one of these panels below and gets its
@@ -342,6 +343,7 @@ export default function StockPage() {
                           <PriceEditButton vehicle={v} />
                           <PhotosEditButton vehicle={v} />
                           <DocumentsButton vehicle={v} />
+                          <SocialShareButton vehicle={v} />
                         </>
                       )}
                       {canDelete && (
