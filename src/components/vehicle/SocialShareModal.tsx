@@ -66,11 +66,11 @@ const PLATFORM_URL = { instagram: "https://www.instagram.com/", facebook: "https
 function defaultCaption(v: Vehicle) {
   const price = v.proposedPricePaise ? formatPaise(v.proposedPricePaise) : "Contact for price";
   return [
-    `🚗 ${v.make} ${v.model} (${v.year})`,
+    `🛵 ${v.make} ${v.model} (${v.year})`,
     `💰 Price: ${price}`,
-    `📍 Available at: ${branchName(currentBranchId(v))}`,
+    `📍 Location: Opposite Yamaha Speed Motors, Near railway station, Aluva Road, Angamaly`,
     `⚡ Kilometers: ${formatNumber(v.odometerKm)} km | Fuel: ${v.fuel.charAt(0).toUpperCase()}${v.fuel.slice(1)}`,
-    `📞 Contact TrustWheels for bookings & test drives!`,
+    `📞 Contact / WhatsApp: 8086868727, 7559040398`,
   ].join("\n");
 }
 
