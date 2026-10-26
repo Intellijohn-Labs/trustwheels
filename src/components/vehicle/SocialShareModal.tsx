@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AlertTriangle, Check, CheckCircle2, Clock, Copy, ExternalLink, Loader2, RefreshCw, Send, Share2 } from "lucide-react";
 import { useToast } from "../toast";
 import { PHOTO_SLOTS } from "@/lib/masters";
@@ -68,6 +68,30 @@ const PLATFORMS: { id: Platform; label: string; icon: ReactNode; gradient: strin
 
 const CAPTION_LIMIT = 2200;
 
+/** After a publish whose outcome is unknown, the status is re-read this often, for at most this long. */
+const POLL_MS = 10_000;
+const POLL_MAX_MS = 3 * 60_000;
+/** Ticked by default; every extra photo makes the Instagram post slower. */
+const DEFAULT_SLOTS: PhotoSlot[] = ["front", "rear", "odometer"];
+
+type Results = Partial<Record<SocialPlatform, PlatformResult>>;
+const BOTH: SocialPlatform[] = ["instagram", "facebook"];
+
+/** Live on the platform already (a link means it is, whatever the status field says). */
+const isPosted = (r?: PlatformResult) => !!r && (r.status === "success" || r.status === "already_posted" || !!r.postUrl);
+const isPending = (r?: PlatformResult) => !!r && !isPosted(r) && r.status === "processing";
+
+/** Fold a status read into what is shown; old failures are skipped unless `keepFailed` (or something was already shown there). */
+function mergeStatus(prev: Results, incoming: Results, keepFailed: boolean): Results {
+  const next = { ...prev };
+  for (const p of BOTH) {
+    const r = incoming[p];
+    if (!r || (r.status === "failed" && !keepFailed && !prev[p])) continue;
+    next[p] = r;
+  }
+  return next;
+}
+
 const PLATFORM_URL = { instagram: "https://www.instagram.com/", facebook: "https://www.facebook.com/" };
 
 /** Default caption from the vehicle's own data. Transmission isn't recorded on a vehicle, so it's left out rather than guessed. */
@@ -125,6 +149,10 @@ function ResultRow({
   onRetry,
   onCheck,
   onManual,
+  confirming,
+  onPostAgain,
+  onCancelReplace,
+  onConfirmReplace,
 }: {
   platform: SocialPlatform;
   r: PlatformResult;
@@ -132,6 +160,10 @@ function ResultRow({
   onRetry: () => void;
   onCheck: () => void;
   onManual: () => void;
+  confirming: boolean;
+  onPostAgain: () => void;
+  onCancelReplace: () => void;
+  onConfirmReplace: () => void;
 }) {
   const name = PLATFORM_LABEL[platform];
   const brand = PLATFORMS.find((x) => x.id === platform)!;
@@ -153,7 +185,9 @@ function ResultRow({
   const wait = r.status === "failed" && r.code === "RATE_LIMITED" && r.retryAfterSeconds ? ` (about ${Math.ceil(r.retryAfterSeconds / 60)} min)` : "";
   const subtitle = live ? "Your post is now live!" : pending ? "Publishing is in progress. Check again shortly." : `${r.message ?? ""}${wait}`;
 
-  const canRetry = r.status === "failed" ? !!r.retryable : r.status === "not_posted" && action === "post_single";
+  // "fix_input" (e.g. DUPLICATE_CONTENT) needs a caption edit, not another identical attempt.
+  const canRetry = r.status === "failed" ? !!r.retryable && action !== "fix_input" : r.status === "not_posted" && action === "post_single";
+  const canPostAgain = isPosted(r);
   const canManual = r.status === "failed" && action.includes("post_manually");
   const canCheck = pending || (!live && action === "check_status");
   const pill = "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition hover:-translate-y-px active:scale-95 disabled:pointer-events-none disabled:opacity-50";
@@ -184,7 +218,19 @@ function ResultRow({
           {tone === "bad" && <AlertTriangle className="size-4 text-danger" />}
         </p>
         {subtitle && <p className={cn("mt-0.5 break-words text-sm", tone === "bad" ? "text-danger" : "text-muted")}>{subtitle}</p>}
-        {(live && r.postUrl) || canCheck || canRetry || canManual ? (
+        {confirming ? (
+          <div className="mt-2.5 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm" role="alertdialog" aria-label={`Post again on ${name}`}>
+            <p>Only do this if you deleted the old post on {name}. Otherwise there will be two live posts.</p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button type="button" onClick={onCancelReplace} className={outline}>
+                Cancel
+              </button>
+              <button type="button" onClick={onConfirmReplace} disabled={busy} className={cn(pill, "border-warn bg-warn/20 text-ink hover:bg-warn/30")}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        ) : (live && r.postUrl) || canCheck || canRetry || canManual || canPostAgain ? (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {live && r.postUrl && (
               <a
@@ -196,6 +242,11 @@ function ResultRow({
               >
                 View on {name} <ExternalLink className="size-3.5" />
               </a>
+            )}
+            {canPostAgain && (
+              <button type="button" onClick={onPostAgain} disabled={busy} className={outline}>
+                <RefreshCw className="size-3.5" /> Post again
+              </button>
             )}
             {canCheck && (
               <button type="button" onClick={onCheck} disabled={busy} className={outline}>
@@ -229,13 +280,25 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [caption, setCaption] = useState(() => defaultCaption(v));
   const slots = PHOTO_SLOTS.filter((p) => v.photos[p.slot]);
-  const [selected, setSelected] = useState<Set<PhotoSlot>>(() => new Set(slots.map((p) => p.slot)));
+  const [selected, setSelected] = useState<Set<PhotoSlot>>(() => new Set(slots.map((p) => p.slot).filter((k) => DEFAULT_SLOTS.includes(k))));
   const [busy, setBusy] = useState(false);
-  const [response, setResponse] = useState<PublishResponse | null>(null);
+  const [results, setResults] = useState<Results>({});
+  /** The whole request was refused (no per-platform answer to show). */
+  const [error, setError] = useState<PublishResponse | null>(null);
+  /** Platforms we sent a post for but never got an answer: blocked until the status says what happened. */
+  const [uncertain, setUncertain] = useState<SocialPlatform[]>([]);
+  const [statusReady, setStatusReady] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [pollRun, setPollRun] = useState(0);
+  const [pollExpired, setPollExpired] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState<SocialPlatform | null>(null);
 
-  const targets: SocialPlatform[] = platform === "both" ? ["instagram", "facebook"] : [platform];
+  const targets: SocialPlatform[] = platform === "both" ? BOTH : [platform];
   const brand = PLATFORMS.find((x) => x.id === platform)!;
   const overLimit = caption.length > CAPTION_LIMIT;
+  const blocked = (p: SocialPlatform) => uncertain.includes(p) || isPosted(results[p]) || isPending(results[p]);
+  const sendable = targets.filter((p) => !blocked(p));
+  const waiting = uncertain.length > 0 || BOTH.some((p) => isPending(results[p]));
 
   function toggle(slot: PhotoSlot) {
     setSelected((s) => {
@@ -245,43 +308,92 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
     });
   }
 
-  async function publish(platforms: SocialPlatform[] = targets) {
+  /**
+   * Re-read what the workflow has saved for this vehicle. On open only posted / publishing platforms are shown
+   * (old failures are history); while waiting on a post, a failure is news and is shown too.
+   */
+  const refresh = useCallback(
+    async (keepFailed: boolean) => {
+      const res = await fetchSocialStatus(v.id);
+      if (!res.ok) return false;
+      const incoming = res.results ?? {};
+      setResults((prev) => mergeStatus(prev, incoming, keepFailed));
+      setUncertain((u) => u.filter((p) => !incoming[p]));
+      return true;
+    },
+    [v.id],
+  );
+
+  // On open: what is already posted or still publishing for this vehicle.
+  useEffect(() => {
+    let alive = true;
+    fetchSocialStatus(v.id).then((res) => {
+      if (!alive) return;
+      if (res.ok) setResults((prev) => mergeStatus(prev, res.results ?? {}, false));
+      setStatusReady(true); // even if the read failed, so a flaky status call can't lock Publish forever
+    });
+    return () => {
+      alive = false;
+    };
+  }, [v.id]);
+
+  // Unknown outcome or still publishing: look again every 10 seconds, for up to 3 minutes.
+  useEffect(() => {
+    if (!waiting) return;
+    const started = Date.now();
+    const id = setInterval(() => {
+      if (Date.now() - started >= POLL_MAX_MS) {
+        clearInterval(id);
+        setPollExpired(true);
+        return;
+      }
+      void refresh(true);
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [waiting, pollRun, refresh]);
+
+  async function publish(only?: SocialPlatform[], replace = false) {
     if (busy) return;
+    // A replace is the one way past "already posted"; everything else skips what is posted or still in flight.
+    const send = replace ? (only ?? []) : (only ?? targets).filter((p) => !blocked(p));
+    if (send.length === 0) return;
     setBusy(true);
-    setResponse(null);
+    setError(null);
+    setConfirmReplace(null);
+    setResults((prev) => Object.fromEntries(Object.entries(prev).filter(([p]) => !send.includes(p as SocialPlatform))));
     const res = await publishToSocial({
       vehicleId: v.id,
       caption,
-      platforms,
+      platforms: send,
       imageKeys: slots.map((p) => p.slot).filter((k) => selected.has(k)),
+      ...(replace ? { replace: true } : {}),
     });
-    // No answer to read (gateway timeout, dropped connection) or a "still publishing" refusal:
-    // the post may have gone out, so show what was saved instead of an error.
-    if (!res.results && res.action === "check_status") {
-      await checkStatus(platforms, true);
+    setBusy(false);
+    if (res.results) setResults((prev) => ({ ...prev, ...res.results }));
+    // 202, or no readable answer (timeout, dropped connection): the post may still go out, so no "Try again" -
+    // hold those platforms until the status says what happened.
+    if (res.processing || (!res.results && res.action === "check_status")) {
+      const unanswered = send.filter((p) => !res.results?.[p]);
+      setUncertain((u) => [...new Set([...u, ...unanswered])]);
+      setPollExpired(false);
+      setPollRun((n) => n + 1);
       return;
     }
-    setResponse(res);
-    setBusy(false);
-    if (res.ok && !res.processing) toast("ok", "Posted successfully");
+    if (!res.results) {
+      setError(res);
+      return;
+    }
+    if (res.ok) toast("ok", "Posted successfully");
   }
 
-  async function checkStatus(only: SocialPlatform[] = targets, fromPublish = false) {
-    if (busy && !fromPublish) return;
-    setBusy(true);
-    const res = await fetchSocialStatus(v.id);
-    if (!res.ok) {
-      setResponse(res);
-    } else {
-      // Only the platforms this post was for - older attempts for the other one aren't news.
-      const results = Object.fromEntries(Object.entries(res.results ?? {}).filter(([p]) => only.includes(p as SocialPlatform)));
-      setResponse(
-        Object.keys(results).length > 0
-          ? { ok: true, results }
-          : { ok: false, code: "SERVICE_DOWN", message: "Couldn't confirm the post. Check the platform before trying again, to avoid a duplicate.", retryable: true, action: "retry_later" },
-      );
-    }
-    setBusy(false);
+  async function checkStatus() {
+    if (checking) return;
+    setChecking(true);
+    const ok = await refresh(true);
+    setChecking(false);
+    setPollExpired(false);
+    setPollRun((n) => n + 1);
+    if (!ok) toast("error", "Couldn't check the status. Try again in a minute.");
   }
 
   async function postManually(p: SocialPlatform) {
@@ -314,11 +426,11 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
       footer={
         <>
           <Button size="lg" className="flex-1" onClick={onClose}>
-            {response ? "Close" : "Cancel"}
+            {Object.keys(results).length > 0 || error ? "Close" : "Cancel"}
           </Button>
           <button
             type="submit"
-            disabled={busy || !caption.trim() || overLimit || selected.size === 0}
+            disabled={busy || !statusReady || !caption.trim() || overLimit || selected.size === 0 || sendable.length === 0}
             className="relative inline-flex flex-[2] cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-2.5 text-sm font-bold tracking-wide text-white transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100"
             style={{
               background: brand.gradient,
@@ -401,7 +513,7 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
           <p className="mb-2 flex items-baseline justify-between gap-2 text-sm font-semibold">
             Photos in the post
             <span className="text-xs font-normal text-muted">
-              {selected.size} of {slots.length} selected
+              {selected.size} of {slots.length} selected · More photos take longer to post on Instagram.
             </span>
           </p>
           {slots.length === 0 ? (
@@ -440,50 +552,76 @@ export function SocialShareModal({ vehicle: v, onClose }: { vehicle: Vehicle; on
           )}
         </div>
 
-        {(response || busy) && (
-          <div aria-live="polite">
-            {busy && <PublishingLoader colors={brand.colors} />}
-            {!busy && response?.results && (
-              <ul className="space-y-2.5" style={{ animation: "tw-rise 0.35s ease-out" }}>
-                {(["instagram", "facebook"] as const).map((p) => {
-                  const r = response.results?.[p];
-                  return r ? (
-                    <ResultRow key={p} platform={p} r={r} busy={busy} onRetry={() => publish([p])} onCheck={() => checkStatus([p])} onManual={() => postManually(p)} />
-                  ) : null;
-                })}
-              </ul>
-            )}
-            {!busy && response && !response.results && (
-              <div
-                className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-gradient-to-br from-danger/10 to-transparent p-3.5 text-sm shadow-lg backdrop-blur-md"
-                style={{ animation: "tw-rise 0.35s ease-out" }}
-              >
-                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" />
-                <div className="min-w-0 flex-1">
-                  <p className="break-words font-semibold text-danger">{response.message ?? "Something went wrong. Try again in a minute."}</p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {response.action === "check_status" && (
-                      <Button size="sm" type="button" onClick={() => checkStatus()} disabled={busy}>
-                        <RefreshCw className="size-3.5" /> Check status
-                      </Button>
-                    )}
-                    {response.retryable && response.action !== "check_status" && (
-                      <Button size="sm" type="button" onClick={() => publish()} disabled={busy}>
-                        Try again
-                      </Button>
-                    )}
-                    {response.action?.includes("post_manually") &&
-                      targets.map((p) => (
-                        <Button key={p} size="sm" type="button" onClick={() => postManually(p)} disabled={busy}>
-                          <Copy className="size-3.5" /> Copy caption &amp; open {PLATFORM_LABEL[p]}
-                        </Button>
-                      ))}
-                  </div>
+        {platform === "both" && sendable.length > 0 && sendable.length < 2 && (
+          <p className="text-xs text-muted">Already posted or still publishing on one platform - Publish will post to {PLATFORM_LABEL[sendable[0]]} only.</p>
+        )}
+
+        <div aria-live="polite" className="space-y-2.5">
+          {busy && <PublishingLoader colors={brand.colors} />}
+          {uncertain.length > 0 && (
+            <div className="flex items-start gap-3 rounded-2xl border border-warn/30 bg-gradient-to-br from-warn/10 to-transparent p-3.5 text-sm shadow-lg backdrop-blur-md" style={{ animation: "tw-rise 0.35s ease-out" }}>
+              <Clock className="mt-0.5 size-5 shrink-0 text-warn" />
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-semibold text-warn">
+                  Posting may still be in progress. Check status
+                  <span className="font-normal text-muted"> ({uncertain.map((p) => PLATFORM_LABEL[p]).join(", ")})</span>
+                </p>
+                {pollExpired && <p className="mt-0.5 text-xs text-muted">We stopped checking automatically. Check the status before posting again, to avoid a duplicate.</p>}
+                <div className="mt-2.5">
+                  <Button size="sm" type="button" onClick={checkStatus} disabled={checking}>
+                    {checking ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Check status
+                  </Button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+          {BOTH.some((p) => results[p]) && (
+            <ul className="space-y-2.5" style={{ animation: "tw-rise 0.35s ease-out" }}>
+              {BOTH.map((p) => {
+                const r = results[p];
+                return r ? (
+                  <ResultRow
+                    key={p}
+                    platform={p}
+                    r={r}
+                    busy={busy}
+                    onRetry={() => publish([p])}
+                    onCheck={checkStatus}
+                    onManual={() => postManually(p)}
+                    confirming={confirmReplace === p}
+                    onPostAgain={() => setConfirmReplace(p)}
+                    onCancelReplace={() => setConfirmReplace(null)}
+                    onConfirmReplace={() => publish([p], true)}
+                  />
+                ) : null;
+              })}
+            </ul>
+          )}
+          {!busy && error && (
+            <div
+              className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-gradient-to-br from-danger/10 to-transparent p-3.5 text-sm shadow-lg backdrop-blur-md"
+              style={{ animation: "tw-rise 0.35s ease-out" }}
+            >
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" />
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-semibold text-danger">{error.message ?? "Something went wrong. Try again in a minute."}</p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {error.retryable && error.action !== "fix_input" && (
+                    <Button size="sm" type="button" onClick={() => publish()} disabled={busy}>
+                      Try again
+                    </Button>
+                  )}
+                  {error.action?.includes("post_manually") &&
+                    targets.map((p) => (
+                      <Button key={p} size="sm" type="button" onClick={() => postManually(p)} disabled={busy}>
+                        <Copy className="size-3.5" /> Copy caption &amp; open {PLATFORM_LABEL[p]}
+                      </Button>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </Dialog>
   );

@@ -39,6 +39,8 @@ export interface PublishInput {
   caption: string;
   platforms: SocialPlatform[];
   imageKeys: PhotoSlot[];
+  /** Re-post after the old post was deleted on the platform. Only ever sent as exactly true. */
+  replace?: boolean;
 }
 
 const NETWORK_DOWN: PublishResponse = {
@@ -76,9 +78,12 @@ export async function publishToSocial(input: PublishInput): Promise<PublishRespo
     const res = await fetch("/api/social/publish", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, ...input }),
+      body: JSON.stringify({ requestId, ...input, replace: input.replace === true ? true : undefined }),
     });
-    return (await readJson(res)) ?? { ...UNKNOWN_OUTCOME, requestId };
+    const json = await readJson(res);
+    if (!json) return { ...UNKNOWN_OUTCOME, requestId };
+    // 202 = accepted, still publishing: the outcome isn't known yet whatever the body says.
+    return res.status === 202 ? { ...json, processing: true } : json;
   } catch {
     // The connection dropped mid-request (a proxy timeout, a flaky network): the workflow may still have posted.
     return { ...UNKNOWN_OUTCOME, requestId };

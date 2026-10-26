@@ -13,7 +13,8 @@ export async function POST(req: Request) {
   const { requestId, vehicleId, caption, platforms, imageKeys } = body;
   return callN8n(
     "N8N_SOCIAL_PUBLISH_URL",
-    { method: "POST", body: { requestId, vehicleId, caption, platforms, imageKeys } },
+    // `replace` is forwarded only when it is exactly true (n8n ignores anything else, and no other publish carries it).
+    { method: "POST", body: { requestId, vehicleId, caption, platforms, imageKeys, ...(body.replace === true ? { replace: true } : {}) } },
     typeof requestId === "string" ? requestId : "",
   );
 }

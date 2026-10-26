@@ -41,6 +41,8 @@ export async function callN8n(urlEnv: string, init: { method: "GET" | "POST"; qu
     } catch {
       json = undefined;
     }
+    // Keep a trace of anything that isn't a clean 2xx JSON answer (workflow errors, gateway pages, rejected auth).
+    if (!res.ok || !json || typeof json !== "object") console.error(`Social publish: n8n replied ${res.status} (${urlEnv}): ${text.slice(0, 300)}`);
     if (json && typeof json === "object") return NextResponse.json(json, { status: res.status });
     // n8n answered with something that isn't the workflow's JSON (workflow inactive, gateway error, auth rejected).
     if (res.status === 401 || res.status === 403) {
